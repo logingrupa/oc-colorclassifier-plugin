@@ -843,11 +843,11 @@
 }
 
 .color-lab__lightbox-content {
-    display: flex;
-    gap: 2rem;
-    align-items: center;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
     cursor: default;
-    max-width: 90vw;
+    max-width: 80vw;
     max-height: 85vh;
 }
 

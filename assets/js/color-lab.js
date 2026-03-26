@@ -997,7 +997,7 @@ function showDetailCard(colorEntry) {
             : '')
         + buildDetailImageGroupHtml(null, escapeHtml(colorEntry.hexColor), colorEntry.hexColor, 'color-lab__detail-image--hex')
         + (isPngImage(colorEntry.imageUrl)
-            ? buildDetailOverlayGroupHtml(colorEntry.imageUrl, colorEntry.hexColor)
+            ? buildDetailOverlayGroupHtml(colorEntry.imageUrl, colorEntry.hexColor, colorEntry.id)
             : '')
         + '</div>'
 
@@ -1218,8 +1218,8 @@ function buildDetailImageGroupHtml(imageSrc, label, backgroundColor, extraClass)
  * @param {string} hexColor - Background hex color.
  * @returns {string} HTML string.
  */
-function buildDetailOverlayGroupHtml(imageUrl, hexColor) {
-    return '<div class="color-lab__detail-image-group" data-lightbox-src="' + escapeHtmlAttribute(imageUrl) + '" data-lightbox-blend="' + escapeHtmlAttribute(hexColor) + '">'
+function buildDetailOverlayGroupHtml(imageUrl, hexColor, entryId) {
+    return '<div class="color-lab__detail-image-group" data-lightbox-entry="' + entryId + '">'
         + '<div class="color-lab__detail-image color-lab__detail-image--blend" style="background:' + escapeHtml(hexColor) + ';">'
         + '    <img src="' + escapeHtml(imageUrl) + '" alt="Overlay" loading="lazy">'
         + '</div>'
