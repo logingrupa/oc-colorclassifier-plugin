@@ -4,7 +4,7 @@
 **Current milestone:** v1.0 — Core Features
 **Current phase:** Maintenance
 
-Last activity: 2026-03-26 - Completed quick task 6: mobile filter sidebar converted to fixed overlay, reclaims full vertical space
+Last activity: 2026-03-26 - Completed quick task 7: mobile detail card converted to bottom sheet with swipe-to-dismiss gesture
 
 ### Blockers/Concerns
 
@@ -19,3 +19,4 @@ None
 | 4 | Batch processing popup modal with live progress, ETA, and close warning | 2026-03-26 | bd6c886 | .planning/quick/4-move-batch-processing-into-octobercms-po/ |
 | 5 | Mobile 3D scatter view height — calc(100vh - 160px) instead of 60vh | 2026-03-26 | 4742a3e | .planning/quick/5-on-mobile-devices-3d-view-is-too-small-m/ |
 | 6 | Mobile filter sidebar as fixed overlay — hidden by default, reclaims full vertical space | 2026-03-26 | 18fdfc5 | .planning/quick/6-mobile-reclaim-space-when-filters-hidden/ |
+| 7 | Mobile detail card as bottom sheet with swipe-to-dismiss gesture (velocity + distance thresholds) | 2026-03-26 | 7d7e1bc | .planning/quick/7-add-swipe-to-close-gesture-for-detail-sh/ |
