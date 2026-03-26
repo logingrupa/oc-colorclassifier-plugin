@@ -1,0 +1,23 @@
+<div class="modal-header">
+    <h4 class="modal-title">Color Classifier Settings</h4>
+    <button type="button" class="btn-close" data-dismiss="modal"></button>
+</div>
+<div class="modal-body">
+    <?= $settingsFormWidget->render() ?>
+</div>
+<div class="modal-footer">
+    <button
+        type="submit"
+        class="btn btn-primary"
+        data-request="onSaveSettings"
+        data-request-close-popup
+        data-stripe-load-indicator>
+        Save Settings
+    </button>
+    <button
+        type="button"
+        class="btn btn-default"
+        data-dismiss="modal">
+        Cancel
+    </button>
+</div>

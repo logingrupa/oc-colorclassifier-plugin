@@ -3,10 +3,12 @@
 namespace Logingrupa\ColorClassifier\Controllers;
 
 use Backend\Classes\Controller;
+use Backend\Widgets\Form;
 use BackendMenu;
 use Flash;
 use Logingrupa\ColorClassifier\Classes\BatchProcessor;
 use Logingrupa\ColorClassifier\Models\ColorEntry;
+use Logingrupa\ColorClassifier\Models\Settings;
 
 /**
  * ColorEntries Backend Controller — manages the color classification list view.
@@ -133,6 +135,46 @@ class ColorEntries extends Controller
         Flash::success("Re-processed {$processed} of " . count($selectedIds) . " entries" . ($failed ? ", {$failed} failed." : "."));
 
         return $this->listRefresh();
+    }
+
+    /**
+     * AJAX handler — open the Settings popup with a form widget bound to the Settings model.
+     *
+     * Initialises a Backend Form widget using the Settings model instance and
+     * its fields.yaml configuration, then renders the settings_popup partial.
+     *
+     * @return string Rendered popup partial HTML.
+     */
+    public function onLoadSettingsPopup(): string
+    {
+        $obSettings = Settings::instance();
+
+        $obFormWidget = new Form($this, [
+            'model'     => $obSettings,
+            'fields'    => $obSettings->getFieldConfig(),
+            'arrayName' => 'Settings',
+        ]);
+
+        $obFormWidget->init();
+
+        return $this->makePartial('settings_popup', ['settingsFormWidget' => $obFormWidget]);
+    }
+
+    /**
+     * AJAX handler — persist submitted settings form data to system_settings.
+     *
+     * Fills the Settings model from the posted 'Settings' form array and saves
+     * it to the system_settings table. Flashes a success message on completion.
+     *
+     * @return void
+     */
+    public function onSaveSettings(): void
+    {
+        $obSettings = Settings::instance();
+        $obSettings->fill(post('Settings', []));
+        $obSettings->save();
+
+        Flash::success('Settings saved successfully.');
     }
 
     /**
