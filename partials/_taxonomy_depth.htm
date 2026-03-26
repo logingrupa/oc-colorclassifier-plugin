@@ -1,0 +1,9 @@
+<?php
+    $taxonomy = $record->taxonomy;
+    $depth = is_array($taxonomy) ? ($taxonomy['depth'] ?? null) : null;
+?>
+<?php if ($depth): ?>
+    <span><?= e(ucfirst($depth)) ?></span>
+<?php else: ?>
+    <span class="text-muted">—</span>
+<?php endif ?>

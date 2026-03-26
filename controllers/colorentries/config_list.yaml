@@ -1,14 +1,28 @@
+# ===================================
+#  List Behavior Config
+# ===================================
+
+title: Color Classifier
 list: $/logingrupa/colorclassifier/models/colorentry/columns.yaml
 modelClass: Logingrupa\ColorClassifier\Models\ColorEntry
-title: Color Classifier
-noRecordsMessage: No color entries found. Click "Process All" to analyze product colors.
+
 recordUrl: false
-showCheckboxes: false
-recordsPerPage: 50
+noRecordsMessage: No color entries found. Click "Process All" to analyze product colors.
+
+recordsPerPage: 20
+perPageOptions: [10, 20, 50, 100, 200]
+
+showSetup: true
+showSorting: true
+showCheckboxes: true
+showPagination: true
+showPageNumbers: true
+
+defaultSort:
+    column: product_name
+    direction: asc
+
 toolbar:
     buttons: list_toolbar
     search:
-        prompt: Search by product name or color...
-defaultSort:
-    column: processed_at
-    direction: desc
+        prompt: Search by product name, variation, or color...

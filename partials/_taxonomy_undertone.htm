@@ -1,0 +1,9 @@
+<?php
+    $taxonomy = $record->taxonomy;
+    $undertone = is_array($taxonomy) ? ($taxonomy['undertone'] ?? null) : null;
+?>
+<?php if ($undertone): ?>
+    <span><?= e(ucfirst($undertone)) ?></span>
+<?php else: ?>
+    <span class="text-muted">—</span>
+<?php endif ?>

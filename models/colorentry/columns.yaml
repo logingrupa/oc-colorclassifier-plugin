@@ -1,38 +1,80 @@
+# ===================================
+#  Color Entry Column Definitions
+# ===================================
+
 columns:
-    offer_id:
-        label: Offer ID
-        searchable: true
+    id:
+        label: ID
         sortable: true
+        invisible: true
+        width: 60px
 
     product_name:
-        label: Product Name
+        label: Product
         searchable: true
         sortable: true
 
     variation_name:
         label: Variation
         searchable: true
+        sortable: true
 
     hex_color:
         label: Color
         type: partial
         path: $/logingrupa/colorclassifier/partials/_color_swatch.htm
+        sortable: true
+        width: 140px
 
     color_name:
         label: Color Name
         searchable: true
         sortable: true
 
-    taxonomy:
+    taxonomy_family:
         label: Family
         type: partial
         path: $/logingrupa/colorclassifier/partials/_taxonomy_family.htm
+        sortable: false
+
+    taxonomy_undertone:
+        label: Undertone
+        type: partial
+        path: $/logingrupa/colorclassifier/partials/_taxonomy_undertone.htm
+        sortable: false
+        invisible: true
+
+    taxonomy_depth:
+        label: Depth
+        type: partial
+        path: $/logingrupa/colorclassifier/partials/_taxonomy_depth.htm
+        sortable: false
+        invisible: true
+
+    taxonomy_saturation:
+        label: Saturation
+        type: partial
+        path: $/logingrupa/colorclassifier/partials/_taxonomy_saturation.htm
+        sortable: false
+        invisible: true
 
     confidence_score:
         label: Confidence
         sortable: true
+        width: 100px
+
+    offer_id:
+        label: Offer ID
+        searchable: true
+        sortable: true
+        invisible: true
+
+    image_url:
+        label: Image URL
+        invisible: true
 
     processed_at:
-        label: Processed At
-        type: datetime
+        label: Processed
+        type: timetense
         sortable: true
+        width: 130px

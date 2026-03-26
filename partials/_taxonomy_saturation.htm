@@ -1,0 +1,9 @@
+<?php
+    $taxonomy = $record->taxonomy;
+    $saturation = is_array($taxonomy) ? ($taxonomy['saturation'] ?? null) : null;
+?>
+<?php if ($saturation): ?>
+    <span><?= e(ucfirst($saturation)) ?></span>
+<?php else: ?>
+    <span class="text-muted">—</span>
+<?php endif ?>
