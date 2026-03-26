@@ -21,6 +21,7 @@
         </div>
     </div>
     <div class="color-lab__body">
+        <button class="color-lab__sidebar-toggle" aria-label="Toggle filters" title="Toggle filters">&#9776;</button>
         <aside class="color-lab__sidebar">
             <div class="color-lab__filter-header">
                 <h2 class="color-lab__filter-title">

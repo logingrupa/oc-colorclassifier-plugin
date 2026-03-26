@@ -103,6 +103,45 @@
     grid-template-columns: var(--color-lab-sidebar-width) 1fr;
     gap: 0;
     min-height: calc(100vh - var(--color-lab-header-height));
+    position: relative;
+    transition: grid-template-columns 0.25s ease;
+}
+
+.color-lab__body--sidebar-collapsed {
+    grid-template-columns: 0px 1fr;
+}
+
+/* ─── Sidebar Toggle ──────────────────────────────────────────────────────── */
+
+.color-lab__sidebar-toggle {
+    position: absolute;
+    top: 0.5rem;
+    left: var(--color-lab-sidebar-width);
+    z-index: 10;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--color-lab-color-border);
+    border-radius: 0 6px 6px 0;
+    background: var(--color-lab-color-surface);
+    color: var(--color-lab-color-text-muted);
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: left 0.25s ease, background 0.15s;
+    padding: 0;
+    line-height: 1;
+}
+
+.color-lab__sidebar-toggle:hover {
+    background: #fff;
+    color: var(--color-lab-color-text);
+}
+
+.color-lab__body--sidebar-collapsed .color-lab__sidebar-toggle {
+    left: 0;
+    border-radius: 0 6px 6px 0;
 }
 
 /* ─── Sidebar ─────────────────────────────────────────────────────────────── */
@@ -112,10 +151,19 @@
     top: var(--color-lab-header-height);
     height: calc(100vh - var(--color-lab-header-height));
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 1rem;
     border-right: 1px solid var(--color-lab-color-border);
     background: var(--color-lab-color-surface);
     box-sizing: border-box;
+    transition: opacity 0.2s ease, padding 0.25s ease;
+}
+
+.color-lab__body--sidebar-collapsed .color-lab__sidebar {
+    opacity: 0;
+    padding: 0;
+    pointer-events: none;
+    overflow: hidden;
 }
 
 .color-lab__filter-header {

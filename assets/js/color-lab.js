@@ -177,6 +177,7 @@ function initializeColorLab() {
     attachClearButtonListener();
     attachGridInteractionListeners();
     attachDetailCardCloseListeners();
+    attachSidebarToggleListener();
 
     restoreStateFromUrl();
     renderActiveView();
@@ -1086,6 +1087,22 @@ function attachDetailCardCloseListeners() {
         if (keyEvent.key === 'Escape' && state.selectedEntryId !== null) {
             deselectColorEntry();
         }
+    });
+}
+
+/** @returns {void} */
+function attachSidebarToggleListener() {
+    var toggleButton = document.querySelector('.color-lab__sidebar-toggle');
+    if (!toggleButton) { return; }
+
+    toggleButton.addEventListener('click', function() {
+        var bodyElement = document.querySelector('.color-lab__body');
+        if (!bodyElement) { return; }
+
+        bodyElement.classList.toggle('color-lab__body--sidebar-collapsed');
+        var isCollapsed = bodyElement.classList.contains('color-lab__body--sidebar-collapsed');
+        toggleButton.innerHTML = isCollapsed ? '&#9654;' : '&#9776;';
+        toggleButton.title = isCollapsed ? 'Show filters' : 'Hide filters';
     });
 }
 

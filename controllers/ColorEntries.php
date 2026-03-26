@@ -140,8 +140,10 @@ class ColorEntries extends Controller
     /**
      * AJAX handler — open the Settings popup with a form widget bound to the Settings model.
      *
-     * Initialises a Backend Form widget using the Settings model instance and
-     * its fields.yaml configuration, then renders the settings_popup partial.
+     * Builds a Form widget config by starting from the model's field config object
+     * (a stdClass with a tabs property), then augments it with model and arrayName
+     * before passing it to makeWidget(). This mirrors the pattern used by the
+     * system Settings controller and ensures tabs/fields are resolved correctly.
      *
      * @return string Rendered popup partial HTML.
      */
@@ -149,13 +151,12 @@ class ColorEntries extends Controller
     {
         $obSettings = Settings::instance();
 
-        $obFormWidget = new Form($this, [
-            'model'     => $obSettings,
-            'fields'    => $obSettings->getFieldConfig(),
-            'arrayName' => 'Settings',
-        ]);
+        $obConfig             = $obSettings->getFieldConfig();
+        $obConfig->model      = $obSettings;
+        $obConfig->arrayName  = 'Settings';
 
-        $obFormWidget->init();
+        $obFormWidget = $this->makeWidget(Form::class, $obConfig);
+        $obFormWidget->bindToController();
 
         return $this->makePartial('settings_popup', ['settingsFormWidget' => $obFormWidget]);
     }
