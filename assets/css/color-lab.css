@@ -412,7 +412,7 @@
 /* ─── Content Area ────────────────────────────────────────────────────────── */
 
 .color-lab__content {
-    overflow: auto;
+    overflow: hidden;
     padding: 1rem;
     box-sizing: border-box;
 }
@@ -420,7 +420,7 @@
 /* ─── 2D Column Grid View ─────────────────────────────────────────────────── */
 
 .color-lab__grid-view {
-    overflow-x: auto;
+    overflow: auto;
 }
 
 .color-lab__columns {
@@ -643,9 +643,15 @@
 /* ─── 3D Scatter View ─────────────────────────────────────────────────────── */
 
 .color-lab__scatter-view {
-    width: 100%;
+    width: 140%;
+    margin-left: -20%;
     height: calc(100vh - 200px);
     min-height: 500px;
+    background: white;
+}
+
+.color-lab__scatter-view .modebar-container {
+    right: 15% !important;
 }
 
 .color-lab__scatter-view[hidden] {
@@ -1048,6 +1054,7 @@
 
     .color-lab__content {
         padding: 0;
+        overflow: hidden;
     }
 
     .color-lab__grid-view {
@@ -1061,14 +1068,14 @@
     }
 
     .color-lab__scatter-view {
-        height: calc(100vh - 160px);
-        min-height: 400px;
-        overflow: hidden;
-        background: black; /* DEBUG: remove after testing */
+        width: 160%;
+        margin-left: -30%;
+        height: calc(100vh - 60px);
+        min-height: 500px;
+        background: white;
     }
 
-    .color-lab__scatter-view .js-plotly-plot {
-        transform: scale(1.25);
-        transform-origin: center center;
+    .color-lab__scatter-view .modebar-container {
+        right: 19% !important;
     }
 }
