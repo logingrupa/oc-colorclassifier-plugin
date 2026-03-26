@@ -1,0 +1,4 @@
+useList: true
+export:
+    modelClass: Logingrupa\ColorClassifier\Exports\ColorEntryExport
+    fileName: color-entries.csv

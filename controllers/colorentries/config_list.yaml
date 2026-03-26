@@ -1,0 +1,14 @@
+modelClass: Logingrupa\ColorClassifier\Models\ColorEntry
+title: Color Classifier
+noRecordsMessage: No color entries found. Click "Process All" to analyze product colors.
+recordUrl: false
+showCheckboxes: false
+recordsPerPage: 50
+toolbar:
+    buttons: list_toolbar
+    search:
+        prompt: Search by product name or color...
+defaultSort:
+    column: processed_at
+    direction: desc
+columns: $/logingrupa/colorclassifier/models/colorentry/columns.yaml

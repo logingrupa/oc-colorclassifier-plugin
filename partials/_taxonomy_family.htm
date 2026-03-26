@@ -1,0 +1,11 @@
+<?php
+    $taxonomy = $record->taxonomy;
+    $family = is_array($taxonomy) ? ($taxonomy['family'] ?? null) : null;
+?>
+<?php if ($family): ?>
+    <span class="label" style="background:<?= e($record->hex_color ?? '#999') ?>;color:<?= ($record->oklch_values['lightness'] ?? 0.5) > 0.6 ? '#000' : '#fff' ?>;padding:2px 8px;border-radius:3px;">
+        <?= e(ucfirst($family)) ?>
+    </span>
+<?php else: ?>
+    <span class="text-muted">—</span>
+<?php endif ?>

@@ -1,0 +1,38 @@
+columns:
+    offer_id:
+        label: Offer ID
+        searchable: true
+        sortable: true
+
+    product_name:
+        label: Product Name
+        searchable: true
+        sortable: true
+
+    variation_name:
+        label: Variation
+        searchable: true
+
+    hex_color:
+        label: Color
+        type: partial
+        path: $/logingrupa/colorclassifier/partials/_color_swatch.htm
+
+    color_name:
+        label: Color Name
+        searchable: true
+        sortable: true
+
+    taxonomy:
+        label: Family
+        type: partial
+        path: $/logingrupa/colorclassifier/partials/_taxonomy_family.htm
+
+    confidence_score:
+        label: Confidence
+        sortable: true
+
+    processed_at:
+        label: Processed At
+        type: datetime
+        sortable: true

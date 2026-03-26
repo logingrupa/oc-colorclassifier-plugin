@@ -1,0 +1,26 @@
+<div data-control="toolbar">
+    <button
+        class="btn btn-primary oc-icon-refresh"
+        data-request="onProcessAll"
+        data-request-confirm="This will re-process ALL offers. Continue?"
+        data-stripe-load-indicator>
+        Process All
+    </button>
+
+    <button
+        class="btn btn-default oc-icon-plus"
+        data-request="onProcessNew"
+        data-stripe-load-indicator>
+        Process New
+    </button>
+
+    <a
+        href="<?= Backend::url('logingrupa/colorclassifier/colorentries/export') ?>"
+        class="btn btn-default oc-icon-download">
+        Export CSV
+    </a>
+
+    <div id="processingProgress" style="display:none" class="processing-progress-wrapper">
+        <div class="processing-progress-bar"></div>
+    </div>
+</div>

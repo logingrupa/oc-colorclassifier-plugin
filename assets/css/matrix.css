@@ -1,0 +1,65 @@
+/**
+ * matrix.css — Backend styles for the Color Classifier plugin.
+ *
+ * Provides color swatch display, palette cell layout, and progress bar
+ * styling for the color entries list view. OctoberCMS backend includes
+ * Bootstrap — only plugin-specific overrides are defined here.
+ */
+
+/* Color swatch circle — used in the hex_color list column */
+.color-swatch-cell {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid #ccc;
+    vertical-align: middle;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+/* Wrapper for swatch + hex text in list column */
+.color-swatch-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Color palette row — 5 small color circles */
+.color-palette-cell {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    align-items: center;
+}
+
+/* Individual palette color circle */
+.color-palette-swatch {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid #ddd;
+    flex-shrink: 0;
+}
+
+/* Processing progress bar wrapper */
+.processing-progress-wrapper {
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 12px;
+    width: 200px;
+    height: 4px;
+    background: #e0e0e0;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+/* Processing progress bar fill */
+.processing-progress-bar {
+    height: 4px;
+    background: #4da7e8;
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 2px;
+}

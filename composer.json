@@ -1,0 +1,26 @@
+{
+    "name": "logingrupa/oc-colorclassifier-plugin",
+    "type": "october-plugin",
+    "description": "Gel polish color extraction and taxonomy classification for OctoberCMS",
+    "keywords": ["october", "octobercms", "plugin", "color", "classifier"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Logingrupa"
+        }
+    ],
+    "require": {
+        "php": ">=8.1",
+        "ext-gd": "*",
+        "october/rain": "^3.7|^4.0",
+        "october/system": "^3.7|^4.0",
+        "lovata/toolbox-plugin": "^2.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Logingrupa\\ColorClassifier\\": ""
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

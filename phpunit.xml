@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    bootstrap="tests/bootstrap.php"
+    colors="true"
+    stopOnFailure="false"
+>
+    <testsuites>
+        <testsuite name="ColorClassifier Unit Tests">
+            <directory>tests/unit</directory>
+        </testsuite>
+        <testsuite name="ColorClassifier Functional Tests">
+            <directory>tests/functional</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>

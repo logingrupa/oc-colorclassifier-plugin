@@ -1,0 +1,61 @@
+fields:
+    offer_id:
+        label: Offer ID
+        type: text
+        span: left
+
+    product_name:
+        label: Product Name
+        type: text
+        span: right
+
+    variation_name:
+        label: Variation Name
+        type: text
+        span: left
+
+    hex_color:
+        label: Hex Color
+        type: text
+        span: right
+        comment: Dominant color as #RRGGBB hex string
+
+    image_url:
+        label: Image URL
+        type: text
+        span: full
+
+    color_name:
+        label: Color Name
+        type: text
+        span: left
+
+    confidence_score:
+        label: Confidence Score
+        type: number
+        span: right
+        comment: Classification confidence (0.00 – 1.00)
+
+    oklch_values:
+        label: OKLCH Values
+        type: codeeditor
+        language: json
+        span: full
+
+    palette_colors:
+        label: Palette Colors
+        type: codeeditor
+        language: json
+        span: full
+
+    taxonomy:
+        label: Taxonomy
+        type: codeeditor
+        language: json
+        span: full
+
+    processed_at:
+        label: Processed At
+        type: datepicker
+        mode: datetime
+        span: left
