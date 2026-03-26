@@ -1,16 +1,25 @@
 <div data-control="toolbar">
+    <div class="batch-size-group">
+        <label for="batchSizeInput" class="batch-size-label">Batch size</label>
+        <input
+            id="batchSizeInput"
+            type="number"
+            class="form-control batch-size-input"
+            value="5"
+            min="1"
+            max="50"
+            step="1" />
+    </div>
+
     <button
-        class="btn btn-primary oc-icon-refresh"
-        data-request="onProcessAll"
-        data-request-confirm="This will re-process ALL offers. Continue?"
-        data-stripe-load-indicator>
+        id="btnProcessAll"
+        class="btn btn-primary oc-icon-refresh">
         Process All
     </button>
 
     <button
-        class="btn btn-default oc-icon-plus"
-        data-request="onProcessNew"
-        data-stripe-load-indicator>
+        id="btnProcessNew"
+        class="btn btn-default oc-icon-plus">
         Process New
     </button>
 
@@ -49,6 +58,9 @@
     </button>
 
     <div id="processingProgress" style="display:none" class="processing-progress-wrapper">
-        <div class="processing-progress-bar"></div>
+        <div class="processing-progress-track">
+            <div class="processing-progress-bar"></div>
+        </div>
+        <span id="processingProgressText" class="processing-progress-text"></span>
     </div>
 </div>

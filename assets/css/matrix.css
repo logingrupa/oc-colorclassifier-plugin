@@ -43,11 +43,44 @@
     flex-shrink: 0;
 }
 
-/* Processing progress bar wrapper */
+/* Batch size input group — label + number input inline in toolbar */
+.batch-size-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
+/* Label for the batch size input */
+.batch-size-label {
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
+    margin: 0;
+    font-weight: normal;
+}
+
+/* Compact number input for batch size */
+.batch-size-input {
+    width: 60px;
+    height: 32px;
+    padding: 4px 6px;
+    font-size: 13px;
+    text-align: center;
+}
+
+/* Processing progress wrapper — flex layout for bar + text */
 .processing-progress-wrapper {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     vertical-align: middle;
     margin-left: 12px;
+}
+
+/* Processing progress bar track */
+.processing-progress-track {
     width: 200px;
     height: 4px;
     background: #e0e0e0;
@@ -62,4 +95,11 @@
     width: 0%;
     transition: width 0.3s ease;
     border-radius: 2px;
+}
+
+/* Processing progress text counter */
+.processing-progress-text {
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
 }
