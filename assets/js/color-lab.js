@@ -562,11 +562,17 @@ function renderGridView() {
         var familyDotColor = FAMILY_DOT_COLORS[family] || '#999';
         var familyDepths = columnData[family] || {};
 
+        var familyColorCount = 0;
+        Object.keys(familyDepths).forEach(function(depthKey) {
+            familyColorCount += familyDepths[depthKey].length;
+        });
+
         htmlParts.push('<div class="color-lab__column">');
         htmlParts.push(
             '<div class="color-lab__column-header">'
             + '<span class="color-lab__column-dot" style="background:' + familyDotColor + ';"></span>'
             + '<span class="color-lab__column-title">' + family + '</span>'
+            + '<span class="color-lab__column-count">' + familyColorCount + '</span>'
             + '</div>'
         );
 
