@@ -1046,7 +1046,12 @@
         cursor: pointer;
     }
 
+    .color-lab__content {
+        padding: 0;
+    }
+
     .color-lab__grid-view {
+        padding: 1rem;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
     }
