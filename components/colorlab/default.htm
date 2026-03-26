@@ -1,0 +1,40 @@
+<section class="color-lab" data-product-url="{{ colorLabProductUrl }}">
+    <div class="color-lab__header">
+        <div class="color-lab__header-left">
+            <h1 class="color-lab__title">{{ colorLabPageTitle }}</h1>
+            <p class="color-lab__subtitle">OKLCH Color Space Explorer — {{ colorLabEntryCount }} product colors</p>
+        </div>
+        <div class="color-lab__view-toggle">
+            <button class="color-lab__view-button color-lab__view-button--active" data-view="grid">Color Grid</button>
+            <button class="color-lab__view-button" data-view="scatter">3D Explorer</button>
+        </div>
+    </div>
+    <div class="color-lab__body">
+        <aside class="color-lab__sidebar">
+            <div class="color-lab__filter-header">
+                <h2 class="color-lab__filter-title">
+                    Filters <span class="color-lab__filter-badge" hidden>0</span>
+                </h2>
+                <button class="color-lab__clear-button" hidden>Clear All</button>
+            </div>
+            <div class="color-lab__filter-groups">
+                <!-- JS populates filter groups from taxonomy data -->
+            </div>
+        </aside>
+        <main class="color-lab__content">
+            <div class="color-lab__grid-view" id="colorLabGrid"></div>
+            <div class="color-lab__scatter-view" id="colorLabScatter" hidden></div>
+        </main>
+    </div>
+</section>
+
+{% if colorLabPlotlyCdn %}
+    {% put scripts %}
+        <script src="{{ colorLabPlotlyCdn }}"></script>
+    {% endput %}
+{% endif %}
+
+<script>
+    window.__COLOR_LAB_DATA__     = {{ colorLabEntriesJson|raw }};
+    window.__COLOR_LAB_TAXONOMY__ = {{ colorLabTaxonomyJson|raw }};
+</script>

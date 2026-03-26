@@ -30,6 +30,18 @@ class Plugin extends PluginBase
     }
 
     /**
+     * Registers frontend components provided by this plugin.
+     *
+     * @return array<string, string>
+     */
+    public function registerComponents(): array
+    {
+        return [
+            \Logingrupa\ColorClassifier\Components\ColorLab::class => 'colorLab',
+        ];
+    }
+
+    /**
      * Registers backend navigation items for this plugin.
      *
      * @return array<string, mixed>
