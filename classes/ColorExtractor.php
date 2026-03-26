@@ -13,8 +13,8 @@ namespace Logingrupa\ColorClassifier\Classes;
  */
 class ColorExtractor
 {
-    /** @var int Default size in pixels for the center-crop square. */
-    private const DEFAULT_CROP_SIZE_PIXELS = 100;
+    /** @var int Size in pixels for the center-crop sampling region. */
+    private const DEFAULT_CROP_SIZE_PIXELS = 50;
 
     /** @var int Number of Gaussian blur passes to apply. */
     private const DEFAULT_BLUR_PASSES = 10;
@@ -59,25 +59,42 @@ class ColorExtractor
     }
 
     /**
-     * Crop a GD image to a centered square of the specified size.
+     * Crop a fixed-size square from the exact center of the source image.
      *
-     * Calculates the largest square that fits in the source image,
-     * centered both horizontally and vertically, then resamples it
-     * to the target size.
+     * Takes exactly squareSize x squareSize pixels from the center of the
+     * original image without resampling. If the source image is smaller than
+     * the requested crop size, falls back to resampling the largest centered
+     * square down to the target size.
      *
      * @param \GdImage $sourceImage The GD image to crop.
-     * @param int      $squareSize  Target output size in pixels.
+     * @param int      $squareSize  Exact pixel size to extract from center.
      *
-     * @return \GdImage Cropped and resampled square image.
+     * @return \GdImage Cropped square image.
      */
     public static function cropCenterSquare(\GdImage $sourceImage, int $squareSize = self::DEFAULT_CROP_SIZE_PIXELS): \GdImage
     {
         $sourceWidth  = imagesx($sourceImage);
         $sourceHeight = imagesy($sourceImage);
 
-        $squareSide    = min($sourceWidth, $sourceHeight);
-        $cropOffsetX   = (int) (($sourceWidth  - $squareSide) / 2);
-        $cropOffsetY   = (int) (($sourceHeight - $squareSide) / 2);
+        if ($sourceWidth >= $squareSize && $sourceHeight >= $squareSize) {
+            $cropOffsetX = (int) (($sourceWidth  - $squareSize) / 2);
+            $cropOffsetY = (int) (($sourceHeight - $squareSize) / 2);
+
+            $croppedImage = imagecreatetruecolor($squareSize, $squareSize);
+            imagecopy(
+                $croppedImage,
+                $sourceImage,
+                0, 0,
+                $cropOffsetX, $cropOffsetY,
+                $squareSize, $squareSize
+            );
+
+            return $croppedImage;
+        }
+
+        $smallerSide = min($sourceWidth, $sourceHeight);
+        $cropOffsetX = (int) (($sourceWidth  - $smallerSide) / 2);
+        $cropOffsetY = (int) (($sourceHeight - $smallerSide) / 2);
 
         $croppedImage = imagecreatetruecolor($squareSize, $squareSize);
         imagecopyresampled(
@@ -86,7 +103,7 @@ class ColorExtractor
             0, 0,
             $cropOffsetX, $cropOffsetY,
             $squareSize, $squareSize,
-            $squareSide, $squareSide
+            $smallerSide, $smallerSide
         );
 
         return $croppedImage;
