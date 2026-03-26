@@ -231,7 +231,7 @@ var FAMILY_DOT_COLORS = {
     'Cyan': '#00ACC1', 'Blue': '#1E88E5', 'Navy': '#283593', 'Indigo': '#3949AB',
     'Violet': '#7E57C2', 'Purple': '#8E24AA', 'Magenta': '#D81B60', 'Pink': '#EC407A',
     'Rose': '#F48FB1', 'Brown': '#6D4C41', 'Beige': '#D7CCC8', 'Nude': '#EFEBE9',
-    'White': '#FAFAFA', 'Black': '#212121',
+    'Grey': '#9E9E9E', 'White': '#FAFAFA', 'Black': '#212121',
 };
 
 /**

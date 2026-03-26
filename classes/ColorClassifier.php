@@ -14,8 +14,11 @@ namespace Logingrupa\ColorClassifier\Classes;
  */
 class ColorClassifier
 {
-    /** @var float Saturation threshold below which a color is considered achromatic. */
+    /** @var float Saturation threshold below which a color is pure achromatic (grey/white/black). */
     private const ACHROMATIC_SATURATION_THRESHOLD = 5.0;
+
+    /** @var float Saturation threshold for near-achromatic zone (could be nude/beige if warm-hued). */
+    private const NEAR_ACHROMATIC_SATURATION_THRESHOLD = 15.0;
 
     /** @var float Lightness threshold above which an achromatic color is White. */
     private const WHITE_LIGHTNESS_THRESHOLD = 90.0;
@@ -91,21 +94,27 @@ class ColorClassifier
      */
     public static function determineColorFamily(float $hue, float $saturation, float $lightness): string
     {
+        // Pure achromatic: no color at all → White / Grey / Black
         if ($saturation < self::ACHROMATIC_SATURATION_THRESHOLD) {
-            return self::classifyAchromaticFamily($lightness);
+            return self::classifyPureAchromatic($lightness);
+        }
+
+        // Near-achromatic with warm hue: could be Nude/Beige (skin tones)
+        if ($saturation < self::NEAR_ACHROMATIC_SATURATION_THRESHOLD) {
+            return self::classifyNearAchromatic($hue, $lightness);
         }
 
         return self::classifyChromatic($hue, $saturation, $lightness);
     }
 
     /**
-     * Classify achromatic colors (near-zero saturation) by lightness.
+     * Classify pure achromatic colors (saturation < 5%) — true greys.
      *
      * @param float $lightness Lightness in [0, 100].
      *
-     * @return string One of: 'White', 'Beige', 'Nude', 'Brown', 'Black'.
+     * @return string One of: 'White', 'Grey', 'Black'.
      */
-    private static function classifyAchromaticFamily(float $lightness): string
+    private static function classifyPureAchromatic(float $lightness): string
     {
         if ($lightness > self::WHITE_LIGHTNESS_THRESHOLD) {
             return 'White';
@@ -115,19 +124,46 @@ class ColorClassifier
             return 'Black';
         }
 
-        if ($lightness > 75) {
+        return 'Grey';
+    }
+
+    /**
+     * Classify near-achromatic colors (saturation 5-15%).
+     *
+     * Warm hues (0-60° and 330-360°) at this low saturation are skin-tone
+     * colors: Nude (medium lightness) or Beige (light). Cool or neutral
+     * hues remain Grey.
+     *
+     * @param float $hue       Hue in [0, 360].
+     * @param float $lightness Lightness in [0, 100].
+     *
+     * @return string One of: 'White', 'Beige', 'Nude', 'Brown', 'Grey', 'Black'.
+     */
+    private static function classifyNearAchromatic(float $hue, float $lightness): string
+    {
+        if ($lightness > self::WHITE_LIGHTNESS_THRESHOLD) {
+            return 'White';
+        }
+
+        if ($lightness < self::BLACK_LIGHTNESS_THRESHOLD) {
+            return 'Black';
+        }
+
+        $isWarmHue = ($hue <= 60) || ($hue >= 330);
+
+        if (!$isWarmHue) {
+            return 'Grey';
+        }
+
+        if ($lightness > 70) {
             return 'Beige';
         }
 
-        if ($lightness > 50) {
+        if ($lightness > 40) {
             return 'Nude';
         }
 
-        if ($lightness > 25) {
-            return 'Brown';
-        }
-
-        return 'Black';
+        return 'Brown';
     }
 
     /**

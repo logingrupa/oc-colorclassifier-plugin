@@ -40,6 +40,7 @@ class Taxonomy
         'Brown',
         'Beige',
         'Nude',
+        'Grey',
         'White',
         'Black',
     ];
