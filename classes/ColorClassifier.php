@@ -2,6 +2,8 @@
 
 namespace Logingrupa\ColorClassifier\Classes;
 
+use Logingrupa\ColorClassifier\Models\Settings;
+
 /**
  * ColorClassifier — Taxonomy classification from RGB color values.
  *
@@ -10,45 +12,94 @@ namespace Logingrupa\ColorClassifier\Classes;
  * saturation, finish (always null — cannot detect from image), and opacity
  * (defaults to Opaque).
  *
+ * Classification thresholds are read from the Settings model at runtime.
+ * Fallback constants are used when the database is unavailable (e.g. tests).
+ *
  * @package Logingrupa\ColorClassifier\Classes
  */
 class ColorClassifier
 {
-    /** @var float Saturation threshold below which a color is pure achromatic (grey/white/black). */
-    private const ACHROMATIC_SATURATION_THRESHOLD = 5.0;
+    /** @var float Fallback achromatic saturation threshold when Settings model is unavailable. */
+    private const FALLBACK_ACHROMATIC_SATURATION_THRESHOLD = 5.0;
 
-    /** @var float Saturation threshold for near-achromatic zone (could be nude/beige if warm-hued). */
+    /** @var float Saturation threshold for near-achromatic zone (not configurable — internal heuristic). */
     private const NEAR_ACHROMATIC_SATURATION_THRESHOLD = 15.0;
 
-    /** @var float Lightness threshold above which an achromatic color is White. */
-    private const WHITE_LIGHTNESS_THRESHOLD = 90.0;
+    /** @var float Fallback white lightness threshold when Settings model is unavailable. */
+    private const FALLBACK_WHITE_LIGHTNESS_THRESHOLD = 90.0;
 
-    /** @var float Lightness threshold below which an achromatic color is Black. */
-    private const BLACK_LIGHTNESS_THRESHOLD = 10.0;
+    /** @var float Fallback black lightness threshold when Settings model is unavailable. */
+    private const FALLBACK_BLACK_LIGHTNESS_THRESHOLD = 10.0;
 
-    /** @var float Lightness threshold above which depth is Very Light. */
-    private const VERY_LIGHT_DEPTH_THRESHOLD = 80.0;
+    /** @var float Fallback very light depth threshold when Settings model is unavailable. */
+    private const FALLBACK_VERY_LIGHT_DEPTH_THRESHOLD = 80.0;
 
-    /** @var float Lightness threshold above which depth is Light. */
-    private const LIGHT_DEPTH_THRESHOLD = 65.0;
+    /** @var float Fallback light depth threshold when Settings model is unavailable. */
+    private const FALLBACK_LIGHT_DEPTH_THRESHOLD = 65.0;
 
-    /** @var float Lightness threshold above which depth is Medium. */
-    private const MEDIUM_DEPTH_THRESHOLD = 40.0;
+    /** @var float Fallback medium depth threshold when Settings model is unavailable. */
+    private const FALLBACK_MEDIUM_DEPTH_THRESHOLD = 40.0;
 
-    /** @var float Lightness threshold above which depth is Dark. */
-    private const DARK_DEPTH_THRESHOLD = 20.0;
+    /** @var float Fallback dark depth threshold when Settings model is unavailable. */
+    private const FALLBACK_DARK_DEPTH_THRESHOLD = 20.0;
 
-    /** @var float Saturation threshold above which a color is Neon. */
-    private const NEON_SATURATION_THRESHOLD = 85.0;
+    /** @var float Fallback neon saturation threshold when Settings model is unavailable. */
+    private const FALLBACK_NEON_SATURATION_THRESHOLD = 85.0;
 
-    /** @var float Saturation threshold above which a color is Vivid. */
-    private const VIVID_SATURATION_THRESHOLD = 65.0;
+    /** @var float Fallback vivid saturation threshold when Settings model is unavailable. */
+    private const FALLBACK_VIVID_SATURATION_THRESHOLD = 65.0;
 
-    /** @var float Saturation threshold above which a color is Medium saturation. */
-    private const MEDIUM_SATURATION_THRESHOLD = 40.0;
+    /** @var float Fallback medium saturation threshold when Settings model is unavailable. */
+    private const FALLBACK_MEDIUM_SATURATION_THRESHOLD = 40.0;
 
-    /** @var float Saturation threshold above which a color is Soft. */
-    private const SOFT_SATURATION_THRESHOLD = 20.0;
+    /** @var float Fallback soft saturation threshold when Settings model is unavailable. */
+    private const FALLBACK_SOFT_SATURATION_THRESHOLD = 20.0;
+
+    /**
+     * Retrieve a setting value from the Settings model with a safe fallback.
+     *
+     * Wraps Settings::get() in a try/catch so that classes running without a
+     * database connection (e.g. standalone PHPUnit tests) receive the fallback
+     * constant value instead of throwing an exception.
+     *
+     * @param string $sKey            Settings key to read.
+     * @param mixed  $fallbackDefault Value to return when Settings is unavailable.
+     *
+     * @return mixed The stored setting value, or $fallbackDefault on error.
+     */
+    private static function getSettingValue(string $sKey, mixed $fallbackDefault): mixed
+    {
+        try {
+            return Settings::get($sKey, $fallbackDefault);
+        } catch (\Throwable $exception) {
+            return $fallbackDefault;
+        }
+    }
+
+    /**
+     * Load all configurable classification thresholds from Settings in one call.
+     *
+     * Centralises threshold retrieval so each classify() invocation reads all
+     * thresholds once and passes them through to the private classification methods.
+     *
+     * @return array<string, float> Map of threshold key to float value.
+     */
+    private static function loadThresholds(): array
+    {
+        return [
+            'achromatic_saturation' => (float) self::getSettingValue('achromatic_saturation_threshold', self::FALLBACK_ACHROMATIC_SATURATION_THRESHOLD),
+            'white_lightness'       => (float) self::getSettingValue('white_lightness_threshold',        self::FALLBACK_WHITE_LIGHTNESS_THRESHOLD),
+            'black_lightness'       => (float) self::getSettingValue('black_lightness_threshold',        self::FALLBACK_BLACK_LIGHTNESS_THRESHOLD),
+            'very_light_depth'      => (float) self::getSettingValue('very_light_depth_threshold',       self::FALLBACK_VERY_LIGHT_DEPTH_THRESHOLD),
+            'light_depth'           => (float) self::getSettingValue('light_depth_threshold',            self::FALLBACK_LIGHT_DEPTH_THRESHOLD),
+            'medium_depth'          => (float) self::getSettingValue('medium_depth_threshold',           self::FALLBACK_MEDIUM_DEPTH_THRESHOLD),
+            'dark_depth'            => (float) self::getSettingValue('dark_depth_threshold',             self::FALLBACK_DARK_DEPTH_THRESHOLD),
+            'neon_saturation'       => (float) self::getSettingValue('neon_saturation_threshold',        self::FALLBACK_NEON_SATURATION_THRESHOLD),
+            'vivid_saturation'      => (float) self::getSettingValue('vivid_saturation_threshold',       self::FALLBACK_VIVID_SATURATION_THRESHOLD),
+            'medium_saturation'     => (float) self::getSettingValue('medium_saturation_threshold',      self::FALLBACK_MEDIUM_SATURATION_THRESHOLD),
+            'soft_saturation'       => (float) self::getSettingValue('soft_saturation_threshold',        self::FALLBACK_SOFT_SATURATION_THRESHOLD),
+        ];
+    }
 
     /**
      * Classify an RGB color into all gel polish taxonomy dimensions.
@@ -66,14 +117,16 @@ class ColorClassifier
         $saturation = $hslValues['saturation'];
         $lightness  = $hslValues['lightness'];
 
-        $oklchValues          = ColorConverter::rgbToOklch($red, $green, $blue);
-        $perceptualLightness  = $oklchValues['lightness'] * 100;
+        $oklchValues         = ColorConverter::rgbToOklch($red, $green, $blue);
+        $perceptualLightness = $oklchValues['lightness'] * 100;
+
+        $arThresholds = self::loadThresholds();
 
         return [
-            'family'           => self::determineColorFamily($hue, $saturation, $lightness),
+            'family'           => self::determineColorFamily($hue, $saturation, $lightness, $arThresholds),
             'undertone'        => self::determineUndertone($hue, $saturation),
-            'depth'            => self::determineDepth($perceptualLightness),
-            'saturation'       => self::determineSaturation($saturation),
+            'depth'            => self::determineDepth($perceptualLightness, $arThresholds),
+            'saturation'       => self::determineSaturation($saturation, $arThresholds),
             'finish'           => null,
             'opacity'          => 'Opaque',
             'confidence_score' => self::calculateConfidence($saturation, $lightness),
@@ -86,41 +139,43 @@ class ColorClassifier
      * For achromatic colors (very low saturation), classifies by lightness only.
      * For chromatic colors, maps hue ranges to the 22 color families.
      *
-     * @param float $hue        Hue in [0, 360].
-     * @param float $saturation Saturation in [0, 100].
-     * @param float $lightness  Lightness in [0, 100].
+     * @param float              $hue          Hue in [0, 360].
+     * @param float              $saturation   Saturation in [0, 100].
+     * @param float              $lightness    Lightness in [0, 100].
+     * @param array<string,float> $arThresholds Loaded classification thresholds.
      *
      * @return string Color family name from Taxonomy::$colorFamilies.
      */
-    public static function determineColorFamily(float $hue, float $saturation, float $lightness): string
+    public static function determineColorFamily(float $hue, float $saturation, float $lightness, array $arThresholds): string
     {
         // Pure achromatic: no color at all → White / Grey / Black
-        if ($saturation < self::ACHROMATIC_SATURATION_THRESHOLD) {
-            return self::classifyPureAchromatic($lightness);
+        if ($saturation < $arThresholds['achromatic_saturation']) {
+            return self::classifyPureAchromatic($lightness, $arThresholds);
         }
 
         // Near-achromatic with warm hue: could be Nude/Beige (skin tones)
         if ($saturation < self::NEAR_ACHROMATIC_SATURATION_THRESHOLD) {
-            return self::classifyNearAchromatic($hue, $lightness);
+            return self::classifyNearAchromatic($hue, $lightness, $arThresholds);
         }
 
         return self::classifyChromatic($hue, $saturation, $lightness);
     }
 
     /**
-     * Classify pure achromatic colors (saturation < 5%) — true greys.
+     * Classify pure achromatic colors (saturation below achromatic threshold) — true greys.
      *
-     * @param float $lightness Lightness in [0, 100].
+     * @param float              $lightness    Lightness in [0, 100].
+     * @param array<string,float> $arThresholds Loaded classification thresholds.
      *
      * @return string One of: 'White', 'Grey', 'Black'.
      */
-    private static function classifyPureAchromatic(float $lightness): string
+    private static function classifyPureAchromatic(float $lightness, array $arThresholds): string
     {
-        if ($lightness > self::WHITE_LIGHTNESS_THRESHOLD) {
+        if ($lightness > $arThresholds['white_lightness']) {
             return 'White';
         }
 
-        if ($lightness < self::BLACK_LIGHTNESS_THRESHOLD) {
+        if ($lightness < $arThresholds['black_lightness']) {
             return 'Black';
         }
 
@@ -134,18 +189,19 @@ class ColorClassifier
      * colors: Nude (medium lightness) or Beige (light). Cool or neutral
      * hues remain Grey.
      *
-     * @param float $hue       Hue in [0, 360].
-     * @param float $lightness Lightness in [0, 100].
+     * @param float              $hue          Hue in [0, 360].
+     * @param float              $lightness    Lightness in [0, 100].
+     * @param array<string,float> $arThresholds Loaded classification thresholds.
      *
      * @return string One of: 'White', 'Beige', 'Nude', 'Brown', 'Grey', 'Black'.
      */
-    private static function classifyNearAchromatic(float $hue, float $lightness): string
+    private static function classifyNearAchromatic(float $hue, float $lightness, array $arThresholds): string
     {
-        if ($lightness > self::WHITE_LIGHTNESS_THRESHOLD) {
+        if ($lightness > $arThresholds['white_lightness']) {
             return 'White';
         }
 
-        if ($lightness < self::BLACK_LIGHTNESS_THRESHOLD) {
+        if ($lightness < $arThresholds['black_lightness']) {
             return 'Black';
         }
 
@@ -291,27 +347,28 @@ class ColorClassifier
     }
 
     /**
-     * Determine depth (lightness level) from the lightness percentage.
+     * Determine depth (lightness level) from the perceptual lightness percentage.
      *
-     * @param float $lightness Lightness in [0, 100].
+     * @param float              $lightness    Perceptual lightness in [0, 100].
+     * @param array<string,float> $arThresholds Loaded classification thresholds.
      *
      * @return string One of: 'Very Light', 'Light', 'Medium', 'Dark', 'Very Dark'.
      */
-    public static function determineDepth(float $lightness): string
+    public static function determineDepth(float $lightness, array $arThresholds): string
     {
-        if ($lightness > self::VERY_LIGHT_DEPTH_THRESHOLD) {
+        if ($lightness > $arThresholds['very_light_depth']) {
             return 'Very Light';
         }
 
-        if ($lightness > self::LIGHT_DEPTH_THRESHOLD) {
+        if ($lightness > $arThresholds['light_depth']) {
             return 'Light';
         }
 
-        if ($lightness > self::MEDIUM_DEPTH_THRESHOLD) {
+        if ($lightness > $arThresholds['medium_depth']) {
             return 'Medium';
         }
 
-        if ($lightness > self::DARK_DEPTH_THRESHOLD) {
+        if ($lightness > $arThresholds['dark_depth']) {
             return 'Dark';
         }
 
@@ -321,25 +378,26 @@ class ColorClassifier
     /**
      * Determine saturation level from the saturation percentage.
      *
-     * @param float $saturationValue Saturation in [0, 100].
+     * @param float              $saturationValue Saturation in [0, 100].
+     * @param array<string,float> $arThresholds    Loaded classification thresholds.
      *
      * @return string One of: 'Muted', 'Soft', 'Medium', 'Vivid', 'Neon'.
      */
-    public static function determineSaturation(float $saturationValue): string
+    public static function determineSaturation(float $saturationValue, array $arThresholds): string
     {
-        if ($saturationValue >= self::NEON_SATURATION_THRESHOLD) {
+        if ($saturationValue >= $arThresholds['neon_saturation']) {
             return 'Neon';
         }
 
-        if ($saturationValue >= self::VIVID_SATURATION_THRESHOLD) {
+        if ($saturationValue >= $arThresholds['vivid_saturation']) {
             return 'Vivid';
         }
 
-        if ($saturationValue >= self::MEDIUM_SATURATION_THRESHOLD) {
+        if ($saturationValue >= $arThresholds['medium_saturation']) {
             return 'Medium';
         }
 
-        if ($saturationValue >= self::SOFT_SATURATION_THRESHOLD) {
+        if ($saturationValue >= $arThresholds['soft_saturation']) {
             return 'Soft';
         }
 
@@ -362,8 +420,8 @@ class ColorClassifier
     {
         $saturationNormalized = $saturation / 100.0;
 
-        $lightnessDeviation   = abs($lightness - 50.0) / 50.0;
-        $lightnessFactor      = 1.0 - ($lightnessDeviation * 0.5);
+        $lightnessDeviation = abs($lightness - 50.0) / 50.0;
+        $lightnessFactor    = 1.0 - ($lightnessDeviation * 0.5);
 
         $confidenceScore = $saturationNormalized * $lightnessFactor;
 
