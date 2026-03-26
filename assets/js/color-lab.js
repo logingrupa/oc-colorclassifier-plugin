@@ -233,6 +233,14 @@ function initializeColorLab() {
     attachGridInteractionListeners();
     attachDetailCardCloseListeners();
     attachSidebarToggleListener();
+
+    if (isMobileViewport()) {
+        var bodyElement = document.querySelector('.color-lab__body');
+        if (bodyElement) {
+            bodyElement.classList.remove('color-lab__body--sidebar-collapsed');
+        }
+    }
+
     attachLightboxListeners();
 
     restoreStateFromUrl();
@@ -445,6 +453,10 @@ function handleFilterChange(changeEvent) {
     renderActiveView();
     updateFilterBadge();
     updateUrlParameters(state.activeView, state.selectedEntryId);
+
+    if (isMobileViewport()) {
+        closeMobileSidebar();
+    }
 }
 
 /**
@@ -1167,19 +1179,67 @@ function attachDetailCardCloseListeners() {
     });
 }
 
+/** @returns {boolean} */
+function isMobileViewport() {
+    return window.matchMedia('(max-width: 768px)').matches;
+}
+
+/** @returns {void} */
+function openMobileSidebar() {
+    var sidebar = document.querySelector('.color-lab__sidebar');
+    var toggle = document.querySelector('.color-lab__sidebar-toggle');
+    if (!sidebar) { return; }
+
+    sidebar.classList.add('color-lab__sidebar--mobile-open');
+    toggle.innerHTML = '&#10005;';
+    toggle.title = 'Close filters';
+
+    var backdrop = document.querySelector('.color-lab__sidebar-backdrop');
+    if (!backdrop) {
+        backdrop = document.createElement('div');
+        backdrop.className = 'color-lab__sidebar-backdrop';
+        document.querySelector('.color-lab').appendChild(backdrop);
+    }
+    backdrop.classList.add('color-lab__sidebar-backdrop--visible');
+    backdrop.addEventListener('click', closeMobileSidebar);
+}
+
+/** @returns {void} */
+function closeMobileSidebar() {
+    var sidebar = document.querySelector('.color-lab__sidebar');
+    var toggle = document.querySelector('.color-lab__sidebar-toggle');
+    if (!sidebar) { return; }
+
+    sidebar.classList.remove('color-lab__sidebar--mobile-open');
+    if (toggle) {
+        toggle.innerHTML = '&#9776;';
+        toggle.title = 'Show filters';
+    }
+
+    var backdrop = document.querySelector('.color-lab__sidebar-backdrop');
+    if (backdrop) {
+        backdrop.classList.remove('color-lab__sidebar-backdrop--visible');
+    }
+}
+
 /** @returns {void} */
 function attachSidebarToggleListener() {
     var toggleButton = document.querySelector('.color-lab__sidebar-toggle');
     if (!toggleButton) { return; }
 
     toggleButton.addEventListener('click', function() {
-        var bodyElement = document.querySelector('.color-lab__body');
-        if (!bodyElement) { return; }
-
-        bodyElement.classList.toggle('color-lab__body--sidebar-collapsed');
-        var isCollapsed = bodyElement.classList.contains('color-lab__body--sidebar-collapsed');
-        toggleButton.innerHTML = isCollapsed ? '&#9654;' : '&#9776;';
-        toggleButton.title = isCollapsed ? 'Show filters' : 'Hide filters';
+        if (isMobileViewport()) {
+            var sidebar = document.querySelector('.color-lab__sidebar');
+            var isOpen = sidebar && sidebar.classList.contains('color-lab__sidebar--mobile-open');
+            isOpen ? closeMobileSidebar() : openMobileSidebar();
+        } else {
+            var bodyElement = document.querySelector('.color-lab__body');
+            if (!bodyElement) { return; }
+            bodyElement.classList.toggle('color-lab__body--sidebar-collapsed');
+            var isCollapsed = bodyElement.classList.contains('color-lab__body--sidebar-collapsed');
+            toggleButton.innerHTML = isCollapsed ? '&#9654;' : '&#9776;';
+            toggleButton.title = isCollapsed ? 'Show filters' : 'Hide filters';
+        }
     });
 }
 
