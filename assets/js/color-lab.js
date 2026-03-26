@@ -1219,7 +1219,7 @@ function buildDetailImageGroupHtml(imageSrc, label, backgroundColor, extraClass)
  * @returns {string} HTML string.
  */
 function buildDetailOverlayGroupHtml(imageUrl, hexColor, entryId) {
-    return '<div class="color-lab__detail-image-group" data-lightbox-entry="' + entryId + '">'
+    return '<div class="color-lab__detail-image-group" data-lightbox-entry="' + entryId + '" data-lightbox-mode="overlay">'
         + '<div class="color-lab__detail-image color-lab__detail-image--blend" style="background:' + escapeHtml(hexColor) + ';">'
         + '    <img src="' + escapeHtml(imageUrl) + '" alt="Overlay" loading="lazy">'
         + '</div>'
@@ -1294,6 +1294,48 @@ function showLightbox(imageSrc, overlayColor) {
     window.history.replaceState(null, '', window.location.pathname + '?' + urlParams.toString());
 }
 
+/**
+ * Shows a lightbox with just 2 panels: Original image + Overlay on hex color.
+ *
+ * @param {string} imageSrc - URL of the product image.
+ * @param {string} hexColor - Hex color for overlay background.
+ * @returns {void}
+ */
+function showLightboxOverlay(imageSrc, hexColor) {
+    hideLightbox();
+
+    var overlay = document.createElement('div');
+    overlay.className = 'color-lab__lightbox';
+
+    overlay.innerHTML = '<div class="color-lab__lightbox-content color-lab__lightbox-content--two">'
+        + '<div class="color-lab__lightbox-panel">'
+        + '    <div class="color-lab__lightbox-bg" style="background:#ffffff;">'
+        + '        <img src="' + escapeHtml(imageSrc) + '" alt="Original" class="color-lab__lightbox-image">'
+        + '    </div>'
+        + '    <span class="color-lab__lightbox-label">Original</span>'
+        + '</div>'
+        + '<div class="color-lab__lightbox-panel">'
+        + '    <div class="color-lab__lightbox-bg" style="background:' + escapeHtml(hexColor) + ';">'
+        + '        <img src="' + escapeHtml(imageSrc) + '" alt="Overlay" class="color-lab__lightbox-image">'
+        + '    </div>'
+        + '    <span class="color-lab__lightbox-label">Overlay — ' + escapeHtml(hexColor) + '</span>'
+        + '</div>'
+        + '</div>';
+
+    overlay.addEventListener('click', function(clickEvent) {
+        if (!/** @type {HTMLElement} */ (clickEvent.target).closest('.color-lab__lightbox-content')) {
+            hideLightbox();
+        }
+    });
+
+    document.body.appendChild(overlay);
+    requestAnimationFrame(function() { overlay.classList.add('color-lab__lightbox--visible'); });
+
+    var urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('lightbox', '1');
+    window.history.replaceState(null, '', window.location.pathname + '?' + urlParams.toString());
+}
+
 /** @returns {void} */
 function hideLightbox() {
     var existing = document.querySelector('.color-lab__lightbox');
@@ -1316,11 +1358,16 @@ function attachLightboxListeners() {
         if (!imageGroup) { return; }
 
         var entryId = parseInt(imageGroup.dataset.lightboxEntry, 10);
+        var lightboxMode = imageGroup.dataset.lightboxMode || 'backgrounds';
         var colorEntry = entriesById.get(entryId);
         if (!colorEntry || !colorEntry.imageUrl) { return; }
 
-        var overlayColor = isPngImage(colorEntry.imageUrl) ? colorEntry.hexColor : null;
-        showLightbox(colorEntry.imageUrl, overlayColor);
+        if (lightboxMode === 'overlay') {
+            showLightboxOverlay(colorEntry.imageUrl, colorEntry.hexColor);
+        } else {
+            var overlayColor = isPngImage(colorEntry.imageUrl) ? colorEntry.hexColor : null;
+            showLightbox(colorEntry.imageUrl, overlayColor);
+        }
     });
 
     document.addEventListener('keydown', function(keyEvent) {

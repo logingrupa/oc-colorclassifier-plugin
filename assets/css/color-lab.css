@@ -851,6 +851,14 @@
     max-height: 85vh;
 }
 
+.color-lab__lightbox-content--two {
+    grid-template-columns: 1fr 1fr;
+}
+
+.color-lab__lightbox-content--two .color-lab__lightbox-image {
+    max-width: 35vw;
+}
+
 .color-lab__lightbox-panel {
     display: flex;
     flex-direction: column;
