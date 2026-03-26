@@ -36,11 +36,11 @@ class ColorEntries extends Controller
     public $listConfig = 'config_list.yaml';
 
     /**
-     * Path to the export behavior configuration file.
+     * Path to the import/export behavior configuration file.
      *
      * @var string
      */
-    public $exportConfig = 'config_export.yaml';
+    public $importExportConfig = 'config_export.yaml';
 
     /**
      * Required permission codes to access this controller.
