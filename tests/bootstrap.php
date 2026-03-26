@@ -25,3 +25,4 @@ require_once $pluginRootDirectory . '/classes/ColorConverter.php';
 require_once $pluginRootDirectory . '/classes/ColorNamer.php';
 require_once $pluginRootDirectory . '/classes/ColorExtractor.php';
 require_once $pluginRootDirectory . '/classes/ColorClassifier.php';
+require_once $pluginRootDirectory . '/classes/NailoLabTransforms.php';

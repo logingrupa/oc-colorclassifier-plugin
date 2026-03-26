@@ -2,6 +2,8 @@
 
 namespace Logingrupa\ColorClassifier\Classes;
 
+use Logingrupa\ColorClassifier\Classes\NailoLabTransforms;
+
 /**
  * OfferDataProvider — Bridge to the theme CommerceMlParser.
  *
@@ -30,7 +32,7 @@ class OfferDataProvider
      * and flattens each product's offers array — keeping only offers that
      * have a non-empty image_url.
      *
-     * @return array<int, array{offer_id: string, product_name: string, variation_name: string, image_url: string}>
+     * @return array<int, array{offer_id: string, product_name: string, variation_name: string, image_url: string, product_slug: string, variant_slug: string, detail_url: string}>
      */
     public function getOffersWithImages(): array
     {
@@ -74,17 +76,22 @@ class OfferDataProvider
      *
      * @param array<int, array<string, mixed>> $catalog Products from getCatalog().
      *
-     * @return array<int, array{offer_id: string, product_name: string, variation_name: string, image_url: string}>
+     * @return array<int, array{offer_id: string, product_name: string, variation_name: string, image_url: string, product_slug: string, variant_slug: string, detail_url: string}>
      */
     private function flattenCatalogToOffersWithImages(array $catalog): array
     {
         $offersWithImages = [];
 
         foreach ($catalog as $product) {
-            $productName = $product['name'] ?? '';
+            $sProductName  = NailoLabTransforms::applyNameReplacements($product['name'] ?? '');
+            $sProductSlug  = $product['slug'] ?? NailoLabTransforms::buildProductSlug($sProductName);
             $productOffers = $product['offers'] ?? [];
 
             foreach ($productOffers as $offer) {
+                if (NailoLabTransforms::isExcludedOffer($offer['id'] ?? '')) {
+                    continue;
+                }
+
                 $offerImageUrl = $offer['image_url'] ?? '';
 
                 if (empty($offerImageUrl)) {
@@ -92,12 +99,17 @@ class OfferDataProvider
                 }
 
                 $variationName = $offer['variant_title'] ?? ($offer['name'] ?? '');
+                $sVariantSlug  = NailoLabTransforms::buildVariantSlug($variationName);
+                $sDetailUrl    = NailoLabTransforms::buildDetailUrl($sProductSlug, $sVariantSlug);
 
                 $offersWithImages[] = [
                     'offer_id'       => $offer['id'] ?? '',
-                    'product_name'   => $productName,
+                    'product_name'   => $sProductName,
                     'variation_name' => $variationName,
                     'image_url'      => $offerImageUrl,
+                    'product_slug'   => $sProductSlug,
+                    'variant_slug'   => $sVariantSlug,
+                    'detail_url'     => $sDetailUrl,
                 ];
             }
         }
