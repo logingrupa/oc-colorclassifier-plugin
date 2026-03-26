@@ -15,6 +15,18 @@ use System\Classes\PluginBase;
 class Plugin extends PluginBase
 {
     /**
+     * Register view namespace and any boot-time logic.
+     *
+     * @return void
+     */
+    public function boot(): void
+    {
+        $viewsPath = plugins_path('logingrupa/colorclassifier/views');
+
+        app('view')->addNamespace('logingrupa.colorclassifier', $viewsPath);
+    }
+
+    /**
      * Returns information about this plugin.
      *
      * @return array<string, string>
