@@ -1546,7 +1546,8 @@ function showLightbox(imageSrc, overlayColor) {
 
     contentHtml += '</div>';
 
-    overlay.innerHTML = contentHtml;
+    overlay.innerHTML = '<button class="color-lab__lightbox-close" aria-label="Close">&times;</button>'
+        + contentHtml;
 
     overlay.addEventListener('click', function(clickEvent) {
         if (/** @type {HTMLElement} */ (clickEvent.target).closest('.color-lab__lightbox-content')) {
@@ -1576,7 +1577,8 @@ function showLightboxOverlay(imageSrc, hexColor) {
     var overlay = document.createElement('div');
     overlay.className = 'color-lab__lightbox';
 
-    overlay.innerHTML = '<div class="color-lab__lightbox-content color-lab__lightbox-content--two">'
+    overlay.innerHTML = '<button class="color-lab__lightbox-close" aria-label="Close">&times;</button>'
+        + '<div class="color-lab__lightbox-content color-lab__lightbox-content--two">'
         + '<div class="color-lab__lightbox-panel">'
         + '    <div class="color-lab__lightbox-bg" style="background:#ffffff;">'
         + '        <img src="' + escapeHtml(imageSrc) + '" alt="Original" class="color-lab__lightbox-image">'

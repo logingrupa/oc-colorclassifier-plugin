@@ -934,6 +934,27 @@
     object-fit: contain;
 }
 
+.color-lab__lightbox-close {
+    display: none;
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-size: 1.2rem;
+    line-height: 32px;
+    text-align: center;
+    padding: 0;
+    cursor: pointer;
+    z-index: 1;
+}
+
 .color-lab__lightbox-label {
     font-size: 0.8rem;
     color: rgba(255, 255, 255, 0.6);
@@ -1227,5 +1248,51 @@
     .color-lab__detail-close {
         top: 8px;
         right: 8px;
+    }
+
+    /* ─── Lightbox: single column, flex-fitted on mobile ────────────────── */
+
+    .color-lab__lightbox {
+        padding: 2.5rem 0.5rem 0.5rem;
+    }
+
+    .color-lab__lightbox-close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+    }
+
+    .color-lab__lightbox-content,
+    .color-lab__lightbox-content--two {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 3rem);
+        max-width: 100%;
+        gap: 0.25rem;
+    }
+
+    .color-lab__lightbox-panel {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .color-lab__lightbox-bg {
+        flex: 1;
+        min-height: 0;
+        width: auto;
+        padding: 2px;
+    }
+
+    .color-lab__lightbox-image,
+    .color-lab__lightbox-content--two .color-lab__lightbox-image {
+        max-width: 96vw;
+        max-height: 100%;
+        width: auto;
+        height: 100%;
+        object-fit: contain;
     }
 }
