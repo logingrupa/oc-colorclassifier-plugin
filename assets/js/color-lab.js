@@ -1187,12 +1187,18 @@ function isMobileViewport() {
 /** @returns {void} */
 function openMobileSidebar() {
     var sidebar = document.querySelector('.color-lab__sidebar');
-    var toggle = document.querySelector('.color-lab__sidebar-toggle');
+    var filterButton = document.querySelector('.color-lab__filter-toggle');
     if (!sidebar) { return; }
 
+    var header = document.querySelector('.color-lab__header');
+    if (header) {
+        sidebar.style.top = header.offsetHeight + 'px';
+    }
+
     sidebar.classList.add('color-lab__sidebar--mobile-open');
-    toggle.innerHTML = '&#10005;';
-    toggle.title = 'Close filters';
+    if (filterButton) {
+        filterButton.classList.add('color-lab__view-button--active');
+    }
 
     var backdrop = document.querySelector('.color-lab__sidebar-backdrop');
     if (!backdrop) {
@@ -1207,13 +1213,12 @@ function openMobileSidebar() {
 /** @returns {void} */
 function closeMobileSidebar() {
     var sidebar = document.querySelector('.color-lab__sidebar');
-    var toggle = document.querySelector('.color-lab__sidebar-toggle');
+    var filterButton = document.querySelector('.color-lab__filter-toggle');
     if (!sidebar) { return; }
 
     sidebar.classList.remove('color-lab__sidebar--mobile-open');
-    if (toggle) {
-        toggle.innerHTML = '&#9776;';
-        toggle.title = 'Show filters';
+    if (filterButton) {
+        filterButton.classList.remove('color-lab__view-button--active');
     }
 
     var backdrop = document.querySelector('.color-lab__sidebar-backdrop');
@@ -1226,6 +1231,23 @@ function closeMobileSidebar() {
 function attachSidebarToggleListener() {
     var toggleButton = document.querySelector('.color-lab__sidebar-toggle');
     if (!toggleButton) { return; }
+
+    if (isMobileViewport()) {
+        var viewToggle = document.querySelector('.color-lab__view-toggle');
+        if (viewToggle && !document.querySelector('.color-lab__filter-toggle')) {
+            var filterButton = document.createElement('button');
+            filterButton.className = 'color-lab__view-button color-lab__filter-toggle';
+            filterButton.textContent = 'Filters';
+            filterButton.type = 'button';
+            viewToggle.appendChild(filterButton);
+
+            filterButton.addEventListener('click', function() {
+                var sidebar = document.querySelector('.color-lab__sidebar');
+                var isOpen = sidebar && sidebar.classList.contains('color-lab__sidebar--mobile-open');
+                isOpen ? closeMobileSidebar() : openMobileSidebar();
+            });
+        }
+    }
 
     toggleButton.addEventListener('click', function() {
         if (isMobileViewport()) {
