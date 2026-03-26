@@ -179,22 +179,53 @@
         var startTime = Date.now()
         var chunksCompleted = 0
 
+        /** @type {number} Estimated remaining ms — starts at 5 min, refined by real data. */
+        var etaRemainingMs = 5 * 60 * 1000
+        /** @type {number|null} Interval ID for the 1-second countdown tick. */
+        var countdownInterval = null
+
         isProcessing = true
         cancelRequested = false
         showProcessingState()
 
+        /** Tick the ETA countdown by 1 second and update the display. */
+        function tickCountdown() {
+            etaRemainingMs = Math.max(etaRemainingMs - 1000, 0)
+            var statEta = document.getElementById('batchStatEta')
+            if (statEta) {
+                statEta.textContent = formatEta(etaRemainingMs)
+            }
+        }
+
+        countdownInterval = setInterval(tickCountdown, 1000)
+
         function processNextChunk() {
             if (cancelRequested) {
+                clearInterval(countdownInterval)
+                var remaining = total - offset
+                var statEtaEl = document.getElementById('batchStatEta')
+                if (statEtaEl) {
+                    statEtaEl.textContent = remaining + ' left'
+                }
+                var statEtaLabel = statEtaEl
+                    ? statEtaEl.parentElement.querySelector('.batch-popup-stat-label')
+                    : null
+                if (statEtaLabel) {
+                    statEtaLabel.textContent = 'Unprocessed'
+                }
                 finishProcessing('Stopped. Processed ' + totalProcessed
                     + ', skipped ' + totalSkipped
-                    + ', failed ' + totalFailed + '.')
+                    + ', failed ' + totalFailed
+                    + '. ' + remaining + ' offers left unprocessed.')
                 return
             }
 
             var elapsedMs = Date.now() - startTime
-            var etaMs = chunksCompleted > 0
-                ? (elapsedMs / chunksCompleted) * Math.ceil((total - offset) / batchSize)
-                : 0
+            if (chunksCompleted > 0) {
+                var msPerChunk = elapsedMs / chunksCompleted
+                var chunksRemaining = Math.ceil((total - offset) / batchSize)
+                etaRemainingMs = msPerChunk * chunksRemaining
+            }
 
             updateProgress({
                 offset: offset,
@@ -202,7 +233,7 @@
                 processed: totalProcessed,
                 skipped: totalSkipped,
                 failed: totalFailed,
-                etaMs: etaMs,
+                etaMs: etaRemainingMs,
                 statusText: 'Batch ' + (chunksCompleted + 1) + ' of '
                     + Math.ceil(total / batchSize) + '\u2026'
             })
@@ -221,6 +252,7 @@
                     chunksCompleted++
 
                     if (result.done || offset >= total) {
+                        clearInterval(countdownInterval)
                         updateProgress({
                             offset: total,
                             total: total,
@@ -243,6 +275,7 @@
                     }
                 },
                 error: function () {
+                    clearInterval(countdownInterval)
                     finishProcessing('Error at offset ' + offset
                         + '. ' + totalProcessed + ' offers processed before failure.')
                 }
