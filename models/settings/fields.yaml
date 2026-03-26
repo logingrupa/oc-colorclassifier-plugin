@@ -1,0 +1,143 @@
+tabs:
+    fields:
+
+        # ─── Tab: Color Extraction ────────────────────────────────────────────
+
+        crop_size_pixels:
+            tab: Color Extraction
+            label: Center Crop Size (px)
+            type: dropdown
+            options:
+                50: 50 px
+                75: 75 px
+                100: 100 px
+                125: 125 px
+                150: 150 px
+                175: 175 px
+                200: 200 px
+            comment: Size of the center square crop in pixels sampled for color extraction
+
+        blur_passes:
+            tab: Color Extraction
+            label: Gaussian Blur Passes
+            type: number
+            span: left
+            comment: Number of blur filter passes applied before extraction (higher = smoother, 1–50)
+
+        palette_size:
+            tab: Color Extraction
+            label: Palette Colors
+            type: number
+            span: right
+            comment: Number of distinct colors to extract for the palette (1–10)
+
+        palette_thumbnail_size_pixels:
+            tab: Color Extraction
+            label: Palette Thumbnail Size (px)
+            type: number
+            span: left
+            comment: Edge size of the thumbnail used for palette frequency sampling (5–50)
+
+        download_timeout_seconds:
+            tab: Color Extraction
+            label: Download Timeout (seconds)
+            type: number
+            span: right
+            comment: HTTP request timeout when downloading product images (1–60)
+
+        # ─── Tab: Classification Thresholds ──────────────────────────────────
+
+        _achromatic_section:
+            tab: Classification Thresholds
+            label: Achromatic Detection
+            type: section
+            comment: Colors with saturation below the achromatic threshold are treated as grey/white/black
+
+        achromatic_saturation_threshold:
+            tab: Classification Thresholds
+            label: Achromatic Saturation Threshold (%)
+            type: number
+            span: left
+            comment: Saturation below this value is classified as a pure achromatic (grey, white, or black)
+
+        white_lightness_threshold:
+            tab: Classification Thresholds
+            label: White Lightness Threshold (%)
+            type: number
+            span: right
+            comment: Lightness above this value classifies an achromatic color as White
+
+        black_lightness_threshold:
+            tab: Classification Thresholds
+            label: Black Lightness Threshold (%)
+            type: number
+            span: left
+            comment: Lightness below this value classifies an achromatic color as Black
+
+        _depth_section:
+            tab: Classification Thresholds
+            label: Depth Thresholds
+            type: section
+            comment: Lightness (OKLCH perceptual) boundaries that separate the five depth levels
+
+        very_light_depth_threshold:
+            tab: Classification Thresholds
+            label: Very Light Depth Threshold (%)
+            type: number
+            span: left
+            comment: Lightness above this value is classified as Very Light
+
+        light_depth_threshold:
+            tab: Classification Thresholds
+            label: Light Depth Threshold (%)
+            type: number
+            span: right
+            comment: Lightness above this value (and below very light) is classified as Light
+
+        medium_depth_threshold:
+            tab: Classification Thresholds
+            label: Medium Depth Threshold (%)
+            type: number
+            span: left
+            comment: Lightness above this value (and below light) is classified as Medium
+
+        dark_depth_threshold:
+            tab: Classification Thresholds
+            label: Dark Depth Threshold (%)
+            type: number
+            span: right
+            comment: Lightness above this value (and below medium) is classified as Dark; below is Very Dark
+
+        _saturation_section:
+            tab: Classification Thresholds
+            label: Saturation Thresholds
+            type: section
+            comment: HSL saturation boundaries that separate the five saturation levels
+
+        neon_saturation_threshold:
+            tab: Classification Thresholds
+            label: Neon Saturation Threshold (%)
+            type: number
+            span: left
+            comment: Saturation at or above this value is classified as Neon
+
+        vivid_saturation_threshold:
+            tab: Classification Thresholds
+            label: Vivid Saturation Threshold (%)
+            type: number
+            span: right
+            comment: Saturation at or above this value (below neon) is classified as Vivid
+
+        medium_saturation_threshold:
+            tab: Classification Thresholds
+            label: Medium Saturation Threshold (%)
+            type: number
+            span: left
+            comment: Saturation at or above this value (below vivid) is classified as Medium
+
+        soft_saturation_threshold:
+            tab: Classification Thresholds
+            label: Soft Saturation Threshold (%)
+            type: number
+            span: right
+            comment: Saturation at or above this value (below medium) is classified as Soft; below is Muted
