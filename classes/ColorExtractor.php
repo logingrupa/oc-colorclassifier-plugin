@@ -225,6 +225,22 @@ class ColorExtractor
     }
 
     /**
+     * Convert a GD image to a base64-encoded PNG data URI.
+     *
+     * @param \GdImage $image The GD image to encode.
+     *
+     * @return string Base64 data URI string (data:image/png;base64,...).
+     */
+    public static function gdImageToBase64Png(\GdImage $image): string
+    {
+        ob_start();
+        imagepng($image);
+        $pngData = ob_get_clean();
+
+        return 'data:image/png;base64,' . base64_encode($pngData);
+    }
+
+    /**
      * Run the full image processing pipeline for a single image URL.
      *
      * Downloads the image, crops to center square, applies Gaussian blur,
@@ -248,6 +264,8 @@ class ColorExtractor
             $croppedImage = self::cropCenterSquare($downloadedImage);
             imagedestroy($downloadedImage);
 
+            $croppedImageBase64 = self::gdImageToBase64Png($croppedImage);
+
             $blurredImage = self::applyGaussianBlur($croppedImage);
 
             $dominantColorRgb = self::extractDominantColor($blurredImage);
@@ -256,8 +274,9 @@ class ColorExtractor
             imagedestroy($blurredImage);
 
             return [
-                'rgb'     => $dominantColorRgb,
-                'palette' => $paletteHexColors,
+                'rgb'               => $dominantColorRgb,
+                'palette'           => $paletteHexColors,
+                'cropped_image_data' => $croppedImageBase64,
             ];
         } catch (\Throwable $exception) {
             return null;

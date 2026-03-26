@@ -184,13 +184,14 @@ class BatchProcessor
         $taxonomy  = ColorClassifier::classify($red, $green, $blue);
 
         $colorEntry->update([
-            'hex_color'        => $hexColor,
-            'oklch_values'     => ColorConverter::rgbToOklch($red, $green, $blue),
-            'palette_colors'   => $imageResult['palette'],
-            'color_name'       => ColorNamer::findNearestColorName($hexColor),
-            'taxonomy'         => $taxonomy,
-            'confidence_score' => $taxonomy['confidence_score'],
-            'processed_at'     => now(),
+            'hex_color'          => $hexColor,
+            'oklch_values'       => ColorConverter::rgbToOklch($red, $green, $blue),
+            'palette_colors'     => $imageResult['palette'],
+            'color_name'         => ColorNamer::findNearestColorName($hexColor),
+            'taxonomy'           => $taxonomy,
+            'confidence_score'   => $taxonomy['confidence_score'],
+            'cropped_image_data' => $imageResult['cropped_image_data'] ?? null,
+            'processed_at'       => now(),
         ]);
 
         return true;
@@ -221,16 +222,17 @@ class BatchProcessor
         ColorEntry::updateOrCreate(
             ['offer_id' => $offer['offer_id']],
             [
-                'product_name'     => $offer['product_name'],
-                'variation_name'   => $offer['variation_name'],
-                'image_url'        => $offer['image_url'],
-                'hex_color'        => $hexColor,
-                'oklch_values'     => $oklchValues,
-                'palette_colors'   => $imageResult['palette'],
-                'color_name'       => $colorName,
-                'taxonomy'         => $taxonomy,
-                'confidence_score' => $confidenceScore,
-                'processed_at'     => now(),
+                'product_name'       => $offer['product_name'],
+                'variation_name'     => $offer['variation_name'],
+                'image_url'          => $offer['image_url'],
+                'hex_color'          => $hexColor,
+                'oklch_values'       => $oklchValues,
+                'palette_colors'     => $imageResult['palette'],
+                'color_name'         => $colorName,
+                'taxonomy'           => $taxonomy,
+                'confidence_score'   => $confidenceScore,
+                'cropped_image_data' => $imageResult['cropped_image_data'] ?? null,
+                'processed_at'       => now(),
             ]
         );
     }

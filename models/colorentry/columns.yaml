@@ -15,6 +15,12 @@ columns:
         sortable: false
         width: 50px
 
+    cropped_image_data:
+        label: Crop
+        type: cropped_preview
+        sortable: false
+        width: 50px
+
     product_name:
         label: Product
         searchable: true

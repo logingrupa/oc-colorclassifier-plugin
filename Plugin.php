@@ -74,6 +74,7 @@ class Plugin extends PluginBase
             'palette_gradient'  => [$this, 'evalPaletteGradientColumn'],
             'taxonomy_value'    => [$this, 'evalTaxonomyValueColumn'],
             'image_thumbnail'   => [$this, 'evalImageThumbnailColumn'],
+            'cropped_preview'   => [$this, 'evalCroppedPreviewColumn'],
             'confidence_badge'  => [$this, 'evalConfidenceBadgeColumn'],
         ];
     }
@@ -182,6 +183,24 @@ class Plugin extends PluginBase
         return "<img src=\"{$imageUrl}\" alt=\"\" "
             . "style=\"width:36px;height:36px;object-fit:cover;border-radius:4px;border:1px solid rgba(0,0,0,.1);\" "
             . "loading=\"lazy\" />";
+    }
+
+    /**
+     * Renders the 50x50 cropped center image from base64 data.
+     *
+     * @param mixed $value The cropped_image_data base64 string.
+     * @param object $column Column definition.
+     * @param \Logingrupa\ColorClassifier\Models\ColorEntry $record The model record.
+     * @return string
+     */
+    public function evalCroppedPreviewColumn($value, $column, $record): string
+    {
+        if (empty($value)) {
+            return '<span class="text-muted">—</span>';
+        }
+
+        return "<img src=\"{$value}\" alt=\"Cropped center\" "
+            . "style=\"width:36px;height:36px;border-radius:4px;border:1px solid rgba(0,0,0,.15);image-rendering:pixelated;\" />";
     }
 
     /**

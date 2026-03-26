@@ -1,3 +1,6 @@
 1.0.0:
     - "Initial version — color extraction and taxonomy classification"
     - create_color_entries_table.php
+1.0.1:
+    - "Add cropped image data column for 50x50 center crop preview"
+    - add_cropped_image_data_column.php
