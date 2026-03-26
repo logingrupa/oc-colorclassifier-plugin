@@ -177,7 +177,12 @@ class Plugin extends PluginBase
     public function evalTaxonomyValueColumn($value, $column, $record): string
     {
         $taxonomy = $record->taxonomy;
-        $fieldName = $column->config['taxonomyField'] ?? '';
+
+        // Determine field from nested config or from column name (taxonomy_family → family)
+        $nestedConfig = $column->config['config'] ?? [];
+        $fieldName = $nestedConfig['taxonomyField']
+            ?? $column->config['taxonomyField']
+            ?? str_replace('taxonomy_', '', $column->columnName);
 
         if (!is_array($taxonomy) || empty($fieldName) || empty($taxonomy[$fieldName])) {
             return '<span class="text-muted">—</span>';
