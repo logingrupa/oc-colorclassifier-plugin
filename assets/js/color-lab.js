@@ -541,45 +541,55 @@ function renderGridView() {
     var representedFamilies = new Set(state.filteredEntries.map(function(entry) {
         return entry.taxonomy ? entry.taxonomy.family : null;
     }));
-    var representedDepths = new Set(state.filteredEntries.map(function(entry) {
-        return entry.taxonomy ? entry.taxonomy.depth : null;
-    }));
 
     var visibleFamilies = allFamilies.filter(function(family) { return representedFamilies.has(family); });
-    var visibleDepths = allDepths.filter(function(depth) { return representedDepths.has(depth); });
 
     /** @type {Object.<string, Object.<string, ColorEntry[]>>} */
-    var matrixData = {};
+    var columnData = {};
     state.filteredEntries.forEach(function(colorEntry) {
         var family = colorEntry.taxonomy ? colorEntry.taxonomy.family : null;
         var depth = colorEntry.taxonomy ? colorEntry.taxonomy.depth : null;
-        if (!family || !depth) { return; }
-        if (!matrixData[family]) { matrixData[family] = {}; }
-        if (!matrixData[family][depth]) { matrixData[family][depth] = []; }
-        matrixData[family][depth].push(colorEntry);
+        if (!family) { return; }
+        if (!columnData[family]) { columnData[family] = {}; }
+        var depthKey = depth || 'Uncategorized';
+        if (!columnData[family][depthKey]) { columnData[family][depthKey] = []; }
+        columnData[family][depthKey].push(colorEntry);
     });
 
-    var matrixStyle = 'display:grid;grid-template-columns:90px repeat(' + visibleFamilies.length + ',minmax(60px,80px));';
-    var htmlParts = ['<div class="color-lab__matrix" style="' + matrixStyle + '">'];
+    var htmlParts = ['<div class="color-lab__columns">'];
 
-    htmlParts.push('<div class="color-lab__matrix-header-row">');
-    htmlParts.push('<div class="color-lab__matrix-corner-cell"></div>');
     visibleFamilies.forEach(function(family) {
-        htmlParts.push('<div class="color-lab__matrix-header-cell" title="' + family + '">' + family + '</div>');
-    });
-    htmlParts.push('</div>');
+        var familyDotColor = FAMILY_DOT_COLORS[family] || '#999';
+        var familyDepths = columnData[family] || {};
 
-    visibleDepths.forEach(function(depth) {
-        htmlParts.push('<div class="color-lab__matrix-data-row">');
-        htmlParts.push('<div class="color-lab__matrix-row-header">' + depth + '</div>');
-        visibleFamilies.forEach(function(family) {
-            var cellEntries = (matrixData[family] && matrixData[family][depth]) ? matrixData[family][depth] : [];
-            htmlParts.push('<div class="color-lab__matrix-cell">');
-            cellEntries.forEach(function(colorEntry) {
+        htmlParts.push('<div class="color-lab__column">');
+        htmlParts.push(
+            '<div class="color-lab__column-header">'
+            + '<span class="color-lab__column-dot" style="background:' + familyDotColor + ';"></span>'
+            + '<span class="color-lab__column-title">' + family + '</span>'
+            + '</div>'
+        );
+
+        allDepths.forEach(function(depth) {
+            var depthEntries = familyDepths[depth];
+            if (!depthEntries || depthEntries.length === 0) { return; }
+
+            htmlParts.push(
+                '<div class="color-lab__depth-group">'
+                + '<div class="color-lab__depth-label">'
+                + '<span class="color-lab__depth-arrow">&#9662;</span> '
+                + depth
+                + '</div>'
+                + '<div class="color-lab__depth-swatches">'
+            );
+
+            depthEntries.forEach(function(colorEntry) {
                 htmlParts.push(buildSwatchHtml(colorEntry));
             });
-            htmlParts.push('</div>');
+
+            htmlParts.push('</div></div>');
         });
+
         htmlParts.push('</div>');
     });
 
