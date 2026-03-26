@@ -1056,7 +1056,7 @@
     }
 
     .color-lab__scatter-view {
-        height: 60vh;
-        min-height: 350px;
+        height: calc(100vh - 160px);
+        min-height: 400px;
     }
 }
