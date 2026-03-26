@@ -949,6 +949,8 @@
 
 .color-lab__detail-body {
     padding: 1.25rem 1.5rem 2rem;
+    display: flex;
+    flex-direction: column;
 }
 
 .color-lab__detail-product-name {
@@ -1043,11 +1045,34 @@
     border-radius: 4px;
     transition: background 0.15s;
     letter-spacing: 0.03em;
+    align-self: flex-end;
+    margin-top: auto;
 }
 
 .color-lab__detail-product-link:hover {
     background: var(--color-lab-color-accent-hover);
     color: #fff;
+}
+
+@keyframes color-lab-spin {
+    to { transform: rotate(360deg); }
+}
+
+.color-lab__detail-product-link--loading {
+    pointer-events: none;
+    opacity: 0.85;
+}
+
+.color-lab__spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: color-lab-spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-left: 0.4em;
 }
 
 .color-lab__swatch--selected {
