@@ -103,47 +103,95 @@ let entriesById = new Map();
  * @returns {{view: ViewName|null, colorId: number|null}}
  */
 function parseUrlParameters() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const viewParam = urlParams.get('view');
-    const colorParam = urlParams.get('color');
-
+    var urlParams = new URLSearchParams(window.location.search);
     return {
-        view: (viewParam === 'grid' || viewParam === 'scatter') ? viewParam : null,
-        colorId: colorParam ? parseInt(colorParam, 10) : null,
+        view: (urlParams.get('view') === 'grid' || urlParams.get('view') === 'scatter') ? urlParams.get('view') : null,
+        colorId: urlParams.get('color') ? parseInt(urlParams.get('color'), 10) : null,
+        families: urlParams.get('families') ? urlParams.get('families').split(',') : [],
+        undertone: urlParams.get('undertone') || null,
+        depths: urlParams.get('depths') ? urlParams.get('depths').split(',') : [],
+        saturations: urlParams.get('saturations') ? urlParams.get('saturations').split(',') : [],
+        finishes: urlParams.get('finishes') ? urlParams.get('finishes').split(',') : [],
+        opacities: urlParams.get('opacities') ? urlParams.get('opacities').split(',') : [],
     };
 }
 
 /**
- * Updates the browser URL with the current view and optionally selected color.
- * Uses history.replaceState to avoid polluting browser history on every click.
+ * Syncs current view, selected color, and all active filters to the URL.
  *
- * @param {ViewName} viewName - The active view name.
- * @param {number|null} colorEntryId - The selected color entry ID, or null.
+ * @param {ViewName} viewName
+ * @param {number|null} colorEntryId
  * @returns {void}
  */
 function updateUrlParameters(viewName, colorEntryId) {
-    const urlParams = new URLSearchParams();
+    var urlParams = new URLSearchParams();
     urlParams.set('view', viewName);
 
     if (colorEntryId !== null) {
         urlParams.set('color', String(colorEntryId));
     }
 
-    const newUrl = window.location.pathname + '?' + urlParams.toString();
+    if (state.filterState.families.size > 0) {
+        urlParams.set('families', Array.from(state.filterState.families).join(','));
+    }
+    if (state.filterState.undertone) {
+        urlParams.set('undertone', state.filterState.undertone);
+    }
+    if (state.filterState.depths.size > 0) {
+        urlParams.set('depths', Array.from(state.filterState.depths).join(','));
+    }
+    if (state.filterState.saturations.size > 0) {
+        urlParams.set('saturations', Array.from(state.filterState.saturations).join(','));
+    }
+    if (state.filterState.finishes.size > 0) {
+        urlParams.set('finishes', Array.from(state.filterState.finishes).join(','));
+    }
+    if (state.filterState.opacities.size > 0) {
+        urlParams.set('opacities', Array.from(state.filterState.opacities).join(','));
+    }
+
+    var newUrl = window.location.pathname + '?' + urlParams.toString();
     window.history.replaceState(null, '', newUrl);
 }
 
 /**
- * Restores view and selected color from URL parameters on page load.
+ * Restores view, selected color, and filter state from URL parameters.
  *
  * @returns {void}
  */
 function restoreStateFromUrl() {
-    const urlState = parseUrlParameters();
+    var urlState = parseUrlParameters();
 
     if (urlState.view) {
         state.activeView = urlState.view;
         switchToView(state.activeView);
+    }
+
+    // Restore filter selections
+    urlState.families.forEach(function(family) { state.filterState.families.add(family); });
+    state.filterState.undertone = urlState.undertone;
+    urlState.depths.forEach(function(depth) { state.filterState.depths.add(depth); });
+    urlState.saturations.forEach(function(saturation) { state.filterState.saturations.add(saturation); });
+    urlState.finishes.forEach(function(finish) { state.filterState.finishes.add(finish); });
+    urlState.opacities.forEach(function(opacity) { state.filterState.opacities.add(opacity); });
+
+    // Check the corresponding checkboxes in the DOM
+    if (countActiveFilters() > 0) {
+        document.querySelectorAll('.color-lab__filter-option input[type="checkbox"]').forEach(function(inputElement) {
+            var checkbox = /** @type {HTMLInputElement} */ (inputElement);
+            var dimension = checkbox.dataset.dimension;
+            var value = checkbox.dataset.value;
+
+            if (dimension === 'families' && state.filterState.families.has(value)) { checkbox.checked = true; }
+            if (dimension === 'undertones' && state.filterState.undertone === value) { checkbox.checked = true; }
+            if (dimension === 'depths' && state.filterState.depths.has(value)) { checkbox.checked = true; }
+            if (dimension === 'saturations' && state.filterState.saturations.has(value)) { checkbox.checked = true; }
+            if (dimension === 'finishes' && state.filterState.finishes.has(value)) { checkbox.checked = true; }
+            if (dimension === 'opacities' && state.filterState.opacities.has(value)) { checkbox.checked = true; }
+        });
+
+        applyFilters();
+        updateFilterBadge();
     }
 
     if (urlState.colorId && entriesById.has(urlState.colorId)) {
@@ -388,6 +436,7 @@ function handleFilterChange(changeEvent) {
     applyFilters();
     renderActiveView();
     updateFilterBadge();
+    updateUrlParameters(state.activeView, state.selectedEntryId);
 }
 
 /**
@@ -467,6 +516,7 @@ function clearAllFilters() {
     applyFilters();
     renderActiveView();
     updateFilterBadge();
+    updateUrlParameters(state.activeView, state.selectedEntryId);
 }
 
 // ─── View Switching ───────────────────────────────────────────────────────────

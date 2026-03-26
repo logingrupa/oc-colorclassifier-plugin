@@ -256,7 +256,12 @@ class ColorClassifier
         $isSkinAdjacentHue = ($hue <= 60) || ($hue >= 310);
 
         if ($isSkinAdjacentHue) {
-            // Determine specific nude type based on the chromatic family
+            // Dark warm tones at low chroma are Brown, not Nude
+            if ($perceptualLightness < 40) {
+                return ['primary' => 'Brown', 'secondary' => null];
+            }
+
+            // Nude is only light-to-medium skin tones (perceptual lightness 40-80)
             if (in_array($chromaticFamily, ['Pink', 'Rose', 'Red', 'Magenta'])) {
                 return ['primary' => 'Nude', 'secondary' => 'Pink'];
             }
@@ -306,15 +311,20 @@ class ColorClassifier
             return 'Orange';
         }
 
-        // Yellow / Gold: 45–65
-        if ($hue <= 65) {
-            if ($saturation < 60) {
+        // Gold: 45–55 with moderate saturation
+        if ($hue <= 55) {
+            if ($saturation < 60 && $lightness < 65) {
                 return 'Gold';
             }
             return 'Yellow';
         }
 
-        // Green / Olive: 65–165
+        // Yellow: 55–70
+        if ($hue <= 70) {
+            return 'Yellow';
+        }
+
+        // Green / Teal: 70–165
         if ($hue <= 165) {
             if ($hue >= 150) {
                 return 'Teal';
