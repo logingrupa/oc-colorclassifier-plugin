@@ -149,8 +149,8 @@ class ColorEntries extends Controller
      */
     public function onLoadSettingsPopup(): string
     {
-        Settings::resetDefault();
         $obSettings = Settings::instance();
+        $obSettings->resetDefault();
 
         $obConfig             = $obSettings->getFieldConfig();
         $obConfig->model      = $obSettings;
