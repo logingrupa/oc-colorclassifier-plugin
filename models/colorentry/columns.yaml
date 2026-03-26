@@ -9,6 +9,12 @@ columns:
         invisible: true
         width: 60px
 
+    image_url:
+        label: Image
+        type: image_thumbnail
+        sortable: false
+        width: 50px
+
     product_name:
         label: Product
         searchable: true
@@ -21,9 +27,14 @@ columns:
 
     hex_color:
         label: Color
-        type: partial
-        path: $/logingrupa/colorclassifier/partials/_color_swatch.htm
+        type: color_swatch
         sortable: true
+        width: 160px
+
+    palette_colors:
+        label: Palette
+        type: palette_gradient
+        sortable: false
         width: 140px
 
     color_name:
@@ -33,33 +44,55 @@ columns:
 
     taxonomy_family:
         label: Family
-        type: partial
-        path: $/logingrupa/colorclassifier/partials/_taxonomy_family.htm
+        type: taxonomy_value
         sortable: false
+        valueFrom: taxonomy
+        config:
+            taxonomyField: family
 
     taxonomy_undertone:
         label: Undertone
-        type: partial
-        path: $/logingrupa/colorclassifier/partials/_taxonomy_undertone.htm
+        type: taxonomy_value
         sortable: false
-        invisible: true
+        valueFrom: taxonomy
+        config:
+            taxonomyField: undertone
 
     taxonomy_depth:
         label: Depth
-        type: partial
-        path: $/logingrupa/colorclassifier/partials/_taxonomy_depth.htm
+        type: taxonomy_value
         sortable: false
-        invisible: true
+        valueFrom: taxonomy
+        config:
+            taxonomyField: depth
 
     taxonomy_saturation:
         label: Saturation
-        type: partial
-        path: $/logingrupa/colorclassifier/partials/_taxonomy_saturation.htm
+        type: taxonomy_value
         sortable: false
-        invisible: true
+        valueFrom: taxonomy
+        config:
+            taxonomyField: saturation
+
+    taxonomy_finish:
+        label: Finish
+        type: taxonomy_value
+        sortable: false
+        valueFrom: taxonomy
+        config:
+            taxonomyField: finish
+
+    taxonomy_opacity:
+        label: Opacity
+        type: taxonomy_value
+        sortable: false
+        valueFrom: taxonomy
+        config:
+            taxonomyField: opacity
 
     confidence_score:
         label: Confidence
+        type: confidence_badge
         sortable: true
         width: 100px
 
@@ -67,10 +100,6 @@ columns:
         label: Offer ID
         searchable: true
         sortable: true
-        invisible: true
-
-    image_url:
-        label: Image URL
         invisible: true
 
     processed_at:
