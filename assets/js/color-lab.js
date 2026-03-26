@@ -316,14 +316,13 @@ function buildFilterGroupHtml(dimensionConfig) {
     }).join('');
 
     var descriptionHtml = dimensionConfig.description
-        ? '<p class="color-lab__filter-group-description">' + dimensionConfig.description + '</p>'
+        ? '<span class="color-lab__filter-group-description">' + dimensionConfig.description + '</span>'
         : '';
 
     var dimensionModifier = ' color-lab__filter-group--' + dimensionConfig.key;
 
     return '<div class="color-lab__filter-group' + collapsedClass + groupModifier + dimensionModifier + '">'
-        + '<button type="button" class="color-lab__filter-group-title">' + dimensionConfig.label + '</button>'
-        + descriptionHtml
+        + '<button type="button" class="color-lab__filter-group-title">' + dimensionConfig.label + descriptionHtml + '</button>'
         + '<div class="color-lab__filter-group-options-wrap">'
         + '<div class="color-lab__filter-group-options">' + optionsHtml + '</div>'
         + '</div>'
@@ -792,6 +791,8 @@ function renderScatterView() {
         },
     }];
 
+    var isMobile = isMobileViewport();
+
     /** @type {Plotly.Layout} */
     var plotlyLayout = {
         scene: {
@@ -799,8 +800,11 @@ function renderScatterView() {
             yaxis: { title: 'Lightness' },
             zaxis: { title: 'Chroma \u00d7 sin(Hue)' },
             aspectmode: 'cube',
+            domain: isMobile ? { x: [0, 1], y: [0, 1] } : undefined,
         },
-        margin: { left: 0, right: 0, top: 30, bottom: 0 },
+        margin: isMobile
+            ? { left: 0, right: 0, top: 0, bottom: 0 }
+            : { left: 0, right: 0, top: 30, bottom: 0 },
         paper_bgcolor: 'transparent',
         font: { family: "'Didact Gothic', sans-serif", size: 11 },
     };
@@ -815,6 +819,7 @@ function renderScatterView() {
 
     if (state.plotlyInitialized) {
         Plotly.react(scatterContainer, plotlyTrace, plotlyLayout, plotlyConfig);
+        if (isMobile) { adjustMobileSceneBounds(scatterContainer); }
     } else {
         Plotly.newPlot(scatterContainer, plotlyTrace, plotlyLayout, plotlyConfig).then(function() {
             scatterContainer.on('plotly_click', handlePlotlyDotClick);
@@ -824,9 +829,36 @@ function renderScatterView() {
                 lastMousePosition.x = mouseEvent.clientX;
                 lastMousePosition.y = mouseEvent.clientY;
             });
+            if (isMobile) { adjustMobileSceneBounds(scatterContainer); }
         });
         state.plotlyInitialized = true;
     }
+}
+
+/**
+ * Overrides Plotly's internal scene positioning on mobile to remove top gap.
+ * Uses MutationObserver to persistently enforce the override after every Plotly redraw.
+ *
+ * @param {HTMLElement} container - The Plotly container element.
+ * @returns {void}
+ */
+function adjustMobileSceneBounds(container) {
+    var sceneElement = container.querySelector('#scene');
+    if (!sceneElement) { return; }
+
+    function applyOverride() {
+        var currentTop = parseInt(sceneElement.style.top, 10) || 0;
+        if (currentTop === 0) { return; }
+        var currentHeight = parseInt(sceneElement.style.height, 10) || 0;
+        sceneElement.style.top = '0px';
+        sceneElement.style.height = (currentHeight + currentTop - 100) + 'px';
+    }
+
+    applyOverride();
+
+    new MutationObserver(function() {
+        applyOverride();
+    }).observe(sceneElement, { attributes: true, attributeFilter: ['style'] });
 }
 
 /**
@@ -1020,6 +1052,7 @@ function showDetailCard(colorEntry) {
 
     requestAnimationFrame(function() {
         cardElement.classList.add('color-lab__detail-card--visible');
+        attachDetailCardSwipeHandler(cardElement);
     });
 }
 
@@ -1030,6 +1063,147 @@ function hideDetailCard() {
         existingCard.classList.remove('color-lab__detail-card--visible');
         setTimeout(function() { existingCard.remove(); }, 200);
     }
+}
+
+/**
+ * Attaches a pointer-based swipe-to-dismiss gesture handler to the detail card
+ * on mobile viewports. Follows the vaul/shadcn drawer pattern: a fast flick or
+ * a drag past 25% of card height dismisses; anything less snaps the card back.
+ *
+ * Only active when `isMobileViewport()` is true at the moment of `pointerdown`.
+ * All gesture state is scoped via closure — nothing written to the module `state` object.
+ *
+ * @param {HTMLElement} cardElement - The detail card DOM element to attach the handler to.
+ * @returns {void}
+ */
+function attachDetailCardSwipeHandler(cardElement) {
+    /** @type {number} Y coordinate at the start of the drag gesture */
+    var startY = 0;
+
+    /** @type {number} Unix timestamp (ms) at the start of the drag gesture */
+    var startTime = 0;
+
+    /** @type {boolean} Whether a drag gesture is currently active */
+    var isDragging = false;
+
+    /** @type {AbortController} Used to clean up move/up listeners after each gesture */
+    var gestureController = null;
+
+    /**
+     * Returns true if the pointer target is inside a scrollable element that
+     * currently has scrollable content below the top position.
+     *
+     * @param {EventTarget} target
+     * @returns {boolean}
+     */
+    function isInsideScrollableContent(target) {
+        var element = /** @type {HTMLElement} */ (target);
+        while (element && element !== cardElement) {
+            if (element.scrollHeight > element.clientHeight && element.scrollTop > 0) {
+                return true;
+            }
+            element = element.parentElement;
+        }
+        return false;
+    }
+
+    /**
+     * Handles `pointerdown` — starts a drag gesture when conditions are met.
+     *
+     * @param {PointerEvent} pointerEvent
+     * @returns {void}
+     */
+    function handlePointerDown(pointerEvent) {
+        if (!isMobileViewport()) { return; }
+
+        var target = /** @type {HTMLElement} */ (pointerEvent.target);
+        var isOnHeroArea = !!target.closest('.color-lab__detail-hero');
+        var cardScrolledToTop = cardElement.scrollTop === 0;
+        var targetIsInScrollableContent = isInsideScrollableContent(target);
+
+        // Only activate from the hero/handle zone, OR from the card body when
+        // scrolled to top and not inside a nested scrollable element.
+        if (!isOnHeroArea && (!cardScrolledToTop || targetIsInScrollableContent)) {
+            return;
+        }
+
+        isDragging = true;
+        startY = pointerEvent.clientY;
+        startTime = Date.now();
+
+        pointerEvent.target.setPointerCapture(pointerEvent.pointerId);
+        cardElement.classList.add('color-lab__detail-card--dragging');
+
+        gestureController = new AbortController();
+        var gestureOptions = { signal: gestureController.signal };
+
+        cardElement.addEventListener('pointermove', handlePointerMove, gestureOptions);
+        cardElement.addEventListener('pointerup', handlePointerUp, gestureOptions);
+        cardElement.addEventListener('pointercancel', handlePointerUp, gestureOptions);
+    }
+
+    /**
+     * Handles `pointermove` — translates the card vertically during the drag.
+     *
+     * @param {PointerEvent} pointerEvent
+     * @returns {void}
+     */
+    function handlePointerMove(pointerEvent) {
+        if (!isDragging) { return; }
+
+        var deltaY = pointerEvent.clientY - startY;
+        // Clamp: do not allow dragging upward past the open position.
+        if (deltaY < 0) { deltaY = 0; }
+
+        cardElement.style.transform = 'translateY(' + deltaY + 'px)';
+    }
+
+    /**
+     * Handles `pointerup` and `pointercancel` — decides whether to dismiss
+     * (via velocity or distance threshold) or snap the card back to open position.
+     *
+     * @param {PointerEvent} pointerEvent
+     * @returns {void}
+     */
+    function handlePointerUp(pointerEvent) {
+        if (!isDragging) { return; }
+
+        isDragging = false;
+        cardElement.classList.remove('color-lab__detail-card--dragging');
+
+        var deltaY = Math.max(0, pointerEvent.clientY - startY);
+        var elapsedTime = Date.now() - startTime;
+        var velocity = elapsedTime > 0 ? deltaY / elapsedTime : 0;
+        var cardHeight = cardElement.offsetHeight;
+        var distanceThresholdMet = deltaY > cardHeight * 0.25;
+        var velocityThresholdMet = velocity > 0.5;
+
+        if (gestureController) {
+            gestureController.abort();
+            gestureController = null;
+        }
+
+        if (velocityThresholdMet || distanceThresholdMet) {
+            // Animate out, then deselect. Re-enable transition first.
+            cardElement.style.transform = 'translateY(100%)';
+            cardElement.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+
+            var dismissTimeout = setTimeout(function() {
+                deselectColorEntry();
+            }, 250);
+
+            cardElement.addEventListener('transitionend', function onTransitionEnd() {
+                clearTimeout(dismissTimeout);
+                cardElement.removeEventListener('transitionend', onTransitionEnd);
+                deselectColorEntry();
+            }, { once: true });
+        } else {
+            // Snap back: clear inline transform so CSS --visible class reasserts translateY(0).
+            cardElement.style.transform = '';
+        }
+    }
+
+    cardElement.addEventListener('pointerdown', handlePointerDown);
 }
 
 // ─── Tooltip (Grid hover) ─────────────────────────────────────────────────────
