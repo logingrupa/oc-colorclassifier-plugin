@@ -1000,7 +1000,7 @@ function showDetailCard(colorEntry) {
             + '    <div class="color-lab__detail-image color-lab__detail-image--blend" style="background:' + escapeHtml(colorEntry.hexColor) + ';">'
             + '        <img src="' + escapeHtml(colorEntry.imageUrl) + '" alt="Blend" loading="lazy">'
             + '    </div>'
-            + '    <span class="color-lab__detail-image-label">Blend</span>'
+            + '    <span class="color-lab__detail-image-label">Overlay</span>'
             + '</div>'
             : '')
         + '</div>'
@@ -1220,7 +1220,7 @@ function showLightbox(imageSrc, blendColor) {
             + '<div class="color-lab__lightbox-blend" style="background:' + escapeHtml(blendColor) + ';">'
             + '    <img src="' + escapeHtml(imageSrc) + '" alt="Blend" class="color-lab__lightbox-image">'
             + '</div>'
-            + '<span class="color-lab__lightbox-label">Blend — ' + escapeHtml(blendColor) + '</span>'
+            + '<span class="color-lab__lightbox-label">Overlay — ' + escapeHtml(blendColor) + '</span>'
             + '</div>';
     }
 
