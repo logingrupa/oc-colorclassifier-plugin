@@ -11,8 +11,8 @@
     --color-lab-header-height: 80px;
     --color-lab-font-body: 'Didact Gothic', sans-serif;
     --color-lab-font-heading: 'Syne', sans-serif;
-    --color-lab-color-accent: #1a1a2e;
-    --color-lab-color-accent-hover: #16213e;
+    --color-lab-color-accent: #bf8e97;
+    --color-lab-color-accent-hover: #a87a83;
     --color-lab-color-border: #e0e0e0;
     --color-lab-color-badge: #e74c3c;
     --color-lab-color-surface: #f8f8f8;
@@ -24,6 +24,42 @@
     color: var(--color-lab-color-text);
     min-height: calc(100vh - 80px);
     width: 100%;
+}
+
+/* Reset global button styles leak from theme CSS */
+.color-lab button {
+    background: transparent !important;
+    color: inherit !important;
+    border: none !important;
+    padding: 0 !important;
+    line-height: inherit !important;
+    font-size: inherit !important;
+}
+
+.color-lab .color-lab__view-button {
+    padding: 0.4rem 1rem !important;
+    font-size: 0.875rem !important;
+    border: 1px solid var(--color-lab-color-accent) !important;
+    color: var(--color-lab-color-accent) !important;
+    background: transparent !important;
+}
+
+.color-lab .color-lab__view-button:hover {
+    background: var(--color-lab-color-surface) !important;
+    color: var(--color-lab-color-accent) !important;
+    border: 1px solid var(--color-lab-color-accent) !important;
+}
+
+.color-lab .color-lab__view-button.color-lab__view-button--active {
+    background: var(--color-lab-color-accent) !important;
+    color: #ffffff !important;
+    border: 1px solid var(--color-lab-color-accent) !important;
+}
+
+.color-lab .color-lab__view-button.color-lab__view-button--active:hover {
+    background: var(--color-lab-color-accent-hover) !important;
+    color: #ffffff !important;
+    border: 1px solid var(--color-lab-color-accent-hover) !important;
 }
 
 /* ─── Header ──────────────────────────────────────────────────────────────── */
@@ -314,8 +350,8 @@
 .color-lab__filter-group-description {
     font-size: 0.7rem;
     color: var(--color-lab-color-text-muted);
-    margin: -0.15rem 0 0.35rem;
-    line-height: 1.3;
+    margin-left: 0.5rem;
+    font-weight: 400;
     font-style: italic;
 }
 
@@ -332,7 +368,7 @@
 }
 
 .color-lab__filter-group--collapsed .color-lab__filter-group-description {
-    display: none;
+    display: inline;
 }
 
 /* Default pill-style filter option — glass-like */
@@ -701,8 +737,8 @@
     /* Repeat custom properties — this card is appended to <body>, outside .color-lab */
     --color-lab-font-body: 'Didact Gothic', sans-serif;
     --color-lab-font-heading: 'Syne', sans-serif;
-    --color-lab-color-accent: #1a1a2e;
-    --color-lab-color-accent-hover: #16213e;
+    --color-lab-color-accent: #bf8e97;
+    --color-lab-color-accent-hover: #a87a83;
     --color-lab-color-border: #e0e0e0;
     --color-lab-color-text: #333333;
     --color-lab-color-text-muted: #666666;
@@ -1086,6 +1122,12 @@
         background: rgba(0, 0, 0, 0.3);
     }
 
+    .color-lab__filter-toggle {
+        background: var(--color-lab-color-accent);
+        color: #ffffff;
+        border-color: var(--color-lab-color-accent);
+    }
+
     .color-lab__filter-header {
         cursor: pointer;
     }
@@ -1115,5 +1157,50 @@
 
     .color-lab__scatter-view .modebar-container {
         right: 19% !important;
+    }
+
+    /* ─── Detail Card as Bottom Sheet on Mobile ───────────────────────────── */
+
+    .color-lab__detail-card {
+        top: auto;
+        right: auto;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        max-height: 85vh;
+        transform: translateY(100%);
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 16px 16px 0 0;
+        box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+        will-change: transform;
+    }
+
+    .color-lab__detail-card--visible {
+        transform: translateY(0);
+    }
+
+    .color-lab__detail-card--dragging {
+        transition: none !important;
+    }
+
+    .color-lab__detail-hero {
+        touch-action: none;
+    }
+
+    .color-lab__detail-hero::before {
+        content: '';
+        display: block;
+        width: 36px;
+        height: 4px;
+        background: rgba(0, 0, 0, 0.25);
+        border-radius: 2px;
+        margin: 0 auto 0.75rem;
+    }
+
+    .color-lab__detail-close {
+        top: 8px;
+        right: 8px;
     }
 }
