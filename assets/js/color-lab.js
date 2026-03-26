@@ -987,7 +987,7 @@ function showDetailCard(colorEntry) {
         + (colorEntry.croppedImageData
             ? '<div class="color-lab__detail-image-group">'
             + '    <img src="' + colorEntry.croppedImageData + '" alt="Center crop" class="color-lab__detail-image color-lab__detail-image--crop" loading="lazy">'
-            + '    <span class="color-lab__detail-image-label">50\u00d750 Crop</span>'
+            + '    <span class="color-lab__detail-image-label">Center Crop</span>'
             + '</div>'
             : '')
         + '<div class="color-lab__detail-image-group">'
