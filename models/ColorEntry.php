@@ -27,6 +27,7 @@ class ColorEntry extends Model
         'product_name',
         'variation_name',
         'image_url',
+        'detail_url',
         'cropped_image_data',
         'hex_color',
         'oklch_values',

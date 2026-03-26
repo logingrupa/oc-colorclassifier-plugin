@@ -4,3 +4,6 @@
 1.0.1:
     - "Add cropped image data column for 50x50 center crop preview"
     - add_cropped_image_data_column.php
+1.0.2:
+    - "Add detail_url column for frontend product deep links"
+    - add_detail_url_column.php

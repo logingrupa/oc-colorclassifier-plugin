@@ -144,6 +144,7 @@ class ColorLab extends ComponentBase
                 'taxonomy'         => $obEntry->taxonomy,
                 'confidenceScore'  => (float) $obEntry->confidence_score,
                 'imageUrl'         => $obEntry->image_url,
+                'detailUrl'        => $obEntry->detail_url,
                 'croppedImageData' => $obEntry->cropped_image_data,
             ];
         }

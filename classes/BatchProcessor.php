@@ -225,6 +225,7 @@ class BatchProcessor
                 'product_name'       => $offer['product_name'],
                 'variation_name'     => $offer['variation_name'],
                 'image_url'          => $offer['image_url'],
+                'detail_url'         => $offer['detail_url'] ?? null,
                 'hex_color'          => $hexColor,
                 'oklch_values'       => $oklchValues,
                 'palette_colors'     => $imageResult['palette'],

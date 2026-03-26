@@ -27,6 +27,7 @@ Route::get('/tools/color-lab', function () {
             'taxonomy'         => $obEntry->taxonomy,
             'confidenceScore'  => (float) $obEntry->confidence_score,
             'imageUrl'         => $obEntry->image_url,
+            'detailUrl'        => $obEntry->detail_url,
             'croppedImageData' => $obEntry->cropped_image_data,
         ];
     }
@@ -69,6 +70,7 @@ Route::get('/api/color-lab/data', function () {
             'taxonomy'         => $obEntry->taxonomy,
             'confidenceScore'  => (float) $obEntry->confidence_score,
             'imageUrl'         => $obEntry->image_url,
+            'detailUrl'        => $obEntry->detail_url,
         ];
     }
 

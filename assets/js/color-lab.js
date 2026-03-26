@@ -933,13 +933,7 @@ function showDetailCard(colorEntry) {
     var confidenceColor = colorEntry.confidenceScore >= 0.8 ? '#28a745'
         : colorEntry.confidenceScore >= 0.5 ? '#ffc107' : '#dc3545';
 
-    var productSlug = colorEntry.productName.toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-');
-    var colorLabElement = document.querySelector('.color-lab');
-    var productUrlPattern = (colorLabElement && colorLabElement.dataset.productUrl) || '/products/detail/:slug';
-    var productDetailUrl = productUrlPattern.replace(':slug', productSlug);
+    var productDetailUrl = colorEntry.detailUrl || '#';
 
     var textColorOnSwatch = (oklch.lightness || 0) > 60 ? '#000' : '#fff';
 
@@ -1007,7 +1001,7 @@ function showDetailCard(colorEntry) {
         + (colorEntry.colorName ? '<p class="color-lab__detail-color-name">' + escapeHtml(colorEntry.colorName) + '</p>' : '')
         + paletteHtml
         + taxonomyHtml
-        + '    <a href="' + productDetailUrl + '" class="color-lab__detail-product-link">View Product &rarr;</a>'
+        + (productDetailUrl !== '#' ? '    <a href="' + productDetailUrl + '" class="color-lab__detail-product-link">View Product &rarr;</a>' : '')
         + '</div>';
 
     document.body.appendChild(cardElement);

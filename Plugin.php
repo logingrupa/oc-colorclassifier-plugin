@@ -100,6 +100,7 @@ class Plugin extends PluginBase
             'image_thumbnail'   => [$this, 'evalImageThumbnailColumn'],
             'cropped_preview'   => [$this, 'evalCroppedPreviewColumn'],
             'confidence_badge'  => [$this, 'evalConfidenceBadgeColumn'],
+            'product_link'      => [$this, 'evalProductLinkColumn'],
         ];
     }
 
@@ -258,5 +259,30 @@ class Plugin extends PluginBase
 
         return "<span style=\"display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;"
             . "background:{$badgeColor};color:{$textColor};\">{$percentage}%</span>";
+    }
+
+    /**
+     * Renders a product name as a clickable link to the frontend product page.
+     *
+     * Falls back to plain text if no detail_url is stored.
+     *
+     * @param mixed $value The product_name value.
+     * @param object $column Column definition.
+     * @param \Logingrupa\ColorClassifier\Models\ColorEntry $record The model record.
+     * @return string
+     */
+    public function evalProductLinkColumn($value, $column, $record): string
+    {
+        $productName = e($value ?: '—');
+
+        if (empty($record->detail_url)) {
+            return $productName;
+        }
+
+        $detailUrl = e($record->detail_url);
+
+        return "<a href=\"{$detailUrl}\" target=\"_blank\" "
+            . "style=\"color:#4da7e8;text-decoration:none;\" "
+            . "title=\"View on frontend\">{$productName} ↗</a>";
     }
 }
