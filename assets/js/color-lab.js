@@ -1053,6 +1053,7 @@ function showDetailCard(colorEntry) {
     requestAnimationFrame(function() {
         cardElement.classList.add('color-lab__detail-card--visible');
         attachDetailCardSwipeHandler(cardElement);
+        attachProductLinkLoadingHandler(cardElement);
     });
 }
 
@@ -1063,6 +1064,24 @@ function hideDetailCard() {
         existingCard.classList.remove('color-lab__detail-card--visible');
         setTimeout(function() { existingCard.remove(); }, 200);
     }
+}
+
+/**
+ * Attaches a click handler to the product link inside the detail card.
+ * On click, swaps the link content to a "Loading..." spinner state and
+ * prevents double-clicking via pointer-events: none. Navigation proceeds normally.
+ *
+ * @param {HTMLElement} cardElement - The detail card DOM element containing the link.
+ * @returns {void}
+ */
+function attachProductLinkLoadingHandler(cardElement) {
+    var link = cardElement.querySelector('.color-lab__detail-product-link');
+    if (!link) { return; }
+
+    link.addEventListener('click', function() {
+        link.classList.add('color-lab__detail-product-link--loading');
+        link.innerHTML = 'Loading&hellip; <span class="color-lab__spinner"></span>';
+    });
 }
 
 /**
