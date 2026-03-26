@@ -63,10 +63,13 @@ class ColorClassifier
         $saturation = $hslValues['saturation'];
         $lightness  = $hslValues['lightness'];
 
+        $oklchValues          = ColorConverter::rgbToOklch($red, $green, $blue);
+        $perceptualLightness  = $oklchValues['lightness'] * 100;
+
         return [
             'family'           => self::determineColorFamily($hue, $saturation, $lightness),
             'undertone'        => self::determineUndertone($hue, $saturation),
-            'depth'            => self::determineDepth($lightness),
+            'depth'            => self::determineDepth($perceptualLightness),
             'saturation'       => self::determineSaturation($saturation),
             'finish'           => null,
             'opacity'          => 'Opaque',
