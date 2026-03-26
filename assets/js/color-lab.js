@@ -780,20 +780,15 @@ function renderScatterView() {
         },
     }];
 
-    var isMobileViewport = window.innerWidth <= 768;
-
     /** @type {Plotly.Layout} */
     var plotlyLayout = {
         scene: {
-            xaxis: { title: isMobileViewport ? '' : 'Chroma \u00d7 cos(Hue)', showticklabels: !isMobileViewport },
-            yaxis: { title: isMobileViewport ? '' : 'Lightness', showticklabels: !isMobileViewport },
-            zaxis: { title: isMobileViewport ? '' : 'Chroma \u00d7 sin(Hue)', showticklabels: !isMobileViewport },
+            xaxis: { title: 'Chroma \u00d7 cos(Hue)' },
+            yaxis: { title: 'Lightness' },
+            zaxis: { title: 'Chroma \u00d7 sin(Hue)' },
             aspectmode: 'cube',
-            camera: isMobileViewport ? { eye: { x: 1.0, y: 1.0, z: 1.0 } } : undefined,
         },
-        margin: isMobileViewport
-            ? { left: 0, right: 0, top: 0, bottom: 0 }
-            : { left: 0, right: 0, top: 30, bottom: 0 },
+        margin: { left: 0, right: 0, top: 30, bottom: 0 },
         paper_bgcolor: 'transparent',
         font: { family: "'Didact Gothic', sans-serif", size: 11 },
     };

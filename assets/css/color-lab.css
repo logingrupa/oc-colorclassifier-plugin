@@ -1063,5 +1063,12 @@
     .color-lab__scatter-view {
         height: calc(100vh - 160px);
         min-height: 400px;
+        overflow: hidden;
+        background: black; /* DEBUG: remove after testing */
+    }
+
+    .color-lab__scatter-view .js-plotly-plot {
+        transform: scale(1.25);
+        transform-origin: center center;
     }
 }
