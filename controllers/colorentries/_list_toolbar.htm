@@ -14,6 +14,26 @@
         Process New
     </button>
 
+    <button
+        class="btn btn-default oc-icon-refresh"
+        data-request="onReprocessSelected"
+        data-request-confirm="Re-process selected entries?"
+        data-list-checked-trigger
+        data-list-checked-request
+        data-stripe-load-indicator>
+        Re-process Selected
+    </button>
+
+    <button
+        class="btn btn-danger oc-icon-trash"
+        data-request="onDeleteSelected"
+        data-request-confirm="Delete selected entries?"
+        data-list-checked-trigger
+        data-list-checked-request
+        data-stripe-load-indicator>
+        Delete Selected
+    </button>
+
     <a
         href="<?= Backend::url('logingrupa/colorclassifier/colorentries/export') ?>"
         class="btn btn-default oc-icon-download">

@@ -161,6 +161,42 @@ class BatchProcessor
     }
 
     /**
+     * Re-process a single existing ColorEntry by re-downloading and re-analyzing its image.
+     *
+     * @param ColorEntry $colorEntry The existing entry to re-process.
+     *
+     * @return bool True if re-processing succeeded, false on failure.
+     */
+    public function reprocessEntry(ColorEntry $colorEntry): bool
+    {
+        $imageResult = ColorExtractor::processImage($colorEntry->image_url);
+
+        if ($imageResult === null) {
+            return false;
+        }
+
+        $dominantRgb = $imageResult['rgb'];
+        $red         = $dominantRgb['red'];
+        $green       = $dominantRgb['green'];
+        $blue        = $dominantRgb['blue'];
+
+        $hexColor  = ColorConverter::rgbToHex($red, $green, $blue);
+        $taxonomy  = ColorClassifier::classify($red, $green, $blue);
+
+        $colorEntry->update([
+            'hex_color'        => $hexColor,
+            'oklch_values'     => ColorConverter::rgbToOklch($red, $green, $blue),
+            'palette_colors'   => $imageResult['palette'],
+            'color_name'       => ColorNamer::findNearestColorName($hexColor),
+            'taxonomy'         => $taxonomy,
+            'confidence_score' => $taxonomy['confidence_score'],
+            'processed_at'     => now(),
+        ]);
+
+        return true;
+    }
+
+    /**
      * Convert image analysis results to taxonomy and persist a ColorEntry record.
      *
      * @param array{offer_id: string, product_name: string, variation_name: string, image_url: string} $offer       Offer metadata.

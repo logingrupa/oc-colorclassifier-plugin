@@ -6,6 +6,7 @@ use Backend\Classes\Controller;
 use BackendMenu;
 use Flash;
 use Logingrupa\ColorClassifier\Classes\BatchProcessor;
+use Logingrupa\ColorClassifier\Models\ColorEntry;
 
 /**
  * ColorEntries Backend Controller — manages the color classification list view.
@@ -100,6 +101,57 @@ class ColorEntries extends Controller
             "Processed {$result['processed']}, skipped {$result['skipped']}, "
             . "failed {$result['failed']} of {$result['total']} offers."
         );
+
+        return $this->listRefresh();
+    }
+
+    /**
+     * AJAX handler — re-process only the checked entries.
+     *
+     * @return array<string, mixed> List refresh response.
+     */
+    public function onReprocessSelected(): array
+    {
+        $selectedIds = post('checked', []);
+
+        if (empty($selectedIds)) {
+            Flash::warning('No entries selected.');
+            return $this->listRefresh();
+        }
+
+        $entries = ColorEntry::whereIn('id', $selectedIds)->get();
+        $batchProcessor = new BatchProcessor();
+
+        $processed = 0;
+        $failed = 0;
+
+        foreach ($entries as $entry) {
+            $result = $batchProcessor->reprocessEntry($entry);
+            $result ? $processed++ : $failed++;
+        }
+
+        Flash::success("Re-processed {$processed} of " . count($selectedIds) . " entries" . ($failed ? ", {$failed} failed." : "."));
+
+        return $this->listRefresh();
+    }
+
+    /**
+     * AJAX handler — delete the checked entries.
+     *
+     * @return array<string, mixed> List refresh response.
+     */
+    public function onDeleteSelected(): array
+    {
+        $selectedIds = post('checked', []);
+
+        if (empty($selectedIds)) {
+            Flash::warning('No entries selected.');
+            return $this->listRefresh();
+        }
+
+        $deletedCount = ColorEntry::whereIn('id', $selectedIds)->delete();
+
+        Flash::success("Deleted {$deletedCount} entries.");
 
         return $this->listRefresh();
     }
