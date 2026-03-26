@@ -196,7 +196,14 @@ function restoreStateFromUrl() {
 
     if (urlState.colorId && entriesById.has(urlState.colorId)) {
         state.selectedEntryId = urlState.colorId;
-        showDetailCard(entriesById.get(urlState.colorId));
+        var selectedEntry = entriesById.get(urlState.colorId);
+        showDetailCard(selectedEntry);
+
+        // Restore lightbox if URL has lightbox=1
+        var lightboxParam = new URLSearchParams(window.location.search).get('lightbox');
+        if (lightboxParam === '1' && selectedEntry.imageUrl) {
+            showLightbox(selectedEntry.imageUrl, isPngImage(selectedEntry.imageUrl) ? selectedEntry.hexColor : null);
+        }
     }
 }
 
@@ -979,29 +986,15 @@ function showDetailCard(colorEntry) {
         + '</div>'
 
         + '<div class="color-lab__detail-images">'
-        + (colorEntry.imageUrl
-            ? '<div class="color-lab__detail-image-group" data-lightbox-src="' + escapeHtmlAttribute(colorEntry.imageUrl) + '">'
-            + '    <img src="' + escapeHtml(colorEntry.imageUrl) + '" alt="Original" class="color-lab__detail-image" loading="lazy">'
-            + '    <span class="color-lab__detail-image-label">Original</span>'
-            + '</div>'
-            : '')
-        + (colorEntry.croppedImageData
-            ? '<div class="color-lab__detail-image-group">'
-            + '    <img src="' + colorEntry.croppedImageData + '" alt="Center crop" class="color-lab__detail-image color-lab__detail-image--crop" loading="lazy">'
-            + '    <span class="color-lab__detail-image-label">Center Crop</span>'
-            + '</div>'
-            : '')
-        + '<div class="color-lab__detail-image-group">'
-        + '    <div class="color-lab__detail-image color-lab__detail-image--hex" style="background:' + escapeHtml(colorEntry.hexColor) + ';"></div>'
-        + '    <span class="color-lab__detail-image-label">' + escapeHtml(colorEntry.hexColor) + '</span>'
+        + buildDetailImageTrioHtml(colorEntry)
         + '</div>'
+        + '<div class="color-lab__detail-images">'
+        + (colorEntry.croppedImageData
+            ? buildDetailImageGroupHtml(colorEntry.croppedImageData, 'Center Crop', null, 'color-lab__detail-image--crop')
+            : '')
+        + buildDetailImageGroupHtml(null, escapeHtml(colorEntry.hexColor), colorEntry.hexColor, 'color-lab__detail-image--hex')
         + (isPngImage(colorEntry.imageUrl)
-            ? '<div class="color-lab__detail-image-group" data-lightbox-src="' + escapeHtmlAttribute(colorEntry.imageUrl) + '" data-lightbox-blend="' + escapeHtmlAttribute(colorEntry.hexColor) + '">'
-            + '    <div class="color-lab__detail-image color-lab__detail-image--blend" style="background:' + escapeHtml(colorEntry.hexColor) + ';">'
-            + '        <img src="' + escapeHtml(colorEntry.imageUrl) + '" alt="Blend" loading="lazy">'
-            + '    </div>'
-            + '    <span class="color-lab__detail-image-label">Overlay</span>'
-            + '</div>'
+            ? buildDetailOverlayGroupHtml(colorEntry.imageUrl, colorEntry.hexColor)
             : '')
         + '</div>'
 
@@ -1193,6 +1186,69 @@ function attachSidebarToggleListener() {
     });
 }
 
+// ─── Detail Image Builders (DRY) ──────────────────────────────────────────────
+
+/**
+ * Builds 3 side-by-side original image previews on white, grey, and black backgrounds.
+ *
+ * @param {ColorEntry} colorEntry
+ * @returns {string} HTML string for 3 image groups.
+ */
+function buildDetailImageTrioHtml(colorEntry) {
+    if (!colorEntry.imageUrl) { return ''; }
+
+    var backgrounds = [
+        { color: '#ffffff', label: 'White' },
+        { color: '#808080', label: 'Grey' },
+        { color: '#1a1a1a', label: 'Black' },
+    ];
+
+    return backgrounds.map(function(background) {
+        return '<div class="color-lab__detail-image-group" data-lightbox-src="' + escapeHtmlAttribute(colorEntry.imageUrl) + '">'
+            + '<div class="color-lab__detail-image color-lab__detail-image--bg" style="background:' + background.color + ';">'
+            + '    <img src="' + escapeHtml(colorEntry.imageUrl) + '" alt="On ' + background.label + '" loading="lazy">'
+            + '</div>'
+            + '<span class="color-lab__detail-image-label">' + background.label + '</span>'
+            + '</div>';
+    }).join('');
+}
+
+/**
+ * Builds a single detail image group (crop, hex block, etc).
+ *
+ * @param {string|null} imageSrc - Image source URL or base64, or null for color block.
+ * @param {string} label - Label text below the image.
+ * @param {string|null} backgroundColor - Background color for color blocks.
+ * @param {string} extraClass - Additional CSS class.
+ * @returns {string} HTML string.
+ */
+function buildDetailImageGroupHtml(imageSrc, label, backgroundColor, extraClass) {
+    var inner = imageSrc
+        ? '<img src="' + imageSrc + '" alt="' + escapeHtmlAttribute(label) + '" class="color-lab__detail-image ' + extraClass + '" loading="lazy">'
+        : '<div class="color-lab__detail-image ' + extraClass + '" style="background:' + escapeHtml(backgroundColor) + ';"></div>';
+
+    return '<div class="color-lab__detail-image-group">'
+        + inner
+        + '<span class="color-lab__detail-image-label">' + label + '</span>'
+        + '</div>';
+}
+
+/**
+ * Builds the overlay image group (PNG on hex color background).
+ *
+ * @param {string} imageUrl - PNG image URL.
+ * @param {string} hexColor - Background hex color.
+ * @returns {string} HTML string.
+ */
+function buildDetailOverlayGroupHtml(imageUrl, hexColor) {
+    return '<div class="color-lab__detail-image-group" data-lightbox-src="' + escapeHtmlAttribute(imageUrl) + '" data-lightbox-blend="' + escapeHtmlAttribute(hexColor) + '">'
+        + '<div class="color-lab__detail-image color-lab__detail-image--blend" style="background:' + escapeHtml(hexColor) + ';">'
+        + '    <img src="' + escapeHtml(imageUrl) + '" alt="Overlay" loading="lazy">'
+        + '</div>'
+        + '<span class="color-lab__detail-image-label">Overlay</span>'
+        + '</div>';
+}
+
 // ─── Lightbox ─────────────────────────────────────────────────────────────────
 
 /**
@@ -1237,12 +1293,20 @@ function showLightbox(imageSrc, blendColor) {
 
     document.body.appendChild(overlay);
     requestAnimationFrame(function() { overlay.classList.add('color-lab__lightbox--visible'); });
+
+    var urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('lightbox', '1');
+    window.history.replaceState(null, '', window.location.pathname + '?' + urlParams.toString());
 }
 
 /** @returns {void} */
 function hideLightbox() {
     var existing = document.querySelector('.color-lab__lightbox');
     if (existing) { existing.remove(); }
+
+    var urlParams = new URLSearchParams(window.location.search);
+    urlParams.delete('lightbox');
+    window.history.replaceState(null, '', window.location.pathname + '?' + urlParams.toString());
 }
 
 /**
