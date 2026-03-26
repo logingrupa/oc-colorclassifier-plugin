@@ -1,0 +1,88 @@
+<?php $sModeLabel = ($mode === 'all') ? 'Re-process All' : 'Process New'; ?>
+<div class="modal-header">
+    <h4 class="modal-title"><?= e($sModeLabel) ?> Offers</h4>
+    <button type="button" class="btn-close" data-dismiss="modal"></button>
+</div>
+<div class="modal-body">
+    <input type="hidden" id="batchMode" value="<?= e($mode) ?>">
+    <input type="hidden" id="batchTotal" value="<?= (int) $totalOffers ?>">
+
+    <!-- Config Section — visible before processing starts -->
+    <div id="batchConfigSection">
+        <div class="batch-popup-info-row">
+            <span class="batch-popup-info-label">Catalog size</span>
+            <strong class="batch-popup-info-value"><?= (int) $totalOffers ?> offers</strong>
+        </div>
+        <div class="batch-popup-info-row">
+            <span class="batch-popup-info-label">Batch size</span>
+            <div>
+                <input
+                    id="batchSizeInput"
+                    type="number"
+                    class="form-control batch-popup-batch-input"
+                    value="5"
+                    min="1"
+                    max="50"
+                    step="1">
+                <p class="help-block">Offers per request. Lower values are safer on slow servers.</p>
+            </div>
+        </div>
+        <?php if ((int) $totalOffers === 0): ?>
+            <div class="callout callout-warning">
+                <p>No offers found in catalog. Check that CommerceMlParser is accessible.</p>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <!-- Progress Section — visible while processing -->
+    <div id="batchProgressSection" style="display:none;">
+        <div class="batch-popup-stats">
+            <div class="batch-popup-stat">
+                <span class="batch-popup-stat-value" id="batchStatProgress">0 / <?= (int) $totalOffers ?></span>
+                <span class="batch-popup-stat-label">Progress</span>
+            </div>
+            <div class="batch-popup-stat batch-popup-stat--processed">
+                <span class="batch-popup-stat-value" id="batchStatProcessed">0</span>
+                <span class="batch-popup-stat-label">Processed</span>
+            </div>
+            <div class="batch-popup-stat batch-popup-stat--skipped">
+                <span class="batch-popup-stat-value" id="batchStatSkipped">0</span>
+                <span class="batch-popup-stat-label">Skipped</span>
+            </div>
+            <div class="batch-popup-stat batch-popup-stat--failed">
+                <span class="batch-popup-stat-value" id="batchStatFailed">0</span>
+                <span class="batch-popup-stat-label">Failed</span>
+            </div>
+            <div class="batch-popup-stat">
+                <span class="batch-popup-stat-value" id="batchStatEta">&mdash;</span>
+                <span class="batch-popup-stat-label">ETA</span>
+            </div>
+        </div>
+        <div class="batch-popup-bar-track">
+            <div class="batch-popup-bar-fill" id="batchProgressBar"></div>
+        </div>
+        <p class="batch-popup-status-text" id="batchStatusText">Preparing&hellip;</p>
+    </div>
+
+    <!-- Complete Section — visible after processing finishes -->
+    <div id="batchCompleteSection" style="display:none;">
+        <div class="batch-popup-complete">
+            <div class="batch-popup-complete-icon oc-icon-check"></div>
+            <p class="batch-popup-complete-text" id="batchCompleteText"></p>
+        </div>
+    </div>
+</div>
+<div class="modal-footer">
+    <button id="batchStartBtn" type="button" class="btn btn-primary" <?= ((int) $totalOffers === 0) ? 'disabled' : '' ?>>
+        Start Processing
+    </button>
+    <button id="batchStopBtn" type="button" class="btn btn-danger" style="display:none;">
+        Stop Processing
+    </button>
+    <button id="batchCloseRefreshBtn" type="button" class="btn btn-primary" style="display:none;">
+        Close &amp; Refresh
+    </button>
+    <button type="button" class="btn btn-default" data-dismiss="modal" id="batchCancelBtn">
+        Cancel
+    </button>
+</div>

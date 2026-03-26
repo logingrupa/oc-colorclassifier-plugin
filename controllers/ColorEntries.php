@@ -66,45 +66,39 @@ class ColorEntries extends Controller
     }
 
     /**
-     * AJAX handler — process all offers regardless of prior processing state.
+     * AJAX handler — prepare a chunked batch run and return the total offer count.
      *
-     * Re-processes every offer fetched from CommerceMlParser. Existing
-     * ColorEntry records are updated via updateOrCreate.
+     * Called once before the frontend begins looping onProcessBatch requests.
+     * Caches the offer list so subsequent chunks read from cache, not the XML feed.
      *
-     * @return array<string, mixed> List refresh response.
+     * @return array{total: int}
      */
-    public function onProcessAll(): array
+    public function onStartBatch(): array
     {
+        $sMode          = post('mode', 'all');
         $batchProcessor = new BatchProcessor();
-        $result         = $batchProcessor->processAll();
 
-        Flash::success(
-            "Processed {$result['processed']}, skipped {$result['skipped']}, "
-            . "failed {$result['failed']} of {$result['total']} offers."
-        );
-
-        return $this->listRefresh();
+        return $batchProcessor->prepareBatch($sMode);
     }
 
     /**
-     * AJAX handler — process only offers not yet in the database.
+     * AJAX handler — process a single chunk of offers.
      *
-     * Skips offers that already have a ColorEntry record, allowing
-     * incremental processing as new offers are added to the XML feed.
+     * The frontend calls this repeatedly with incrementing offsets until
+     * the 'done' flag is true. Each request processes a small batch to
+     * stay within serverless/hosting time limits.
      *
-     * @return array<string, mixed> List refresh response.
+     * @return array{processed: int, skipped: int, failed: int, total: int, done: bool}
      */
-    public function onProcessNew(): array
+    public function onProcessBatch(): array
     {
+        $iOffset    = (int) post('offset', 0);
+        $iBatchSize = (int) post('batch_size', 5);
+        $sMode      = post('mode', 'all');
+
         $batchProcessor = new BatchProcessor();
-        $result         = $batchProcessor->processNew();
 
-        Flash::success(
-            "Processed {$result['processed']}, skipped {$result['skipped']}, "
-            . "failed {$result['failed']} of {$result['total']} offers."
-        );
-
-        return $this->listRefresh();
+        return $batchProcessor->processChunk($iOffset, $iBatchSize, $sMode);
     }
 
     /**
@@ -135,6 +129,26 @@ class ColorEntries extends Controller
         Flash::success("Re-processed {$processed} of " . count($selectedIds) . " entries" . ($failed ? ", {$failed} failed." : "."));
 
         return $this->listRefresh();
+    }
+
+    /**
+     * AJAX handler — open the batch processing popup.
+     *
+     * Prepares the offer list (clearing cache when mode is 'all') and
+     * returns the popup partial with the total offer count pre-loaded.
+     *
+     * @return string Rendered popup partial HTML.
+     */
+    public function onLoadBatchPopup(): string
+    {
+        $sMode          = post('mode', 'all');
+        $batchProcessor = new BatchProcessor();
+        $arResult       = $batchProcessor->prepareBatch($sMode);
+
+        return $this->makePartial('batch_popup', [
+            'mode'        => $sMode,
+            'totalOffers' => $arResult['total'],
+        ]);
     }
 
     /**

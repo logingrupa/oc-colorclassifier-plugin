@@ -76,6 +76,52 @@ class BatchProcessor
     }
 
     /**
+     * Prepare a batch run by caching the offer list and returning the total count.
+     *
+     * Clears the cache when mode is 'all' to ensure fresh data.
+     * The cached list is then consumed by processChunk() in subsequent requests.
+     *
+     * @param string $sMode 'all' to re-process everything, 'new' to skip existing.
+     *
+     * @return array{total: int}
+     */
+    public function prepareBatch(string $sMode): array
+    {
+        if ($sMode === 'all') {
+            CCache::clear(self::CACHE_TAGS, self::OFFER_LIST_CACHE_KEY);
+        }
+
+        $arOffersWithImages = $this->fetchAndCacheOfferList();
+
+        return ['total' => count($arOffersWithImages)];
+    }
+
+    /**
+     * Process a single chunk of offers from the cached list.
+     *
+     * Designed to be called repeatedly from the frontend in small batches
+     * to avoid HTTP timeouts on serverless or time-limited hosting.
+     *
+     * @param int    $iOffset    Zero-based index into the cached offer list.
+     * @param int    $iBatchSize Number of offers to process in this chunk.
+     * @param string $sMode      'all' or 'new'.
+     *
+     * @return array{processed: int, skipped: int, failed: int, total: int, done: bool}
+     */
+    public function processChunk(int $iOffset, int $iBatchSize, string $sMode): array
+    {
+        $arOffersWithImages = $this->fetchAndCacheOfferList();
+        $arChunk            = array_slice($arOffersWithImages, $iOffset, $iBatchSize);
+
+        $arExistingOfferIdMap = ($sMode === 'new') ? $this->fetchExistingOfferIds() : [];
+
+        $arResult         = $this->processBatch($arChunk, $arExistingOfferIdMap);
+        $arResult['done'] = ($iOffset + $iBatchSize) >= count($arOffersWithImages);
+
+        return $arResult;
+    }
+
+    /**
      * Fetch the offer list, using CCache if available, or fetching fresh.
      *
      * @return array<int, array{offer_id: string, product_name: string, variation_name: string, image_url: string}>

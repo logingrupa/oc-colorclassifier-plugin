@@ -1,10 +1,12 @@
 /**
  * matrix.css — Backend styles for the Color Classifier plugin.
  *
- * Provides color swatch display, palette cell layout, and progress bar
- * styling for the color entries list view. OctoberCMS backend includes
- * Bootstrap — only plugin-specific overrides are defined here.
+ * Provides color swatch display, palette cell layout, and batch
+ * processing popup styles. OctoberCMS backend includes Bootstrap —
+ * only plugin-specific overrides are defined here.
  */
+
+/* ─── List Column Styles ─────────────────────────────────────────────────── */
 
 /* Color swatch circle — used in the hex_color list column */
 .color-swatch-cell {
@@ -43,63 +45,117 @@
     flex-shrink: 0;
 }
 
-/* Batch size input group — label + number input inline in toolbar */
-.batch-size-group {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    vertical-align: middle;
-    margin-right: 4px;
+/* ─── Batch Popup ────────────────────────────────────────────────────────── */
+
+/* Config info rows */
+.batch-popup-info-row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 12px;
 }
 
-/* Label for the batch size input */
-.batch-size-label {
-    font-size: 12px;
+.batch-popup-info-label {
     color: #666;
-    white-space: nowrap;
-    margin: 0;
-    font-weight: normal;
-}
-
-/* Compact number input for batch size */
-.batch-size-input {
-    width: 60px;
-    height: 32px;
-    padding: 4px 6px;
     font-size: 13px;
-    text-align: center;
+    min-width: 90px;
 }
 
-/* Processing progress wrapper — flex layout for bar + text */
-.processing-progress-wrapper {
-    display: inline-flex;
-    align-items: center;
+.batch-popup-info-value {
+    font-size: 14px;
+}
+
+/* Batch size input inside popup */
+.batch-popup-batch-input {
+    width: 80px;
+    display: inline-block;
+}
+
+/* Stats grid */
+.batch-popup-stats {
+    display: flex;
     gap: 8px;
-    vertical-align: middle;
-    margin-left: 12px;
+    margin-bottom: 16px;
 }
 
-/* Processing progress bar track */
-.processing-progress-track {
-    width: 200px;
-    height: 4px;
+.batch-popup-stat {
+    flex: 1;
+    text-align: center;
+    padding: 10px 4px;
+    background: #f5f5f5;
+    border-radius: 4px;
+}
+
+.batch-popup-stat-value {
+    display: block;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    line-height: 1.2;
+}
+
+.batch-popup-stat-label {
+    display: block;
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-top: 2px;
+}
+
+.batch-popup-stat--processed .batch-popup-stat-value {
+    color: #27ae60;
+}
+
+.batch-popup-stat--skipped .batch-popup-stat-value {
+    color: #f39c12;
+}
+
+.batch-popup-stat--failed .batch-popup-stat-value {
+    color: #e74c3c;
+}
+
+/* Progress bar */
+.batch-popup-bar-track {
+    width: 100%;
+    height: 6px;
     background: #e0e0e0;
-    border-radius: 2px;
+    border-radius: 3px;
     overflow: hidden;
+    margin-bottom: 8px;
 }
 
-/* Processing progress bar fill */
-.processing-progress-bar {
-    height: 4px;
+.batch-popup-bar-fill {
+    height: 6px;
     background: #4da7e8;
     width: 0%;
     transition: width 0.3s ease;
-    border-radius: 2px;
+    border-radius: 3px;
 }
 
-/* Processing progress text counter */
-.processing-progress-text {
+/* Status text below progress bar */
+.batch-popup-status-text {
     font-size: 12px;
-    color: #666;
-    white-space: nowrap;
+    color: #888;
+    text-align: center;
+    margin: 0;
+}
+
+/* Complete state */
+.batch-popup-complete {
+    text-align: center;
+    padding: 24px 0;
+}
+
+.batch-popup-complete-icon {
+    font-size: 48px;
+    color: #27ae60;
+    display: block;
+    margin-bottom: 12px;
+}
+
+.batch-popup-complete-text {
+    font-size: 14px;
+    color: #333;
+    margin: 0;
 }

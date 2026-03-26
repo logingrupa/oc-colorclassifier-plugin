@@ -692,6 +692,15 @@
 /* ─── Detail Card ────────────────────────────────────────────────────────── */
 
 .color-lab__detail-card {
+    /* Repeat custom properties — this card is appended to <body>, outside .color-lab */
+    --color-lab-font-body: 'Didact Gothic', sans-serif;
+    --color-lab-font-heading: 'Syne', sans-serif;
+    --color-lab-color-accent: #1a1a2e;
+    --color-lab-color-accent-hover: #16213e;
+    --color-lab-color-border: #e0e0e0;
+    --color-lab-color-text: #333333;
+    --color-lab-color-text-muted: #666666;
+
     position: fixed;
     top: 0;
     right: 0;
@@ -705,6 +714,7 @@
     transform: translateX(100%);
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     font-family: var(--color-lab-font-body);
+    color: var(--color-lab-color-text);
 }
 
 .color-lab__detail-card--visible {

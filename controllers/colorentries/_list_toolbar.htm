@@ -1,25 +1,19 @@
 <div data-control="toolbar">
-    <div class="batch-size-group">
-        <label for="batchSizeInput" class="batch-size-label">Batch size</label>
-        <input
-            id="batchSizeInput"
-            type="number"
-            class="form-control batch-size-input"
-            value="5"
-            min="1"
-            max="50"
-            step="1" />
-    </div>
-
     <button
-        id="btnProcessAll"
-        class="btn btn-primary oc-icon-refresh">
+        class="btn btn-primary oc-icon-refresh"
+        data-control="popup"
+        data-handler="onLoadBatchPopup"
+        data-request-data="mode: 'all'"
+        data-size="medium">
         Process All
     </button>
 
     <button
-        id="btnProcessNew"
-        class="btn btn-default oc-icon-plus">
+        class="btn btn-default oc-icon-plus"
+        data-control="popup"
+        data-handler="onLoadBatchPopup"
+        data-request-data="mode: 'new'"
+        data-size="medium">
         Process New
     </button>
 
@@ -56,11 +50,4 @@
         data-size="large">
         Settings
     </button>
-
-    <div id="processingProgress" style="display:none" class="processing-progress-wrapper">
-        <div class="processing-progress-track">
-            <div class="processing-progress-bar"></div>
-        </div>
-        <span id="processingProgressText" class="processing-progress-text"></span>
-    </div>
 </div>

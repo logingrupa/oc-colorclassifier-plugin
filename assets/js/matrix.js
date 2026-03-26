@@ -1,255 +1,306 @@
 /**
  * matrix.js — Backend JavaScript for the Color Classifier plugin.
  *
- * Orchestrates chunked batch processing for Process All and Process New
- * buttons. Each chunk processes a small number of offers per AJAX request
- * to avoid HTTP timeouts on serverless or time-limited hosting.
+ * Drives batch processing inside an OctoberCMS popup modal.
+ * Three states: config (set batch size) → processing (live stats + ETA) → complete.
+ * Prevents accidental close during processing.
  *
  * @module ColorClassifierMatrix
  */
 
 'use strict'
 
-/**
- * Initialize the Color Classifier backend UI.
- *
- * Binds click handlers to Process All and Process New buttons that
- * orchestrate sequential chunked AJAX calls with real-time progress.
- * The batch size is read from the #batchSizeInput field before each run.
- *
- * @returns {void}
- */
-function initializeColorClassifierMatrix() {
-    /** @type {HTMLButtonElement|null} */
-    var processAllButton = document.getElementById('btnProcessAll')
-    /** @type {HTMLButtonElement|null} */
-    var processNewButton = document.getElementById('btnProcessNew')
-    /** @type {HTMLInputElement|null} */
-    var batchSizeInput = document.getElementById('batchSizeInput')
-    /** @type {HTMLElement|null} */
-    var progressWrapper = document.getElementById('processingProgress')
-    /** @type {HTMLElement|null} */
-    var progressBar = progressWrapper
-        ? progressWrapper.querySelector('.processing-progress-bar')
-        : null
-    /** @type {HTMLElement|null} */
-    var progressText = document.getElementById('processingProgressText')
+;(function ($) {
 
-    if (!processAllButton && !processNewButton) {
-        return
-    }
-
-    /** @type {boolean} */
+    /** @type {boolean} Whether a batch is currently running. */
     var isProcessing = false
 
+    /** @type {boolean} Whether the user requested a stop. */
+    var cancelRequested = false
+
     /**
-     * Update the progress bar width and status text.
+     * Read and clamp the batch size input value.
      *
-     * @param {number} percent - Progress percentage (0-100).
-     * @param {string} [text] - Status text to display.
+     * @returns {number} Batch size between 1 and 50.
+     */
+    function getBatchSize() {
+        var input = document.getElementById('batchSizeInput')
+        if (!input) {
+            return 5
+        }
+        var value = parseInt(input.value, 10)
+        if (isNaN(value) || value < 1) {
+            return 1
+        }
+        return value > 50 ? 50 : value
+    }
+
+    /**
+     * Format milliseconds into a human-readable ETA string.
+     *
+     * @param {number} ms - Estimated milliseconds remaining.
+     * @returns {string} Formatted time string.
+     */
+    function formatEta(ms) {
+        if (!isFinite(ms) || ms < 0) {
+            return '\u2014'
+        }
+        var totalSeconds = Math.ceil(ms / 1000)
+        if (totalSeconds < 60) {
+            return totalSeconds + 's'
+        }
+        var minutes = Math.floor(totalSeconds / 60)
+        var seconds = totalSeconds % 60
+        return minutes + 'm ' + seconds + 's'
+    }
+
+    /**
+     * Transition the popup from config state to processing state.
+     *
      * @returns {void}
      */
-    function showProgress(percent, text) {
-        if (progressWrapper) {
-            progressWrapper.style.display = 'inline-flex'
+    function showProcessingState() {
+        var configSection = document.getElementById('batchConfigSection')
+        var progressSection = document.getElementById('batchProgressSection')
+        var startBtn = document.getElementById('batchStartBtn')
+        var stopBtn = document.getElementById('batchStopBtn')
+        var cancelBtn = document.getElementById('batchCancelBtn')
+
+        if (configSection) {
+            configSection.style.display = 'none'
         }
+        if (progressSection) {
+            progressSection.style.display = 'block'
+        }
+        if (startBtn) {
+            startBtn.style.display = 'none'
+        }
+        if (stopBtn) {
+            stopBtn.style.display = 'inline-block'
+        }
+        if (cancelBtn) {
+            cancelBtn.style.display = 'none'
+        }
+    }
+
+    /**
+     * Transition the popup from processing state to complete state.
+     *
+     * @param {string} summaryText - Completion summary message.
+     * @returns {void}
+     */
+    function showCompleteState(summaryText) {
+        var progressSection = document.getElementById('batchProgressSection')
+        var completeSection = document.getElementById('batchCompleteSection')
+        var completeText = document.getElementById('batchCompleteText')
+        var stopBtn = document.getElementById('batchStopBtn')
+        var closeRefreshBtn = document.getElementById('batchCloseRefreshBtn')
+
+        if (progressSection) {
+            progressSection.style.display = 'none'
+        }
+        if (completeSection) {
+            completeSection.style.display = 'block'
+        }
+        if (completeText) {
+            completeText.textContent = summaryText
+        }
+        if (stopBtn) {
+            stopBtn.style.display = 'none'
+        }
+        if (closeRefreshBtn) {
+            closeRefreshBtn.style.display = 'inline-block'
+        }
+    }
+
+    /**
+     * Update all progress stats in the popup.
+     *
+     * @param {object} stats
+     * @param {number} stats.offset - Current offset into the offer list.
+     * @param {number} stats.total - Total offer count.
+     * @param {number} stats.processed - Total processed so far.
+     * @param {number} stats.skipped - Total skipped so far.
+     * @param {number} stats.failed - Total failed so far.
+     * @param {number} stats.etaMs - Estimated milliseconds remaining.
+     * @param {string} stats.statusText - Status line text.
+     * @returns {void}
+     */
+    function updateProgress(stats) {
+        var percent = stats.total > 0
+            ? Math.min(Math.round((stats.offset / stats.total) * 100), 99)
+            : 0
+
+        var progressBar = document.getElementById('batchProgressBar')
+        var statProgress = document.getElementById('batchStatProgress')
+        var statProcessed = document.getElementById('batchStatProcessed')
+        var statSkipped = document.getElementById('batchStatSkipped')
+        var statFailed = document.getElementById('batchStatFailed')
+        var statEta = document.getElementById('batchStatEta')
+        var statusText = document.getElementById('batchStatusText')
+
         if (progressBar) {
             progressBar.style.width = percent + '%'
         }
-        if (progressText) {
-            progressText.textContent = text || ''
+        if (statProgress) {
+            statProgress.textContent = stats.offset + ' / ' + stats.total
+        }
+        if (statProcessed) {
+            statProcessed.textContent = stats.processed
+        }
+        if (statSkipped) {
+            statSkipped.textContent = stats.skipped
+        }
+        if (statFailed) {
+            statFailed.textContent = stats.failed
+        }
+        if (statEta) {
+            statEta.textContent = formatEta(stats.etaMs)
+        }
+        if (statusText) {
+            statusText.textContent = stats.statusText || ''
         }
     }
 
     /**
-     * Animate the progress bar to 100% and hide it after a short delay.
+     * Run the chunked batch processing loop inside the popup.
      *
+     * @param {string} mode - 'all' or 'new'.
+     * @param {number} total - Total offer count.
+     * @param {number} batchSize - Offers per chunk.
+     * @param {jQuery} $trigger - Element to use as AJAX request context.
      * @returns {void}
      */
-    function hideProgress() {
-        if (progressBar) {
-            progressBar.style.width = '100%'
+    function runBatchLoop(mode, total, batchSize, $trigger) {
+        var offset = 0
+        var totalProcessed = 0
+        var totalSkipped = 0
+        var totalFailed = 0
+        var startTime = Date.now()
+        var chunksCompleted = 0
+
+        isProcessing = true
+        cancelRequested = false
+        showProcessingState()
+
+        function processNextChunk() {
+            if (cancelRequested) {
+                finishProcessing('Stopped. Processed ' + totalProcessed
+                    + ', skipped ' + totalSkipped
+                    + ', failed ' + totalFailed + '.')
+                return
+            }
+
+            var elapsedMs = Date.now() - startTime
+            var etaMs = chunksCompleted > 0
+                ? (elapsedMs / chunksCompleted) * Math.ceil((total - offset) / batchSize)
+                : 0
+
+            updateProgress({
+                offset: offset,
+                total: total,
+                processed: totalProcessed,
+                skipped: totalSkipped,
+                failed: totalFailed,
+                etaMs: etaMs,
+                statusText: 'Batch ' + (chunksCompleted + 1) + ' of '
+                    + Math.ceil(total / batchSize) + '\u2026'
+            })
+
+            $trigger.request('onProcessBatch', {
+                data: {
+                    mode: mode,
+                    offset: offset,
+                    batch_size: batchSize
+                },
+                success: function (result) {
+                    totalProcessed += result.processed
+                    totalSkipped += result.skipped
+                    totalFailed += result.failed
+                    offset += batchSize
+                    chunksCompleted++
+
+                    if (result.done || offset >= total) {
+                        updateProgress({
+                            offset: total,
+                            total: total,
+                            processed: totalProcessed,
+                            skipped: totalSkipped,
+                            failed: totalFailed,
+                            etaMs: 0,
+                            statusText: 'Complete!'
+                        })
+                        var progressBar = document.getElementById('batchProgressBar')
+                        if (progressBar) {
+                            progressBar.style.width = '100%'
+                        }
+                        finishProcessing('Processed ' + totalProcessed
+                            + ', skipped ' + totalSkipped
+                            + ', failed ' + totalFailed
+                            + ' of ' + total + ' offers.')
+                    } else {
+                        processNextChunk()
+                    }
+                },
+                error: function () {
+                    finishProcessing('Error at offset ' + offset
+                        + '. ' + totalProcessed + ' offers processed before failure.')
+                }
+            })
         }
 
-        setTimeout(function () {
-            if (progressWrapper) {
-                progressWrapper.style.display = 'none'
-            }
-            if (progressBar) {
-                progressBar.style.width = '0%'
-            }
-            if (progressText) {
-                progressText.textContent = ''
-            }
-        }, 800)
+        processNextChunk()
     }
 
     /**
-     * Enable or disable the batch processing buttons and the batch size input.
+     * End the processing loop and show the complete state.
      *
-     * Locks the input during processing so the batch size cannot change mid-run.
-     *
-     * @param {boolean} disabled - True to disable, false to enable.
+     * @param {string} summary - Summary text to display.
      * @returns {void}
      */
-    function setButtonsDisabled(disabled) {
-        ;[processAllButton, processNewButton].forEach(function (btn) {
-            if (btn) {
-                btn.disabled = disabled
-            }
-        })
-        if (batchSizeInput) {
-            batchSizeInput.disabled = disabled
-        }
+    function finishProcessing(summary) {
+        isProcessing = false
+        cancelRequested = false
+        showCompleteState(summary)
     }
 
-    /**
-     * Read the current batch size from the input field.
-     *
-     * Falls back to 5 if the input is missing or contains an invalid value.
-     *
-     * @returns {number} Batch size clamped between 1 and 50.
-     */
-    function getBatchSize() {
-        if (!batchSizeInput) {
-            return 5
-        }
-        var parsed = parseInt(batchSizeInput.value, 10)
-        if (isNaN(parsed) || parsed < 1) {
-            return 1
-        }
-        if (parsed > 50) {
-            return 50
-        }
-        return parsed
-    }
+    // ── Event Delegation (handles dynamically loaded popup content) ──
 
-    /**
-     * Run chunked batch processing for the given mode.
-     *
-     * 1. Calls onStartBatch to prepare the offer list and get the total count.
-     * 2. Loops onProcessBatch with incrementing offsets until done.
-     * 3. Shows real-time progress and a summary flash message on completion.
-     *
-     * @param {string} mode - 'all' to re-process everything, 'new' for unprocessed only.
-     * @param {HTMLElement} triggerElement - The button element (used as $.request context).
-     * @returns {void}
-     */
-    function runBatchProcess(mode, triggerElement) {
-        if (isProcessing) {
+    /** Start Processing button inside popup. */
+    $(document).on('click', '#batchStartBtn', function () {
+        var modeInput = document.getElementById('batchMode')
+        var totalInput = document.getElementById('batchTotal')
+        var mode = modeInput ? modeInput.value : 'all'
+        var total = totalInput ? parseInt(totalInput.value, 10) : 0
+        var batchSize = getBatchSize()
+
+        if (total === 0) {
             return
         }
 
-        var batchSize = getBatchSize()
+        runBatchLoop(mode, total, batchSize, $(this))
+    })
 
-        isProcessing = true
-        setButtonsDisabled(true)
-        showProgress(0, 'Preparing\u2026')
+    /** Stop Processing button — sets cancel flag, waits for current batch. */
+    $(document).on('click', '#batchStopBtn', function () {
+        cancelRequested = true
+        $(this).prop('disabled', true).text('Stopping\u2026')
+    })
 
-        $(triggerElement).request('onStartBatch', {
-            data: { mode: mode },
-            success: function (data) {
-                var total = data.total
+    /** Close & Refresh button — reloads the page. */
+    $(document).on('click', '#batchCloseRefreshBtn', function () {
+        window.location.reload()
+    })
 
-                if (total === 0) {
-                    $.oc.flashMsg({ text: 'No offers to process.', class: 'warning' })
-                    hideProgress()
-                    setButtonsDisabled(false)
-                    isProcessing = false
-                    return
-                }
-
-                var offset = 0
-                var totalProcessed = 0
-                var totalFailed = 0
-                var totalSkipped = 0
-
-                /**
-                 * Process the next chunk and recurse until done.
-                 *
-                 * @returns {void}
-                 */
-                function processNextChunk() {
-                    var percent = Math.min(Math.round((offset / total) * 100), 99)
-                    showProgress(percent, offset + ' / ' + total + ' offers')
-
-                    $(triggerElement).request('onProcessBatch', {
-                        data: {
-                            mode: mode,
-                            offset: offset,
-                            batch_size: batchSize
-                        },
-                        success: function (result) {
-                            totalProcessed += result.processed
-                            totalFailed += result.failed
-                            totalSkipped += result.skipped
-                            offset += batchSize
-
-                            if (result.done || offset >= total) {
-                                showProgress(100, total + ' / ' + total + ' offers')
-                                $.oc.flashMsg({
-                                    text: 'Processed ' + totalProcessed
-                                        + ', skipped ' + totalSkipped
-                                        + ', failed ' + totalFailed
-                                        + ' of ' + total + ' offers.',
-                                    class: 'success'
-                                })
-                                hideProgress()
-                                setButtonsDisabled(false)
-                                isProcessing = false
-                                window.location.reload()
-                            } else {
-                                processNextChunk()
-                            }
-                        },
-                        error: function () {
-                            $.oc.flashMsg({
-                                text: 'Processing failed at offset ' + offset
-                                    + '. ' + totalProcessed + ' offers completed so far.',
-                                class: 'error'
-                            })
-                            hideProgress()
-                            setButtonsDisabled(false)
-                            isProcessing = false
-                        }
-                    })
-                }
-
-                processNextChunk()
-            },
-            error: function () {
-                $.oc.flashMsg({
-                    text: 'Failed to start batch processing.',
-                    class: 'error'
-                })
-                hideProgress()
-                setButtonsDisabled(false)
-                isProcessing = false
-            }
-        })
-    }
-
-    if (processAllButton) {
-        processAllButton.addEventListener('click', function (event) {
+    /** Prevent modal close while processing. */
+    $(document).on('hide.bs.modal', '.control-popup', function (event) {
+        if (isProcessing) {
             event.preventDefault()
-            event.stopPropagation()
-            $.oc.confirm('This will re-process ALL offers. Continue?', function () {
-                runBatchProcess('all', processAllButton)
+            $.oc.flashMsg({
+                text: 'Processing in progress. Use "Stop Processing" first.',
+                class: 'warning'
             })
-        })
-    }
+        }
+    })
 
-    if (processNewButton) {
-        processNewButton.addEventListener('click', function (event) {
-            event.preventDefault()
-            event.stopPropagation()
-            runBatchProcess('new', processNewButton)
-        })
-    }
-}
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeColorClassifierMatrix)
-} else {
-    initializeColorClassifierMatrix()
-}
+})(jQuery)
