@@ -226,6 +226,7 @@ function initializeColorLab() {
     attachGridInteractionListeners();
     attachDetailCardCloseListeners();
     attachSidebarToggleListener();
+    attachLightboxListeners();
 
     restoreStateFromUrl();
     renderActiveView();
@@ -979,7 +980,7 @@ function showDetailCard(colorEntry) {
 
         + '<div class="color-lab__detail-images">'
         + (colorEntry.imageUrl
-            ? '<div class="color-lab__detail-image-group">'
+            ? '<div class="color-lab__detail-image-group" data-lightbox-src="' + escapeHtmlAttribute(colorEntry.imageUrl) + '">'
             + '    <img src="' + escapeHtml(colorEntry.imageUrl) + '" alt="Original" class="color-lab__detail-image" loading="lazy">'
             + '    <span class="color-lab__detail-image-label">Original</span>'
             + '</div>'
@@ -991,9 +992,17 @@ function showDetailCard(colorEntry) {
             + '</div>'
             : '')
         + '<div class="color-lab__detail-image-group">'
-        + '    <div class="color-lab__detail-image color-lab__detail-image--hex" style="background:' + escapeHtml(colorEntry.hexColor) + ';border-radius:6px;"></div>'
+        + '    <div class="color-lab__detail-image color-lab__detail-image--hex" style="background:' + escapeHtml(colorEntry.hexColor) + ';"></div>'
         + '    <span class="color-lab__detail-image-label">' + escapeHtml(colorEntry.hexColor) + '</span>'
         + '</div>'
+        + (isPngImage(colorEntry.imageUrl)
+            ? '<div class="color-lab__detail-image-group" data-lightbox-src="' + escapeHtmlAttribute(colorEntry.imageUrl) + '" data-lightbox-blend="' + escapeHtmlAttribute(colorEntry.hexColor) + '">'
+            + '    <div class="color-lab__detail-image color-lab__detail-image--blend" style="background:' + escapeHtml(colorEntry.hexColor) + ';">'
+            + '        <img src="' + escapeHtml(colorEntry.imageUrl) + '" alt="Blend" loading="lazy">'
+            + '    </div>'
+            + '    <span class="color-lab__detail-image-label">Blend</span>'
+            + '</div>'
+            : '')
         + '</div>'
 
         + '<div class="color-lab__detail-body">'
@@ -1184,7 +1193,91 @@ function attachSidebarToggleListener() {
     });
 }
 
+// ─── Lightbox ─────────────────────────────────────────────────────────────────
+
+/**
+ * Shows a fullscreen lightbox with the original image and optional blend overlay.
+ *
+ * @param {string} imageSrc - URL of the full-size image.
+ * @param {string|null} blendColor - Hex color for blend overlay, or null.
+ * @returns {void}
+ */
+function showLightbox(imageSrc, blendColor) {
+    hideLightbox();
+
+    var overlay = document.createElement('div');
+    overlay.className = 'color-lab__lightbox';
+
+    var contentHtml = '<div class="color-lab__lightbox-content">';
+
+    contentHtml += '<div class="color-lab__lightbox-panel">'
+        + '<img src="' + escapeHtml(imageSrc) + '" alt="Original" class="color-lab__lightbox-image">'
+        + '<span class="color-lab__lightbox-label">Original</span>'
+        + '</div>';
+
+    if (blendColor) {
+        contentHtml += '<div class="color-lab__lightbox-panel">'
+            + '<div class="color-lab__lightbox-blend" style="background:' + escapeHtml(blendColor) + ';">'
+            + '    <img src="' + escapeHtml(imageSrc) + '" alt="Blend" class="color-lab__lightbox-image">'
+            + '</div>'
+            + '<span class="color-lab__lightbox-label">Blend — ' + escapeHtml(blendColor) + '</span>'
+            + '</div>';
+    }
+
+    contentHtml += '</div>';
+
+    overlay.innerHTML = contentHtml;
+
+    overlay.addEventListener('click', function(clickEvent) {
+        if (/** @type {HTMLElement} */ (clickEvent.target).closest('.color-lab__lightbox-content')) {
+            return;
+        }
+        hideLightbox();
+    });
+
+    document.body.appendChild(overlay);
+    requestAnimationFrame(function() { overlay.classList.add('color-lab__lightbox--visible'); });
+}
+
+/** @returns {void} */
+function hideLightbox() {
+    var existing = document.querySelector('.color-lab__lightbox');
+    if (existing) { existing.remove(); }
+}
+
+/**
+ * Attaches click/tap listeners to detail card image groups for lightbox.
+ * Uses event delegation on body since detail cards are dynamically created.
+ *
+ * @returns {void}
+ */
+function attachLightboxListeners() {
+    document.body.addEventListener('click', function(clickEvent) {
+        var imageGroup = /** @type {HTMLElement} */ (clickEvent.target).closest('.color-lab__detail-image-group[data-lightbox-src]');
+        if (!imageGroup) { return; }
+
+        var imageSrc = imageGroup.dataset.lightboxSrc;
+        var blendColor = imageGroup.dataset.lightboxBlend || null;
+        if (imageSrc) { showLightbox(imageSrc, blendColor); }
+    });
+
+    document.addEventListener('keydown', function(keyEvent) {
+        if (keyEvent.key === 'Escape') { hideLightbox(); }
+    });
+}
+
 // ─── Utility Helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Checks if an image URL ends with .png (case-insensitive).
+ *
+ * @param {string|null} imageUrl
+ * @returns {boolean}
+ */
+function isPngImage(imageUrl) {
+    if (!imageUrl) { return false; }
+    return imageUrl.toLowerCase().endsWith('.png');
+}
 
 /**
  * @param {string} rawText
