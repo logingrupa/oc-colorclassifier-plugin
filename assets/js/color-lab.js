@@ -400,8 +400,12 @@ function applyFilters() {
     state.filteredEntries = state.allEntries.filter(function(colorEntry) {
         var taxonomy = colorEntry.taxonomy || {};
 
-        if (state.filterState.families.size > 0 && taxonomy.family && !state.filterState.families.has(taxonomy.family)) {
-            return false;
+        if (state.filterState.families.size > 0) {
+            var matchesPrimary = taxonomy.family && state.filterState.families.has(taxonomy.family);
+            var matchesSecondary = taxonomy.secondary_family && state.filterState.families.has(taxonomy.secondary_family);
+            if (taxonomy.family && !matchesPrimary && !matchesSecondary) {
+                return false;
+            }
         }
         if (state.filterState.undertone !== null && taxonomy.undertone && taxonomy.undertone !== state.filterState.undertone) {
             return false;
@@ -539,22 +543,40 @@ function renderGridView() {
     var allFamilies = taxonomyOptions.families || [];
     var allDepths = taxonomyOptions.depths || [];
 
-    var representedFamilies = new Set(state.filteredEntries.map(function(entry) {
-        return entry.taxonomy ? entry.taxonomy.family : null;
-    }));
+    var representedFamilies = new Set();
+    state.filteredEntries.forEach(function(entry) {
+        if (entry.taxonomy && entry.taxonomy.family) {
+            representedFamilies.add(entry.taxonomy.family);
+        }
+        if (entry.taxonomy && entry.taxonomy.secondary_family) {
+            representedFamilies.add(entry.taxonomy.secondary_family);
+        }
+    });
 
     var visibleFamilies = allFamilies.filter(function(family) { return representedFamilies.has(family); });
 
-    /** @type {Object.<string, Object.<string, ColorEntry[]>>} */
+    /**
+     * Place each entry in its primary family column AND its secondary family column.
+     * @type {Object.<string, Object.<string, ColorEntry[]>>}
+     */
     var columnData = {};
     state.filteredEntries.forEach(function(colorEntry) {
-        var family = colorEntry.taxonomy ? colorEntry.taxonomy.family : null;
-        var depth = colorEntry.taxonomy ? colorEntry.taxonomy.depth : null;
-        if (!family) { return; }
-        if (!columnData[family]) { columnData[family] = {}; }
-        var depthKey = depth || 'Uncategorized';
-        if (!columnData[family][depthKey]) { columnData[family][depthKey] = []; }
-        columnData[family][depthKey].push(colorEntry);
+        var taxonomy = colorEntry.taxonomy || {};
+        var primaryFamily = taxonomy.family || null;
+        var secondaryFamily = taxonomy.secondary_family || null;
+        var depthKey = taxonomy.depth || 'Uncategorized';
+
+        if (primaryFamily) {
+            if (!columnData[primaryFamily]) { columnData[primaryFamily] = {}; }
+            if (!columnData[primaryFamily][depthKey]) { columnData[primaryFamily][depthKey] = []; }
+            columnData[primaryFamily][depthKey].push(colorEntry);
+        }
+
+        if (secondaryFamily && secondaryFamily !== primaryFamily) {
+            if (!columnData[secondaryFamily]) { columnData[secondaryFamily] = {}; }
+            if (!columnData[secondaryFamily][depthKey]) { columnData[secondaryFamily][depthKey] = []; }
+            columnData[secondaryFamily][depthKey].push(colorEntry);
+        }
     });
 
     var htmlParts = ['<div class="color-lab__columns">'];
@@ -979,7 +1001,13 @@ function buildRichTooltipElement(colorEntry) {
         : '';
 
     var taxonomyBadges = '';
-    if (taxonomy.family) { taxonomyBadges += '<span class="color-lab__tooltip-badge">' + escapeHtml(taxonomy.family) + '</span>'; }
+    if (taxonomy.family) {
+        var familyLabel = escapeHtml(taxonomy.family);
+        if (taxonomy.secondary_family) {
+            familyLabel += ' / ' + escapeHtml(taxonomy.secondary_family);
+        }
+        taxonomyBadges += '<span class="color-lab__tooltip-badge">' + familyLabel + '</span>';
+    }
     if (taxonomy.depth) { taxonomyBadges += '<span class="color-lab__tooltip-badge">' + escapeHtml(taxonomy.depth) + '</span>'; }
     if (taxonomy.undertone) { taxonomyBadges += '<span class="color-lab__tooltip-badge">' + escapeHtml(taxonomy.undertone) + '</span>'; }
 

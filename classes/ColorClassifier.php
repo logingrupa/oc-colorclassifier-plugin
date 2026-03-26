@@ -101,14 +101,25 @@ class ColorClassifier
         ];
     }
 
+    /** @var float OKLCH chroma below which a color is strongly neutral (no chromatic identity). */
+    private const CHROMA_ACHROMATIC_THRESHOLD = 0.04;
+
+    /** @var float OKLCH chroma below which a color is low-moderate (nude zone for warm hues). */
+    private const CHROMA_LOW_MODERATE_THRESHOLD = 0.08;
+
     /**
      * Classify an RGB color into all gel polish taxonomy dimensions.
+     *
+     * Uses OKLCH chroma as the primary gate for family classification:
+     * - Chroma < 0.04: achromatic (Grey/White/Black, or Nude if warm hue)
+     * - Chroma 0.04-0.08: low-moderate (Nude primary + chromatic secondary)
+     * - Chroma > 0.08: full chromatic (Pink vs Rose split by lightness)
      *
      * @param int $red   Red channel value (0–255).
      * @param int $green Green channel value (0–255).
      * @param int $blue  Blue channel value (0–255).
      *
-     * @return array{family: string, undertone: string, depth: string, saturation: string, finish: null, opacity: string, confidence_score: float}
+     * @return array{family: string, secondary_family: string|null, undertone: string, depth: string, saturation: string, finish: null, opacity: string, confidence_score: float}
      */
     public static function classify(int $red, int $green, int $blue): array
     {
@@ -119,11 +130,15 @@ class ColorClassifier
 
         $oklchValues         = ColorConverter::rgbToOklch($red, $green, $blue);
         $perceptualLightness = $oklchValues['lightness'] * 100;
+        $oklchChroma         = $oklchValues['chroma'];
 
         $arThresholds = self::loadThresholds();
 
+        $familyResult = self::determineFamilyWithSecondary($hue, $saturation, $lightness, $oklchChroma, $perceptualLightness, $arThresholds);
+
         return [
-            'family'           => self::determineColorFamily($hue, $saturation, $lightness, $arThresholds),
+            'family'           => $familyResult['primary'],
+            'secondary_family' => $familyResult['secondary'],
             'undertone'        => self::determineUndertone($hue, $saturation),
             'depth'            => self::determineDepth($perceptualLightness, $arThresholds),
             'saturation'       => self::determineSaturation($saturation, $arThresholds),
@@ -134,92 +149,131 @@ class ColorClassifier
     }
 
     /**
-     * Determine the color family from HSL hue, saturation, and lightness.
+     * Determine primary and secondary color family using OKLCH chroma-first logic.
      *
-     * For achromatic colors (very low saturation), classifies by lightness only.
-     * For chromatic colors, maps hue ranges to the 22 color families.
+     * Three zones based on OKLCH chroma:
+     * 1. Chroma < 0.04: achromatic → Grey/White/Black (warm hue → Nude primary)
+     * 2. Chroma 0.04-0.08: low-moderate → Nude primary + chromatic secondary
+     * 3. Chroma > 0.08: fully chromatic → standard hue classification, Pink/Rose split
      *
-     * @param float              $hue          Hue in [0, 360].
-     * @param float              $saturation   Saturation in [0, 100].
-     * @param float              $lightness    Lightness in [0, 100].
-     * @param array<string,float> $arThresholds Loaded classification thresholds.
+     * @param float              $hue                 HSL hue in [0, 360].
+     * @param float              $saturation          HSL saturation in [0, 100].
+     * @param float              $lightness           HSL lightness in [0, 100].
+     * @param float              $oklchChroma         OKLCH chroma (0–0.4+).
+     * @param float              $perceptualLightness OKLCH lightness * 100.
+     * @param array<string,float> $arThresholds        Loaded classification thresholds.
      *
-     * @return string Color family name from Taxonomy::$colorFamilies.
+     * @return array{primary: string, secondary: string|null}
      */
-    public static function determineColorFamily(float $hue, float $saturation, float $lightness, array $arThresholds): string
-    {
-        // Pure achromatic: no color at all → White / Grey / Black
-        if ($saturation < $arThresholds['achromatic_saturation']) {
-            return self::classifyPureAchromatic($lightness, $arThresholds);
+    private static function determineFamilyWithSecondary(
+        float $hue,
+        float $saturation,
+        float $lightness,
+        float $oklchChroma,
+        float $perceptualLightness,
+        array $arThresholds
+    ): array {
+        // Zone 1: Very low chroma — achromatic
+        if ($oklchChroma < self::CHROMA_ACHROMATIC_THRESHOLD) {
+            return self::classifyAchromaticZone($hue, $lightness, $perceptualLightness, $arThresholds);
         }
 
-        // Near-achromatic with warm hue: could be Nude/Beige (skin tones)
-        if ($saturation < self::NEAR_ACHROMATIC_SATURATION_THRESHOLD) {
-            return self::classifyNearAchromatic($hue, $lightness, $arThresholds);
+        // Zone 2: Low-moderate chroma — nude territory for warm hues
+        if ($oklchChroma < self::CHROMA_LOW_MODERATE_THRESHOLD) {
+            return self::classifyLowModerateChromaZone($hue, $saturation, $lightness, $perceptualLightness, $arThresholds);
         }
 
-        return self::classifyChromatic($hue, $saturation, $lightness);
+        // Zone 3: Full chroma — standard chromatic with Pink/Rose split
+        $chromaticFamily = self::classifyChromatic($hue, $saturation, $lightness);
+
+        return ['primary' => $chromaticFamily, 'secondary' => null];
     }
 
     /**
-     * Classify pure achromatic colors (saturation below achromatic threshold) — true greys.
+     * Classify achromatic zone (chroma < 0.04).
      *
-     * @param float              $lightness    Lightness in [0, 100].
-     * @param array<string,float> $arThresholds Loaded classification thresholds.
+     * Pure greys with no chromatic identity. Warm hues with very slight
+     * tint get Nude as primary with no secondary.
      *
-     * @return string One of: 'White', 'Grey', 'Black'.
+     * @param float              $hue                 HSL hue in [0, 360].
+     * @param float              $lightness           HSL lightness in [0, 100].
+     * @param float              $perceptualLightness OKLCH lightness * 100.
+     * @param array<string,float> $arThresholds        Loaded thresholds.
+     *
+     * @return array{primary: string, secondary: string|null}
      */
-    private static function classifyPureAchromatic(float $lightness, array $arThresholds): string
+    private static function classifyAchromaticZone(float $hue, float $lightness, float $perceptualLightness, array $arThresholds): array
     {
-        if ($lightness > $arThresholds['white_lightness']) {
-            return 'White';
+        if ($perceptualLightness > $arThresholds['white_lightness']) {
+            return ['primary' => 'White', 'secondary' => null];
         }
 
-        if ($lightness < $arThresholds['black_lightness']) {
-            return 'Black';
-        }
-
-        return 'Grey';
-    }
-
-    /**
-     * Classify near-achromatic colors (saturation 5-15%).
-     *
-     * Warm hues (0-60° and 330-360°) at this low saturation are skin-tone
-     * colors: Nude (medium lightness) or Beige (light). Cool or neutral
-     * hues remain Grey.
-     *
-     * @param float              $hue          Hue in [0, 360].
-     * @param float              $lightness    Lightness in [0, 100].
-     * @param array<string,float> $arThresholds Loaded classification thresholds.
-     *
-     * @return string One of: 'White', 'Beige', 'Nude', 'Brown', 'Grey', 'Black'.
-     */
-    private static function classifyNearAchromatic(float $hue, float $lightness, array $arThresholds): string
-    {
-        if ($lightness > $arThresholds['white_lightness']) {
-            return 'White';
-        }
-
-        if ($lightness < $arThresholds['black_lightness']) {
-            return 'Black';
+        if ($perceptualLightness < $arThresholds['black_lightness']) {
+            return ['primary' => 'Black', 'secondary' => null];
         }
 
         $isWarmHue = ($hue <= 60) || ($hue >= 330);
 
-        if (!$isWarmHue) {
-            return 'Grey';
+        if ($isWarmHue && $lightness > 40 && $lightness < 80) {
+            return ['primary' => 'Nude', 'secondary' => null];
         }
 
-        if ($lightness > 70) {
-            return 'Beige';
+        return ['primary' => 'Grey', 'secondary' => null];
+    }
+
+    /**
+     * Classify low-moderate chroma zone (0.04 – 0.08).
+     *
+     * This is the skin-tone/nude territory. Warm hues become Nude with
+     * a chromatic secondary family. Cool hues become Grey with a chromatic secondary.
+     *
+     * @param float              $hue                 HSL hue in [0, 360].
+     * @param float              $saturation          HSL saturation in [0, 100].
+     * @param float              $lightness           HSL lightness in [0, 100].
+     * @param float              $perceptualLightness OKLCH lightness * 100.
+     * @param array<string,float> $arThresholds        Loaded thresholds.
+     *
+     * @return array{primary: string, secondary: string|null}
+     */
+    private static function classifyLowModerateChromaZone(
+        float $hue,
+        float $saturation,
+        float $lightness,
+        float $perceptualLightness,
+        array $arThresholds
+    ): array {
+        if ($perceptualLightness > $arThresholds['white_lightness']) {
+            return ['primary' => 'White', 'secondary' => null];
         }
 
-        if ($lightness > 40) {
-            return 'Nude';
+        if ($perceptualLightness < $arThresholds['black_lightness']) {
+            return ['primary' => 'Black', 'secondary' => null];
         }
 
-        return 'Brown';
+        $chromaticFamily = self::classifyChromatic($hue, $saturation, $lightness);
+
+        // Skin-adjacent hues: pink/red zone, peach/coral zone, beige/brown zone
+        $isSkinAdjacentHue = ($hue <= 60) || ($hue >= 310);
+
+        if ($isSkinAdjacentHue) {
+            // Determine specific nude type based on the chromatic family
+            if (in_array($chromaticFamily, ['Pink', 'Rose', 'Red', 'Magenta'])) {
+                return ['primary' => 'Nude', 'secondary' => 'Pink'];
+            }
+
+            if (in_array($chromaticFamily, ['Peach', 'Coral', 'Orange'])) {
+                return ['primary' => 'Nude', 'secondary' => 'Peach'];
+            }
+
+            if (in_array($chromaticFamily, ['Brown', 'Gold', 'Yellow'])) {
+                return ['primary' => 'Nude', 'secondary' => 'Beige'];
+            }
+
+            return ['primary' => 'Nude', 'secondary' => $chromaticFamily];
+        }
+
+        // Cool/neutral hues at low chroma: Grey with chromatic hint
+        return ['primary' => 'Grey', 'secondary' => $chromaticFamily];
     }
 
     /**

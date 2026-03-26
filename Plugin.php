@@ -189,8 +189,14 @@ class Plugin extends PluginBase
         }
 
         $fieldValue = e(ucfirst($taxonomy[$fieldName]));
+        $secondaryHtml = '';
 
-        return "<span>{$fieldValue}</span>";
+        if ($fieldName === 'family' && !empty($taxonomy['secondary_family'])) {
+            $secondaryValue = e(ucfirst($taxonomy['secondary_family']));
+            $secondaryHtml = " <span style=\"opacity:.5;font-size:.85em;\">/ {$secondaryValue}</span>";
+        }
+
+        return "<span>{$fieldValue}{$secondaryHtml}</span>";
     }
 
     /**
