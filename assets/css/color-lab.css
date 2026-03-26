@@ -382,8 +382,8 @@
 }
 
 .color-lab__column {
-    min-width: 120px;
-    flex: 1 1 120px;
+    min-width: 80px;
+    flex: 1 1 80px;
     border-right: 1px solid var(--color-lab-color-border);
     border-bottom: 1px solid var(--color-lab-color-border);
 }
