@@ -199,10 +199,10 @@ function restoreStateFromUrl() {
         var selectedEntry = entriesById.get(urlState.colorId);
         showDetailCard(selectedEntry);
 
-        // Restore lightbox if URL has lightbox=1
         var lightboxParam = new URLSearchParams(window.location.search).get('lightbox');
         if (lightboxParam === '1' && selectedEntry.imageUrl) {
-            showLightbox(selectedEntry.imageUrl, isPngImage(selectedEntry.imageUrl) ? selectedEntry.hexColor : null);
+            var overlayColor = isPngImage(selectedEntry.imageUrl) ? selectedEntry.hexColor : null;
+            showLightbox(selectedEntry.imageUrl, overlayColor);
         }
     }
 }
@@ -986,9 +986,12 @@ function showDetailCard(colorEntry) {
         + '</div>'
 
         + '<div class="color-lab__detail-images">'
-        + buildDetailImageTrioHtml(colorEntry)
-        + '</div>'
-        + '<div class="color-lab__detail-images">'
+        + (colorEntry.imageUrl
+            ? '<div class="color-lab__detail-image-group" data-lightbox-entry="' + colorEntry.id + '">'
+            + '    <img src="' + escapeHtml(colorEntry.imageUrl) + '" alt="Original" class="color-lab__detail-image" loading="lazy">'
+            + '    <span class="color-lab__detail-image-label">Original</span>'
+            + '</div>'
+            : '')
         + (colorEntry.croppedImageData
             ? buildDetailImageGroupHtml(colorEntry.croppedImageData, 'Center Crop', null, 'color-lab__detail-image--crop')
             : '')
@@ -1189,31 +1192,6 @@ function attachSidebarToggleListener() {
 // ─── Detail Image Builders (DRY) ──────────────────────────────────────────────
 
 /**
- * Builds 3 side-by-side original image previews on white, grey, and black backgrounds.
- *
- * @param {ColorEntry} colorEntry
- * @returns {string} HTML string for 3 image groups.
- */
-function buildDetailImageTrioHtml(colorEntry) {
-    if (!colorEntry.imageUrl) { return ''; }
-
-    var backgrounds = [
-        { color: '#ffffff', label: 'White' },
-        { color: '#808080', label: 'Grey' },
-        { color: '#1a1a1a', label: 'Black' },
-    ];
-
-    return backgrounds.map(function(background) {
-        return '<div class="color-lab__detail-image-group" data-lightbox-src="' + escapeHtmlAttribute(colorEntry.imageUrl) + '">'
-            + '<div class="color-lab__detail-image color-lab__detail-image--bg" style="background:' + background.color + ';">'
-            + '    <img src="' + escapeHtml(colorEntry.imageUrl) + '" alt="On ' + background.label + '" loading="lazy">'
-            + '</div>'
-            + '<span class="color-lab__detail-image-label">' + background.label + '</span>'
-            + '</div>';
-    }).join('');
-}
-
-/**
  * Builds a single detail image group (crop, hex block, etc).
  *
  * @param {string|null} imageSrc - Image source URL or base64, or null for color block.
@@ -1258,25 +1236,42 @@ function buildDetailOverlayGroupHtml(imageUrl, hexColor) {
  * @param {string|null} blendColor - Hex color for blend overlay, or null.
  * @returns {void}
  */
-function showLightbox(imageSrc, blendColor) {
+/**
+ * Shows a fullscreen lightbox with the product image on 3 backgrounds + overlay.
+ *
+ * @param {string} imageSrc - URL of the product image.
+ * @param {string|null} overlayColor - Hex color for overlay panel, or null.
+ * @returns {void}
+ */
+function showLightbox(imageSrc, overlayColor) {
     hideLightbox();
 
     var overlay = document.createElement('div');
     overlay.className = 'color-lab__lightbox';
 
+    var backgrounds = [
+        { color: '#ffffff', label: 'White' },
+        { color: '#808080', label: 'Grey' },
+        { color: '#1a1a1a', label: 'Black' },
+    ];
+
     var contentHtml = '<div class="color-lab__lightbox-content">';
 
-    contentHtml += '<div class="color-lab__lightbox-panel">'
-        + '<img src="' + escapeHtml(imageSrc) + '" alt="Original" class="color-lab__lightbox-image">'
-        + '<span class="color-lab__lightbox-label">Original</span>'
-        + '</div>';
-
-    if (blendColor) {
+    backgrounds.forEach(function(background) {
         contentHtml += '<div class="color-lab__lightbox-panel">'
-            + '<div class="color-lab__lightbox-blend" style="background:' + escapeHtml(blendColor) + ';">'
-            + '    <img src="' + escapeHtml(imageSrc) + '" alt="Blend" class="color-lab__lightbox-image">'
+            + '<div class="color-lab__lightbox-bg" style="background:' + background.color + ';">'
+            + '    <img src="' + escapeHtml(imageSrc) + '" alt="On ' + background.label + '" class="color-lab__lightbox-image">'
             + '</div>'
-            + '<span class="color-lab__lightbox-label">Overlay — ' + escapeHtml(blendColor) + '</span>'
+            + '<span class="color-lab__lightbox-label">' + background.label + '</span>'
+            + '</div>';
+    });
+
+    if (overlayColor) {
+        contentHtml += '<div class="color-lab__lightbox-panel">'
+            + '<div class="color-lab__lightbox-bg" style="background:' + escapeHtml(overlayColor) + ';">'
+            + '    <img src="' + escapeHtml(imageSrc) + '" alt="Overlay" class="color-lab__lightbox-image">'
+            + '</div>'
+            + '<span class="color-lab__lightbox-label">Overlay — ' + escapeHtml(overlayColor) + '</span>'
             + '</div>';
     }
 
@@ -1317,12 +1312,15 @@ function hideLightbox() {
  */
 function attachLightboxListeners() {
     document.body.addEventListener('click', function(clickEvent) {
-        var imageGroup = /** @type {HTMLElement} */ (clickEvent.target).closest('.color-lab__detail-image-group[data-lightbox-src]');
+        var imageGroup = /** @type {HTMLElement} */ (clickEvent.target).closest('.color-lab__detail-image-group[data-lightbox-entry]');
         if (!imageGroup) { return; }
 
-        var imageSrc = imageGroup.dataset.lightboxSrc;
-        var blendColor = imageGroup.dataset.lightboxBlend || null;
-        if (imageSrc) { showLightbox(imageSrc, blendColor); }
+        var entryId = parseInt(imageGroup.dataset.lightboxEntry, 10);
+        var colorEntry = entriesById.get(entryId);
+        if (!colorEntry || !colorEntry.imageUrl) { return; }
+
+        var overlayColor = isPngImage(colorEntry.imageUrl) ? colorEntry.hexColor : null;
+        showLightbox(colorEntry.imageUrl, overlayColor);
     });
 
     document.addEventListener('keydown', function(keyEvent) {
