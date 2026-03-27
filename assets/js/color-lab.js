@@ -69,6 +69,7 @@
  * @property {Set<string>} saturations
  * @property {Set<string>} finishes
  * @property {Set<string>} opacities
+ * @property {Set<string>} productNames
  */
 
 /** @typedef {'grid'|'scatter'} ViewName */
@@ -86,6 +87,7 @@ const state = {
         saturations: new Set(),
         finishes: new Set(),
         opacities: new Set(),
+        productNames: new Set(),
     },
     activeView: 'grid',
     plotlyInitialized: false,
@@ -113,6 +115,7 @@ function parseUrlParameters() {
         saturations: urlParams.get('saturations') ? urlParams.get('saturations').split(',') : [],
         finishes: urlParams.get('finishes') ? urlParams.get('finishes').split(',') : [],
         opacities: urlParams.get('opacities') ? urlParams.get('opacities').split(',') : [],
+        productNames: urlParams.get('productNames') ? urlParams.get('productNames').split(',').map(decodeURIComponent) : [],
     };
 }
 
@@ -149,6 +152,9 @@ function updateUrlParameters(viewName, colorEntryId) {
     if (state.filterState.opacities.size > 0) {
         urlParams.set('opacities', Array.from(state.filterState.opacities).join(','));
     }
+    if (state.filterState.productNames.size > 0) {
+        urlParams.set('productNames', Array.from(state.filterState.productNames).map(encodeURIComponent).join(','));
+    }
 
     var newUrl = window.location.pathname + '?' + urlParams.toString();
     window.history.replaceState(null, '', newUrl);
@@ -174,10 +180,11 @@ function restoreStateFromUrl() {
     urlState.saturations.forEach(function(saturation) { state.filterState.saturations.add(saturation); });
     urlState.finishes.forEach(function(finish) { state.filterState.finishes.add(finish); });
     urlState.opacities.forEach(function(opacity) { state.filterState.opacities.add(opacity); });
+    urlState.productNames.forEach(function(productName) { state.filterState.productNames.add(productName); });
 
     // Check the corresponding checkboxes in the DOM
     if (countActiveFilters() > 0) {
-        document.querySelectorAll('.color-lab__filter-option input[type="checkbox"]').forEach(function(inputElement) {
+        document.querySelectorAll('input[data-dimension]').forEach(function(inputElement) {
             var checkbox = /** @type {HTMLInputElement} */ (inputElement);
             var dimension = checkbox.dataset.dimension;
             var value = checkbox.dataset.value;
@@ -188,6 +195,7 @@ function restoreStateFromUrl() {
             if (dimension === 'saturations' && state.filterState.saturations.has(value)) { checkbox.checked = true; }
             if (dimension === 'finishes' && state.filterState.finishes.has(value)) { checkbox.checked = true; }
             if (dimension === 'opacities' && state.filterState.opacities.has(value)) { checkbox.checked = true; }
+            if (dimension === 'productNames' && state.filterState.productNames.has(value)) { checkbox.checked = true; }
         });
 
         applyFilters();
@@ -251,6 +259,23 @@ function initializeColorLab() {
 // ─── Filter Sidebar ───────────────────────────────────────────────────────────
 
 /**
+ * Extracts sorted unique product names from all color entries.
+ *
+ * @returns {string[]}
+ */
+function deriveProductNames() {
+    var seen = new Set();
+    return state.allEntries
+        .map(function(colorEntry) { return colorEntry.productName; })
+        .filter(function(productName) {
+            if (!productName || seen.has(productName)) { return false; }
+            seen.add(productName);
+            return true;
+        })
+        .sort();
+}
+
+/**
  * Builds all filter groups in the sidebar from taxonomy dimension options.
  *
  * @param {TaxonomyOptions} taxonomyOptions - Taxonomy dimension arrays.
@@ -269,6 +294,7 @@ function buildFilterSidebar(taxonomyOptions) {
         { key: 'saturations', label: 'Saturation',   inputType: 'checkbox', values: taxonomyOptions.saturations, startExpanded: false, description: 'Color intensity — from muted pastels to neons', displayMode: 'pills' },
         { key: 'finishes',    label: 'Finish',       inputType: 'checkbox', values: taxonomyOptions.finishes,    startExpanded: false, description: 'Surface effect — must be set manually', displayMode: 'pills' },
         { key: 'opacities',   label: 'Opacity',      inputType: 'checkbox', values: taxonomyOptions.opacities,   startExpanded: false, description: 'How much natural nail shows through', displayMode: 'pills' },
+        { key: 'productNames', label: 'Product',     inputType: 'checkbox', values: deriveProductNames(),        startExpanded: false, description: 'Filter by product line', displayMode: 'list' },
     ];
 
     filterGroupsContainer.innerHTML = dimensionConfigs.map(function(dimensionConfig) {
@@ -312,6 +338,9 @@ function buildFilterGroupHtml(dimensionConfig) {
         if (dimensionConfig.displayMode === 'color-dots') {
             return buildColorDotOptionHtml(optionName, dimensionConfig.key, optionValue);
         }
+        if (dimensionConfig.displayMode === 'list') {
+            return buildListItemOptionHtml(optionName, dimensionConfig.key, optionValue);
+        }
         return buildPillOptionHtml(optionName, dimensionConfig.key, optionValue);
     }).join('');
 
@@ -320,11 +349,12 @@ function buildFilterGroupHtml(dimensionConfig) {
         : '';
 
     var dimensionModifier = ' color-lab__filter-group--' + dimensionConfig.key;
+    var listWrapperTag = dimensionConfig.displayMode === 'list' ? 'ul' : 'div';
 
     return '<div class="color-lab__filter-group' + collapsedClass + groupModifier + dimensionModifier + '">'
         + '<button type="button" class="color-lab__filter-group-title">' + dimensionConfig.label + descriptionHtml + '</button>'
         + '<div class="color-lab__filter-group-options-wrap">'
-        + '<div class="color-lab__filter-group-options">' + optionsHtml + '</div>'
+        + '<' + listWrapperTag + ' class="color-lab__filter-group-options">' + optionsHtml + '</' + listWrapperTag + '>'
         + '</div>'
         + '</div>';
 }
@@ -422,6 +452,24 @@ function buildPillOptionHtml(name, dimension, value) {
         + '</label>';
 }
 
+/**
+ * Builds a list item checkbox filter option for the product name filter.
+ *
+ * @param {string} name
+ * @param {string} dimension
+ * @param {string} value
+ * @returns {string}
+ */
+function buildListItemOptionHtml(name, dimension, value) {
+    return '<li class="color-lab__filter-list-item">'
+        + '<label class="color-lab__filter-list-label">'
+        + '<input type="checkbox" class="color-lab__filter-list-checkbox" name="' + name + '"'
+        + ' data-dimension="' + dimension + '" data-value="' + escapeHtmlAttribute(value) + '">'
+        + '<span class="color-lab__filter-list-text">' + escapeHtml(value) + '</span>'
+        + '</label>'
+        + '</li>';
+}
+
 // ─── Filter Logic ─────────────────────────────────────────────────────────────
 
 /**
@@ -453,7 +501,8 @@ function handleFilterChange(changeEvent) {
     updateFilterBadge();
     updateUrlParameters(state.activeView, state.selectedEntryId);
 
-    if (isMobileViewport()) {
+    // Product name is a multi-select list — keep sidebar open so users can pick multiple items
+    if (isMobileViewport() && dimension !== 'productNames') {
         closeMobileSidebar();
     }
 }
@@ -490,6 +539,9 @@ function applyFilters() {
         if (state.filterState.opacities.size > 0 && taxonomy.opacity && !state.filterState.opacities.has(taxonomy.opacity)) {
             return false;
         }
+        if (state.filterState.productNames.size > 0 && !state.filterState.productNames.has(colorEntry.productName)) {
+            return false;
+        }
         return true;
     });
 }
@@ -501,7 +553,8 @@ function countActiveFilters() {
         + state.filterState.depths.size
         + state.filterState.saturations.size
         + state.filterState.finishes.size
-        + state.filterState.opacities.size;
+        + state.filterState.opacities.size
+        + state.filterState.productNames.size;
 }
 
 /** @returns {void} */
@@ -527,8 +580,9 @@ function clearAllFilters() {
     state.filterState.saturations.clear();
     state.filterState.finishes.clear();
     state.filterState.opacities.clear();
+    state.filterState.productNames.clear();
 
-    document.querySelectorAll('.color-lab__filter-option input[type="checkbox"]').forEach(function(inputElement) {
+    document.querySelectorAll('input[data-dimension]').forEach(function(inputElement) {
         /** @type {HTMLInputElement} */ (inputElement).checked = false;
     });
 
@@ -1385,7 +1439,7 @@ function openMobileSidebar() {
 
     var header = document.querySelector('.color-lab__header');
     if (header) {
-        sidebar.style.top = header.offsetHeight + 'px';
+        sidebar.style.top = header.getBoundingClientRect().bottom + 'px';
     }
 
     sidebar.classList.add('color-lab__sidebar--mobile-open');
