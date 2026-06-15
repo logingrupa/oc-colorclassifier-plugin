@@ -19,11 +19,11 @@ use Logingrupa\ColorClassifier\Classes\Taxonomy;
 class TaxonomyTest extends TestCase
 {
     /**
-     * colorFamilies should have exactly 22 entries.
+     * colorFamilies should have exactly 23 entries.
      */
-    public function test_colorFamilies_has_exactly_22_entries(): void
+    public function test_colorFamilies_has_exactly_23_entries(): void
     {
-        $this->assertCount(22, Taxonomy::$colorFamilies);
+        $this->assertCount(23, Taxonomy::$colorFamilies);
     }
 
     /**
