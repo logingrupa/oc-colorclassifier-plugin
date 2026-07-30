@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Logingrupa\ColorClassifier\Classes\Taxonomy;
+use Logingrupa\ColorClassifier\Classes\ColorLabMapper;
 use Logingrupa\ColorClassifier\Models\ColorEntry;
 
 /*
@@ -16,35 +16,13 @@ Route::get('/tools/color-lab', function () {
 
     $arColorData = [];
     foreach ($arColorEntries as $obEntry) {
-        $arColorData[] = [
-            'id'               => $obEntry->id,
-            'productName'      => $obEntry->product_name,
-            'variationName'    => $obEntry->variation_name,
-            'hexColor'         => $obEntry->hex_color,
-            'colorName'        => $obEntry->color_name,
-            'oklch'            => $obEntry->oklch_values,
-            'paletteColors'    => $obEntry->palette_colors,
-            'taxonomy'         => $obEntry->taxonomy,
-            'confidenceScore'  => (float) $obEntry->confidence_score,
-            'imageUrl'         => $obEntry->image_url,
-            'detailUrl'        => $obEntry->detail_url,
-            'croppedImageData' => $obEntry->cropped_image_data,
-        ];
+        $arColorData[] = ColorLabMapper::mapEntry($obEntry, true);
     }
-
-    $arTaxonomy = [
-        'families'    => Taxonomy::$colorFamilies,
-        'undertones'  => Taxonomy::$undertones,
-        'depths'      => Taxonomy::$depths,
-        'saturations' => Taxonomy::$saturations,
-        'finishes'    => Taxonomy::$finishes,
-        'opacities'   => Taxonomy::$opacities,
-    ];
 
     return view('logingrupa.colorclassifier::color-lab', [
         'colorLabEntriesJson'  => json_encode($arColorData),
         'colorLabEntryCount'   => count($arColorData),
-        'colorLabTaxonomyJson' => json_encode($arTaxonomy),
+        'colorLabTaxonomyJson' => json_encode(ColorLabMapper::mapTaxonomy()),
         'colorLabPageTitle'    => 'Color Lab',
         'colorLabPlotlyCdn'    => 'https://cdn.plot.ly/plotly-2.35.2.min.js',
         'colorLabProductUrl'   => '/products/detail/:slug',
@@ -52,37 +30,18 @@ Route::get('/tools/color-lab', function () {
 })->middleware('web');
 
 /*
- * API route — returns color data as JSON for external consumers.
+ * API route - returns color data as JSON for external consumers.
  */
 Route::get('/api/color-lab/data', function () {
     $arColorEntries = ColorEntry::all();
 
     $arColorData = [];
     foreach ($arColorEntries as $obEntry) {
-        $arColorData[] = [
-            'id'               => $obEntry->id,
-            'productName'      => $obEntry->product_name,
-            'variationName'    => $obEntry->variation_name,
-            'hexColor'         => $obEntry->hex_color,
-            'colorName'        => $obEntry->color_name,
-            'oklch'            => $obEntry->oklch_values,
-            'paletteColors'    => $obEntry->palette_colors,
-            'taxonomy'         => $obEntry->taxonomy,
-            'confidenceScore'  => (float) $obEntry->confidence_score,
-            'imageUrl'         => $obEntry->image_url,
-            'detailUrl'        => $obEntry->detail_url,
-        ];
+        $arColorData[] = ColorLabMapper::mapEntry($obEntry);
     }
 
     return response()->json([
         'entries'  => $arColorData,
-        'taxonomy' => [
-            'families'    => Taxonomy::$colorFamilies,
-            'undertones'  => Taxonomy::$undertones,
-            'depths'      => Taxonomy::$depths,
-            'saturations' => Taxonomy::$saturations,
-            'finishes'    => Taxonomy::$finishes,
-            'opacities'   => Taxonomy::$opacities,
-        ],
+        'taxonomy' => ColorLabMapper::mapTaxonomy(),
     ]);
 })->middleware('web');
