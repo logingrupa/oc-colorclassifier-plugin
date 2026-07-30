@@ -1,0 +1,148 @@
+<?php
+
+namespace Logingrupa\ColorClassifier\Classes;
+
+/**
+ * SheetExportBuilder - maps ColorEntry rows to the compact offer color export.
+ *
+ * Sole responsibility: turn ColorEntry rows into the minimal array consumed
+ * server-to-server by an external store (join key: offer UUID, the part of
+ * offer_id after the last "#"). No routing, no HTTP concerns, no caching.
+ *
+ * Exported shape per offer: family, hex, hue, lightness. Rows without a
+ * non-empty hex_color, without a resolved taxonomy family, or with malformed
+ * taxonomy / oklch_values are skipped so a bad row can never break the export.
+ *
+ * @package Logingrupa\ColorClassifier\Classes
+ */
+class SheetExportBuilder
+{
+    /**
+     * Build the compact export payload from ColorEntry rows.
+     *
+     * The version stamp is derived from the latest updated_at value and the
+     * exported row count, so it only changes when the exported data changes.
+     * Count reflects exported rows only, not total rows. Rows resolving to
+     * an empty offer key or to an already-exported key are skipped
+     * (first row wins on collision).
+     *
+     * @param iterable<int, object> $arColorEntries ColorEntry rows.
+     *
+     * @return array{version: string, count: int, offers: array<string, array{family: string, hex: string, hue: float, lightness: float}>}
+     */
+    public function build(iterable $arColorEntries): array
+    {
+        $arOffers = [];
+        $sLatestUpdatedAt = '';
+
+        foreach ($arColorEntries as $obEntry) {
+            $arOfferData = $this->buildOfferData($obEntry);
+
+            if ($arOfferData === null) {
+                continue;
+            }
+
+            $sOfferKey = $this->resolveOfferKey((string) $obEntry->offer_id);
+
+            if ($sOfferKey === '' || array_key_exists($sOfferKey, $arOffers)) {
+                continue;
+            }
+
+            $arOffers[$sOfferKey] = $arOfferData;
+
+            $sUpdatedAt = (string) ($obEntry->updated_at ?? '');
+            if ($sUpdatedAt > $sLatestUpdatedAt) {
+                $sLatestUpdatedAt = $sUpdatedAt;
+            }
+        }
+
+        return [
+            'version' => $this->buildVersionStamp($sLatestUpdatedAt, count($arOffers)),
+            'count'   => count($arOffers),
+            'offers'  => $arOffers,
+        ];
+    }
+
+    /**
+     * Map a single ColorEntry row to its compact offer data, or null to skip.
+     *
+     * Skips the row when offer_id or hex_color is empty, taxonomy or
+     * oklch_values is not an array, the taxonomy family is unresolved,
+     * or hue / lightness is not numeric.
+     *
+     * @param object $obEntry ColorEntry row.
+     *
+     * @return array{family: string, hex: string, hue: float, lightness: float}|null
+     */
+    private function buildOfferData(object $obEntry): ?array
+    {
+        $sOfferId  = (string) ($obEntry->offer_id ?? '');
+        $sHexColor = (string) ($obEntry->hex_color ?? '');
+
+        if ($sOfferId === '' || $sHexColor === '') {
+            return null;
+        }
+
+        $arTaxonomy    = $obEntry->taxonomy ?? null;
+        $arOklchValues = $obEntry->oklch_values ?? null;
+
+        if (!is_array($arTaxonomy) || !is_array($arOklchValues)) {
+            return null;
+        }
+
+        $sFamily = $arTaxonomy['family'] ?? null;
+
+        if (!is_string($sFamily) || $sFamily === '') {
+            return null;
+        }
+
+        $flHue       = $arOklchValues['hue'] ?? null;
+        $flLightness = $arOklchValues['lightness'] ?? null;
+
+        if (!is_numeric($flHue) || !is_numeric($flLightness)) {
+            return null;
+        }
+
+        return [
+            'family'    => $sFamily,
+            'hex'       => $sHexColor,
+            'hue'       => (float) $flHue,
+            'lightness' => (float) $flLightness,
+        ];
+    }
+
+    /**
+     * Resolve the public offer key from the internal composite offer_id.
+     *
+     * The internal offer_id is a CommerceML composite "productUUID#offerUUID";
+     * external consumers join on the offer UUID alone, so only the part after
+     * the last "#" is exposed. Keys without "#" are returned unchanged.
+     *
+     * @param string $sOfferId Internal ColorEntry offer_id.
+     *
+     * @return string
+     */
+    private function resolveOfferKey(string $sOfferId): string
+    {
+        $iLastHashPosition = strrpos($sOfferId, '#');
+
+        if ($iLastHashPosition === false) {
+            return $sOfferId;
+        }
+
+        return substr($sOfferId, $iLastHashPosition + 1);
+    }
+
+    /**
+     * Build a deterministic version stamp for the exported data set.
+     *
+     * @param string $sLatestUpdatedAt Latest updated_at among exported rows.
+     * @param int $iExportedRowCount Number of exported rows.
+     *
+     * @return string
+     */
+    private function buildVersionStamp(string $sLatestUpdatedAt, int $iExportedRowCount): string
+    {
+        return sha1($sLatestUpdatedAt . '|' . $iExportedRowCount);
+    }
+}

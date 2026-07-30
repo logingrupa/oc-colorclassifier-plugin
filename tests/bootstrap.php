@@ -14,6 +14,7 @@
  *   5. ColorNamer      — depends on ColorConverter (hexToRgbArray)
  *   6. ColorExtractor  — reads from Settings with fallback constants
  *   7. ColorClassifier — reads from Settings with fallback constants
+ *   8. SheetExportBuilder - no dependencies
  */
 
 $pluginRootDirectory = dirname(__DIR__);
@@ -26,3 +27,4 @@ require_once $pluginRootDirectory . '/classes/ColorNamer.php';
 require_once $pluginRootDirectory . '/classes/ColorExtractor.php';
 require_once $pluginRootDirectory . '/classes/ColorClassifier.php';
 require_once $pluginRootDirectory . '/classes/NailoLabTransforms.php';
+require_once $pluginRootDirectory . '/classes/SheetExportBuilder.php';

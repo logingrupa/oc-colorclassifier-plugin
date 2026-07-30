@@ -7,3 +7,5 @@
 1.0.2:
     - "Add detail_url column for frontend product deep links"
     - add_detail_url_column.php
+1.1.0:
+    - "Add compact /api/color-lab/offers.json export keyed by offer UUID with ETag / 304 caching"

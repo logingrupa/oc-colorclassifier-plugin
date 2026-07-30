@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Logingrupa\ColorClassifier\Classes\ColorLabMapper;
+use Logingrupa\ColorClassifier\Classes\SheetExportBuilder;
 use Logingrupa\ColorClassifier\Models\ColorEntry;
 
 /*
@@ -44,4 +45,28 @@ Route::get('/api/color-lab/data', function () {
         'entries'  => $arColorData,
         'taxonomy' => ColorLabMapper::mapTaxonomy(),
     ]);
+})->middleware('web');
+
+/*
+ * API route - compact offer color map for server-to-server consumption.
+ *
+ * Keyed by offer UUID so an external store importing the same 1C catalog
+ * can join on its offer external_id. Supports ETag / If-None-Match
+ * revalidation with a one hour public cache lifetime.
+ */
+Route::get('/api/color-lab/offers.json', function () {
+    $obExportBuilder = new SheetExportBuilder();
+    $arPayload = $obExportBuilder->build(ColorEntry::all());
+
+    $sEtag = '"' . $arPayload['version'] . '"';
+    $arHeaders = [
+        'ETag'          => $sEtag,
+        'Cache-Control' => 'public, max-age=3600',
+    ];
+
+    if (request()->header('If-None-Match') === $sEtag) {
+        return response('', 304, $arHeaders);
+    }
+
+    return response()->json($arPayload, 200, $arHeaders);
 })->middleware('web');
