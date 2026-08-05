@@ -173,8 +173,12 @@ class ColorClassifier
         float $perceptualLightness,
         array $arThresholds
     ): array {
-        // Zone 1: Very low chroma — achromatic
-        if ($oklchChroma < self::CHROMA_ACHROMATIC_THRESHOLD) {
+        // Zone 1: Very low chroma — achromatic. OKLCH chroma alone under-reports
+        // colorfulness for light cool hues, so a color is only achromatic when
+        // HSL saturation is also below the configured achromatic threshold.
+        $isAchromaticSaturation = $saturation < $arThresholds['achromatic_saturation'];
+
+        if ($oklchChroma < self::CHROMA_ACHROMATIC_THRESHOLD && $isAchromaticSaturation) {
             return self::classifyAchromaticZone($hue, $lightness, $perceptualLightness, $arThresholds);
         }
 
@@ -277,8 +281,14 @@ class ColorClassifier
             return ['primary' => 'Nude', 'secondary' => $chromaticFamily];
         }
 
-        // Cool/neutral hues at low chroma: Grey with chromatic hint
-        return ['primary' => 'Grey', 'secondary' => $chromaticFamily];
+        // Cool/neutral hues at low chroma: Grey with chromatic hint only while
+        // saturation stays near-achromatic; clearly saturated colors keep their
+        // chromatic family even at low OKLCH chroma (e.g. light steel blue).
+        if ($saturation < self::NEAR_ACHROMATIC_SATURATION_THRESHOLD) {
+            return ['primary' => 'Grey', 'secondary' => $chromaticFamily];
+        }
+
+        return ['primary' => $chromaticFamily, 'secondary' => null];
     }
 
     /**
