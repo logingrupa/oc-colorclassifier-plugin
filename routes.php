@@ -42,8 +42,9 @@ Route::get('/api/color-lab/data', function () {
     }
 
     return response()->json([
-        'entries'  => $arColorData,
-        'taxonomy' => ColorLabMapper::mapTaxonomy(),
+        'last_updated_at' => (string) ColorEntry::max('updated_at'),
+        'entries'         => $arColorData,
+        'taxonomy'        => ColorLabMapper::mapTaxonomy(),
     ]);
 })->middleware('web');
 

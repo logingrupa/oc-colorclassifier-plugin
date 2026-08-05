@@ -22,13 +22,15 @@ class SheetExportBuilder
      *
      * The version stamp is derived from the latest updated_at value and the
      * exported row count, so it only changes when the exported data changes.
+     * The same latest updated_at is exposed as last_updated_at (one global
+     * value, not per offer) so consumers can see when data last changed.
      * Count reflects exported rows only, not total rows. Rows resolving to
      * an empty offer key or to an already-exported key are skipped
      * (first row wins on collision).
      *
      * @param iterable<int, object> $arColorEntries ColorEntry rows.
      *
-     * @return array{version: string, count: int, offers: array<string, array{family: string, hex: string, hue: float, lightness: float}>}
+     * @return array{version: string, last_updated_at: string, count: int, offers: array<string, array{family: string, hex: string, hue: float, lightness: float}>}
      */
     public function build(iterable $arColorEntries): array
     {
@@ -57,9 +59,10 @@ class SheetExportBuilder
         }
 
         return [
-            'version' => $this->buildVersionStamp($sLatestUpdatedAt, count($arOffers)),
-            'count'   => count($arOffers),
-            'offers'  => $arOffers,
+            'version'         => $this->buildVersionStamp($sLatestUpdatedAt, count($arOffers)),
+            'last_updated_at' => $sLatestUpdatedAt,
+            'count'           => count($arOffers),
+            'offers'          => $arOffers,
         ];
     }
 

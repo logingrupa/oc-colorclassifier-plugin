@@ -13,6 +13,7 @@ use Logingrupa\ColorClassifier\Classes\SheetExportBuilder;
  *   - Rows with malformed oklch_values are skipped
  *   - Count reflects exported rows only
  *   - Version stamp is deterministic and changes when the data set changes
+ *   - last_updated_at is one global value: the latest updated_at among exported rows
  *   - Offers map key is the offer UUID after the last "#" of offer_id
  *   - Keys without "#" are exported unchanged
  *   - Rows resolving to an empty key are skipped
@@ -220,5 +221,36 @@ class SheetExportBuilderTest extends TestCase
 
         $this->assertNotSame($basePayload['version'], $newerUpdatedAtPayload['version']);
         $this->assertNotSame($basePayload['version'], $moreRowsPayload['version']);
+    }
+
+    /**
+     * last_updated_at should be the latest updated_at among exported rows.
+     */
+    public function test_last_updated_at_is_latest_among_exported_rows(): void
+    {
+        $payload = $this->exportBuilder->build([
+            $this->makeColorEntryRow(['updated_at' => '2026-03-27 08:56:23']),
+            $this->makeColorEntryRow(['offer_id' => 'offer-2', 'updated_at' => '2026-03-28 10:00:00']),
+            $this->makeColorEntryRow(['offer_id' => 'offer-3', 'updated_at' => '2026-03-26 12:00:00']),
+        ]);
+
+        $this->assertSame('2026-03-28 10:00:00', $payload['last_updated_at']);
+    }
+
+    /**
+     * Skipped rows should not influence last_updated_at.
+     */
+    public function test_last_updated_at_ignores_skipped_rows(): void
+    {
+        $payload = $this->exportBuilder->build([
+            $this->makeColorEntryRow(['updated_at' => '2026-03-27 08:56:23']),
+            $this->makeColorEntryRow([
+                'offer_id'   => 'offer-skipped',
+                'hex_color'  => '',
+                'updated_at' => '2026-12-31 23:59:59',
+            ]),
+        ]);
+
+        $this->assertSame('2026-03-27 08:56:23', $payload['last_updated_at']);
     }
 }
