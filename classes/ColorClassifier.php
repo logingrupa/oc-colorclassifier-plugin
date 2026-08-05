@@ -107,6 +107,15 @@ class ColorClassifier
     /** @var float OKLCH chroma below which a color is low-moderate (nude zone for warm hues). */
     private const CHROMA_LOW_MODERATE_THRESHOLD = 0.08;
 
+    /** @var float OKLCH chroma ceiling for calling a light color White. Genuine whites (ivory,
+     *  snow, linen) measure below 0.02; visibly tinted pastels (rose, lavender) measure 0.03+.
+     *  HSL saturation cannot make this call - it inflates to 50-100% near white. */
+    private const WHITE_CHROMA_CEILING = 0.025;
+
+    /** @var float Perceptual lightness above which a warm low-chroma color is a pastel
+     *  (Pink/Peach), no longer a skin-tone Nude. Mirrors the Zone 1 nude window upper bound. */
+    private const NUDE_MAX_PERCEPTUAL_LIGHTNESS = 80.0;
+
     /**
      * Classify an RGB color into all gel polish taxonomy dimensions.
      *
@@ -184,7 +193,7 @@ class ColorClassifier
 
         // Zone 2: Low-moderate chroma — nude territory for warm hues
         if ($oklchChroma < self::CHROMA_LOW_MODERATE_THRESHOLD) {
-            return self::classifyLowModerateChromaZone($hue, $saturation, $lightness, $perceptualLightness, $arThresholds);
+            return self::classifyLowModerateChromaZone($hue, $saturation, $lightness, $oklchChroma, $perceptualLightness, $arThresholds);
         }
 
         // Zone 3: Full chroma — standard chromatic with Pink/Rose split
@@ -237,6 +246,7 @@ class ColorClassifier
      * @param float              $hue                 HSL hue in [0, 360].
      * @param float              $saturation          HSL saturation in [0, 100].
      * @param float              $lightness           HSL lightness in [0, 100].
+     * @param float              $oklchChroma         OKLCH chroma (0–0.4+).
      * @param float              $perceptualLightness OKLCH lightness * 100.
      * @param array<string,float> $arThresholds        Loaded thresholds.
      *
@@ -246,10 +256,13 @@ class ColorClassifier
         float $hue,
         float $saturation,
         float $lightness,
+        float $oklchChroma,
         float $perceptualLightness,
         array $arThresholds
     ): array {
-        if ($perceptualLightness > $arThresholds['white_lightness']) {
+        // White needs both high perceptual lightness AND near-zero chroma;
+        // a light color with visible chroma is a tinted pastel, not White.
+        if ($perceptualLightness > $arThresholds['white_lightness'] && $oklchChroma < self::WHITE_CHROMA_CEILING) {
             return ['primary' => 'White', 'secondary' => null];
         }
 
@@ -266,6 +279,12 @@ class ColorClassifier
             // Dark warm tones at low chroma are Brown, not Nude
             if ($perceptualLightness < 40) {
                 return ['primary' => 'Brown', 'secondary' => null];
+            }
+
+            // Above the nude window the color is a light pastel (Pink/Peach),
+            // not a skin tone
+            if ($perceptualLightness > self::NUDE_MAX_PERCEPTUAL_LIGHTNESS) {
+                return ['primary' => $chromaticFamily, 'secondary' => null];
             }
 
             // Nude is only light-to-medium skin tones (perceptual lightness 40-80)

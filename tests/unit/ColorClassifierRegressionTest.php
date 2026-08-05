@@ -43,4 +43,40 @@ class ColorClassifierRegressionTest extends TestCase
         $this->assertSame('Light', $classification['depth']);
         $this->assertSame('Soft', $classification['saturation']);
     }
+
+    /**
+     * Classify a hex color and return the family name.
+     *
+     * @param string $hexColor Hex color string.
+     *
+     * @return string Assigned primary family.
+     */
+    private function familyOf(string $hexColor): string
+    {
+        $rgbValues = ColorConverter::hexToRgb($hexColor);
+
+        return ColorClassifier::classify($rgbValues['red'], $rgbValues['green'], $rgbValues['blue'])['family'];
+    }
+
+    public function test_rose_water_pale_pink_classifies_as_pink_not_white(): void
+    {
+        // #F7D8E8 "Rose Water": perceptual lightness 91.25 is above the 90%
+        // white threshold, but chroma 0.0401 is a clearly visible pink tint.
+        $this->assertSame('Pink', $this->familyOf('#F7D8E8'));
+    }
+
+    public function test_pale_lavender_classifies_as_violet_zone_not_white(): void
+    {
+        // #E6E0F8: chroma 0.0329, visibly lavender despite lightness 91.86.
+        $this->assertContains($this->familyOf('#E6E0F8'), ['Indigo', 'Violet', 'Purple']);
+    }
+
+    public function test_genuine_whites_still_classify_as_white(): void
+    {
+        // All measure chroma below 0.02 - real whites with a faint cast.
+        $this->assertSame('White', $this->familyOf('#F5F5F5'), 'neutral near-white');
+        $this->assertSame('White', $this->familyOf('#FFFFF0'), 'ivory');
+        $this->assertSame('White', $this->familyOf('#FAF0E6'), 'linen');
+        $this->assertSame('White', $this->familyOf('#FFFAFA'), 'snow');
+    }
 }
