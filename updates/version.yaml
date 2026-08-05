@@ -9,3 +9,5 @@
     - add_detail_url_column.php
 1.1.0:
     - "Add compact /api/color-lab/offers.json export keyed by offer UUID with ETag / 304 caching"
+1.2.0:
+    - "Classification accuracy pass - honor achromatic saturation threshold, chroma-gated White, pink/red split, burgundy, tinted greys, dark browns; confidence now measures family certainty"
