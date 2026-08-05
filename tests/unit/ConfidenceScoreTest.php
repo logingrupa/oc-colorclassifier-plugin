@@ -15,7 +15,11 @@ use Logingrupa\ColorClassifier\Classes\ColorConverter;
 class ConfidenceScoreTest extends TestCase
 {
     /** @var array<string, float> Fallback thresholds mirroring the Settings defaults. */
-    private const DEFAULT_THRESHOLDS = ['achromatic_saturation' => 5.0];
+    private const DEFAULT_THRESHOLDS = [
+        'achromatic_saturation' => 5.0,
+        'white_lightness'       => 90.0,
+        'black_lightness'       => 10.0,
+    ];
 
     /**
      * Classify a hex color and return the full result array.
@@ -76,9 +80,20 @@ class ConfidenceScoreTest extends TestCase
     {
         // Saturation 10% sits between the 5% achromatic threshold and the 15%
         // near-achromatic constant: the genuinely ambiguous Grey-with-hint zone.
-        $confidenceScore = ColorClassifier::calculateConfidence(220.0, 10.0, 50.0, self::DEFAULT_THRESHOLDS);
+        $confidenceScore = ColorClassifier::calculateConfidence(220.0, 10.0, 50.0, 0.03, 55.0, self::DEFAULT_THRESHOLDS);
 
         $this->assertLessThanOrEqual(0.5, $confidenceScore);
+    }
+
+    public function test_near_zero_chroma_white_scores_high_despite_inflated_hsl_saturation(): void
+    {
+        // #F8FAF9 "Cloud Dancer": chroma 0.003 but HSL saturation inflates to
+        // 16.7% near white. Confidence must judge achromatics on chroma - this
+        // is a certain White (perceptual lightness 98.3, far above the 90 gate).
+        $classification = $this->classifyHex('#F8FAF9');
+
+        $this->assertSame('White', $classification['family']);
+        $this->assertGreaterThanOrEqual(0.7, $classification['confidence_score']);
     }
 
     public function test_confidence_stays_within_valid_range_across_color_sweep(): void
@@ -99,13 +114,20 @@ class ConfidenceScoreTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        ColorClassifier::calculateConfidence(400.0, 50.0, 50.0, self::DEFAULT_THRESHOLDS);
+        ColorClassifier::calculateConfidence(400.0, 50.0, 50.0, 0.1, 50.0, self::DEFAULT_THRESHOLDS);
     }
 
     public function test_out_of_range_saturation_throws(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        ColorClassifier::calculateConfidence(200.0, 150.0, 50.0, self::DEFAULT_THRESHOLDS);
+        ColorClassifier::calculateConfidence(200.0, 150.0, 50.0, 0.1, 50.0, self::DEFAULT_THRESHOLDS);
+    }
+
+    public function test_negative_chroma_throws(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        ColorClassifier::calculateConfidence(200.0, 50.0, 50.0, -0.1, 50.0, self::DEFAULT_THRESHOLDS);
     }
 }

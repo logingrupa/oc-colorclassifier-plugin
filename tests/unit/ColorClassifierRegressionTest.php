@@ -79,4 +79,45 @@ class ColorClassifierRegressionTest extends TestCase
         $this->assertSame('White', $this->familyOf('#FAF0E6'), 'linen');
         $this->assertSame('White', $this->familyOf('#FFFAFA'), 'snow');
     }
+
+    public function test_salmon_pink_classifies_as_pink_not_red(): void
+    {
+        // #E7969B "Rose" (Salmon Pink): hue 356.3, lightness 74.7 - light
+        // red-zone colors read as pink well before the old 75 cutoff.
+        $this->assertSame('Pink', $this->familyOf('#E7969B'));
+    }
+
+    public function test_dusty_mauve_classifies_as_pink_not_red(): void
+    {
+        // #B86C6E "Dust Rose" (Mauve Pink): hue 358.4, lightness 57.3,
+        // saturation 34.9 - desaturated mid-light red zone is dusty rose.
+        $this->assertSame('Pink', $this->familyOf('#B86C6E'));
+    }
+
+    public function test_dark_burgundy_classifies_as_red_not_rose(): void
+    {
+        // #4F0117 "Dark Burgundy": hue 343.1, lightness 15.7 - deep wine
+        // shades in the 330-345 band read as dark Red.
+        $this->assertSame('Red', $this->familyOf('#4F0117'));
+    }
+
+    public function test_barely_tinted_greys_classify_as_grey_not_nude(): void
+    {
+        // Saturation ~3.5% is hue noise, not a warm tint - both are greys.
+        $this->assertSame('Grey', $this->familyOf('#ADA7A8'), 'warm-noise grey');
+        $this->assertSame('Grey', $this->familyOf('#ADACA7'), 'yellow-noise grey');
+    }
+
+    public function test_dark_muted_warm_classifies_as_brown_not_nude(): void
+    {
+        // #5F4343 "Dark Charcoal": perceptual lightness 41.4, muted warm -
+        // too dark to read as skin, lands Brown.
+        $this->assertSame('Brown', $this->familyOf('#5F4343'));
+    }
+
+    public function test_typical_nude_shades_still_classify_as_nude(): void
+    {
+        $this->assertSame('Nude', $this->familyOf('#D2B48C'), 'tan');
+        $this->assertSame('Nude', $this->familyOf('#C8A88A'), 'medium beige nude');
+    }
 }

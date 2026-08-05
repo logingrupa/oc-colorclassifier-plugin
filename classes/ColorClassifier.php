@@ -153,7 +153,7 @@ class ColorClassifier
             'saturation'       => self::determineSaturation($saturation, $arThresholds),
             'finish'           => null,
             'opacity'          => 'Opaque',
-            'confidence_score' => self::calculateConfidence($hue, $saturation, $lightness, $arThresholds),
+            'confidence_score' => self::calculateConfidence($hue, $saturation, $lightness, $oklchChroma, $perceptualLightness, $arThresholds),
         ];
     }
 
@@ -188,7 +188,7 @@ class ColorClassifier
         $isAchromaticSaturation = $saturation < $arThresholds['achromatic_saturation'];
 
         if ($oklchChroma < self::CHROMA_ACHROMATIC_THRESHOLD && $isAchromaticSaturation) {
-            return self::classifyAchromaticZone($hue, $saturation, $lightness, $perceptualLightness, $arThresholds);
+            return self::classifyAchromaticZone($perceptualLightness, $arThresholds);
         }
 
         // Zone 2: Low-moderate chroma — nude territory for warm hues
@@ -203,20 +203,16 @@ class ColorClassifier
     }
 
     /**
-     * Classify achromatic zone (chroma < 0.04).
+     * Classify achromatic zone (chroma < 0.04 and saturation below the achromatic threshold).
      *
-     * Pure greys with no chromatic identity. Warm hues with very slight
-     * tint get Nude as primary with no secondary.
+     * Pure greys with no chromatic identity: White, Black, or Grey by lightness.
      *
-     * @param float              $hue                 HSL hue in [0, 360].
-     * @param float              $saturation          HSL saturation in [0, 100].
-     * @param float              $lightness           HSL lightness in [0, 100].
      * @param float              $perceptualLightness OKLCH lightness * 100.
      * @param array<string,float> $arThresholds        Loaded thresholds.
      *
      * @return array{primary: string, secondary: string|null}
      */
-    private static function classifyAchromaticZone(float $hue, float $saturation, float $lightness, float $perceptualLightness, array $arThresholds): array
+    private static function classifyAchromaticZone(float $perceptualLightness, array $arThresholds): array
     {
         if ($perceptualLightness > $arThresholds['white_lightness']) {
             return ['primary' => 'White', 'secondary' => null];
@@ -226,14 +222,9 @@ class ColorClassifier
             return ['primary' => 'Black', 'secondary' => null];
         }
 
-        // Zero saturation means hue is a degenerate placeholder (rgbToHsl returns
-        // 0), not an actual warm tint - a truly neutral grey can never be Nude.
-        $isWarmHue = $saturation > 0.0 && (($hue <= 60) || ($hue >= 330));
-
-        if ($isWarmHue && $lightness > 40 && $lightness < 80) {
-            return ['primary' => 'Nude', 'secondary' => null];
-        }
-
+        // Below the achromatic saturation threshold no hue carries a real tint
+        // (hue is noise on a near-neutral color), so Nude is impossible here -
+        // genuinely pinkish nudes have enough saturation to reach Zone 2.
         return ['primary' => 'Grey', 'secondary' => null];
     }
 
@@ -276,8 +267,9 @@ class ColorClassifier
         $isSkinAdjacentHue = ($hue <= 60) || ($hue >= 310);
 
         if ($isSkinAdjacentHue) {
-            // Dark warm tones at low chroma are Brown, not Nude
-            if ($perceptualLightness < 40) {
+            // Dark warm tones at low chroma are Brown, not Nude - the nude
+            // window starts where colors read as skin, around perceptual 45
+            if ($perceptualLightness < 45) {
                 return ['primary' => 'Brown', 'secondary' => null];
             }
 
@@ -324,9 +316,13 @@ class ColorClassifier
      */
     private static function classifyChromatic(float $hue, float $saturation, float $lightness): string
     {
-        // Red: 0–15 and 345–360 (very light variants become Pink)
+        // Red: 0–15 and 345–360. Light variants are salmon/pink; desaturated
+        // mid-light variants are dusty rose/mauve - both read as Pink to humans.
         if ($hue <= 15 || $hue > 345) {
-            if ($lightness > 75) {
+            if ($lightness > 70) {
+                return 'Pink';
+            }
+            if ($lightness > 50 && $saturation < 45) {
                 return 'Pink';
             }
             return 'Red';
@@ -408,6 +404,11 @@ class ColorClassifier
         // 330–345
         if ($lightness > 75) {
             return 'Pink';
+        }
+
+        // Dark burgundy/wine sits at hue 335-345 but reads as deep Red, not Rose
+        if ($lightness < 30) {
+            return 'Red';
         }
 
         return 'Rose';
@@ -509,30 +510,49 @@ class ColorClassifier
     /** @var float Hue margin factor floor so boundary-adjacent colors never zero out the score. */
     private const HUE_MARGIN_FACTOR_FLOOR = 0.2;
 
+    /** @var float OKLCH chroma below which confidence treats a color as certainly achromatic.
+     *  HSL saturation cannot make this call - it inflates near white/black (a chroma 0.003
+     *  near-white can measure 17% HSL saturation). */
+    private const ACHROMATIC_CONFIDENCE_CHROMA_CEILING = 0.02;
+
+    /** @var float Perceptual lightness distance from the White/Black boundary at which an
+     *  achromatic call reaches full confidence. */
+    private const ACHROMATIC_BOUNDARY_FULL_CONFIDENCE_DISTANCE = 10.0;
+
     /**
      * Calculate how certain the family classification is for a color.
      *
      * Confidence means "certainty of the assigned family label", composed of:
+     * - Achromatic certainty: near-zero OKLCH chroma means a confident
+     *   White/Grey/Black call, scaled by distance from the White and Black
+     *   lightness boundaries where those labels hand over.
      * - Hue margin: distance from the nearest family hue boundary. Colors deep
      *   inside a hue band (e.g. mid-Blue) score high; colors near a handover
      *   point (e.g. the Cyan/Blue edge at 200 degrees) score low.
-     * - Saturation certainty: pure achromatics (below the configured achromatic
-     *   threshold) are confident Greys; the Grey-with-hint ambiguity band
-     *   (threshold to 15%) scores low; clearly chromatic colors ramp up.
+     * - Saturation certainty: the Grey-with-hint ambiguity band (achromatic
+     *   threshold to 15%) scores low; clearly chromatic colors ramp up.
      * - Lightness reliability: hue measurements get noisy near white and black,
-     *   so extreme lightness applies a mild penalty.
+     *   so extreme lightness applies a mild penalty to chromatic calls.
      *
-     * @param float               $hue          HSL hue in [0, 360].
-     * @param float               $saturation   HSL saturation in [0, 100].
-     * @param float               $lightness    HSL lightness in [0, 100].
-     * @param array<string,float> $arThresholds Loaded classification thresholds.
+     * @param float               $hue                 HSL hue in [0, 360].
+     * @param float               $saturation          HSL saturation in [0, 100].
+     * @param float               $lightness           HSL lightness in [0, 100].
+     * @param float               $oklchChroma         OKLCH chroma (0–0.4+).
+     * @param float               $perceptualLightness OKLCH lightness * 100.
+     * @param array<string,float> $arThresholds        Loaded classification thresholds.
      *
      * @return float Confidence score in [0.00, 1.00].
      *
      * @throws \InvalidArgumentException When any input is outside its valid range.
      */
-    public static function calculateConfidence(float $hue, float $saturation, float $lightness, array $arThresholds): float
-    {
+    public static function calculateConfidence(
+        float $hue,
+        float $saturation,
+        float $lightness,
+        float $oklchChroma,
+        float $perceptualLightness,
+        array $arThresholds
+    ): float {
         if ($hue < 0.0 || $hue > 360.0) {
             throw new \InvalidArgumentException("Hue must be 0-360, got: {$hue}");
         }
@@ -542,21 +562,33 @@ class ColorClassifier
         if ($lightness < 0.0 || $lightness > 100.0) {
             throw new \InvalidArgumentException("Lightness must be 0-100, got: {$lightness}");
         }
+        if ($oklchChroma < 0.0) {
+            throw new \InvalidArgumentException("Chroma must be non-negative, got: {$oklchChroma}");
+        }
+        if ($perceptualLightness < 0.0 || $perceptualLightness > 100.0) {
+            throw new \InvalidArgumentException("Perceptual lightness must be 0-100, got: {$perceptualLightness}");
+        }
 
-        $achromaticThreshold        = $arThresholds['achromatic_saturation'];
-        $lightnessReliabilityFactor = self::lightnessReliabilityFactor($lightness);
+        // Certainly achromatic: White/Grey/Black call, judged on OKLCH chroma
+        // flatness and distance from the White/Black handover boundaries.
+        if ($oklchChroma < self::ACHROMATIC_CONFIDENCE_CHROMA_CEILING) {
+            $flatnessFactor = 1.0 - (($oklchChroma / self::ACHROMATIC_CONFIDENCE_CHROMA_CEILING) * 0.5);
 
-        // Pure achromatic: family is Grey/White/Black regardless of hue, and the
-        // flatter the color the more certain that call is.
-        if ($saturation < $achromaticThreshold) {
-            $flatnessFactor = 1.0 - (($saturation / $achromaticThreshold) * 0.5);
+            $distanceToWhiteBoundary = abs($perceptualLightness - $arThresholds['white_lightness']);
+            $distanceToBlackBoundary = abs($perceptualLightness - $arThresholds['black_lightness']);
+            $nearestBoundaryDistance = min($distanceToWhiteBoundary, $distanceToBlackBoundary);
 
-            return round(min(1.0, $flatnessFactor * $lightnessReliabilityFactor), 2);
+            $boundaryMarginFactor = max(
+                0.3,
+                min($nearestBoundaryDistance / self::ACHROMATIC_BOUNDARY_FULL_CONFIDENCE_DISTANCE, 1.0)
+            );
+
+            return round(min(1.0, $flatnessFactor * $boundaryMarginFactor), 2);
         }
 
         $confidenceScore = self::hueMarginFactor($hue)
-            * self::saturationCertaintyFactor($saturation, $achromaticThreshold)
-            * $lightnessReliabilityFactor;
+            * self::saturationCertaintyFactor($saturation, $arThresholds['achromatic_saturation'])
+            * self::lightnessReliabilityFactor($lightness);
 
         return round(max(0.0, min(1.0, $confidenceScore)), 2);
     }
