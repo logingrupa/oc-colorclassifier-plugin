@@ -15,3 +15,5 @@
     - "Add global last_updated_at to /api/color-lab/offers.json and /api/color-lab/data so consumers can see when color data last changed"
 1.4.0:
     - "Add GET /api/color-lab/families.json - family taxonomy export keyed by stable family slug (localized names, per-locale synonyms, canonical swatch hex) with the same ETag / If-None-Match 304 conventions as offers.json, so an external store can build localized color search and catalog filters"
+1.5.0:
+    - "Confidence flows to consumers: families.json key order becomes a deliberate contract - families ordered by average ColorEntry confidence descending (confidently classified families first, boundary-straddling ones sink), families without classified offers last, hand-curated taxonomy order breaking ties - and offers.json adds a per-offer confidence field (null when unscored) so a consumer store can order the shades inside a family by classification certainty; consumer stores render pills in payload order"
