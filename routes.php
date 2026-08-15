@@ -55,15 +55,12 @@ Route::get('/api/color-lab/data', function () {
  * Keyed by family slug (the STABLE URL contract) so an external store can
  * build localized color search and catalog filters: localized names,
  * per-locale synonyms and a canonical swatch hex per family. Payload key
- * ORDER is the pill order consumers render: average classification
- * confidence descending, unscored families last. Same ETag / If-None-Match
- * conventions as offers.json.
+ * ORDER is the pill order consumers render: the hand-curated taxonomy
+ * order. Same ETag / If-None-Match conventions as offers.json.
  */
 Route::get('/api/color-lab/families.json', function () {
     $obFamilyExportBuilder = new FamilyExportBuilder();
-    $arPayload = $obFamilyExportBuilder->build(
-        ColorEntry::query()->get(['taxonomy', 'confidence_score'])
-    );
+    $arPayload = $obFamilyExportBuilder->build();
 
     $sEtag = '"' . $arPayload['version'] . '"';
     $arHeaders = [
