@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Logingrupa\ColorClassifier\Classes\ColorLabMapper;
+use Logingrupa\ColorClassifier\Classes\FamilyExportBuilder;
 use Logingrupa\ColorClassifier\Classes\SheetExportBuilder;
 use Logingrupa\ColorClassifier\Models\ColorEntry;
 
@@ -46,6 +47,31 @@ Route::get('/api/color-lab/data', function () {
         'entries'         => $arColorData,
         'taxonomy'        => ColorLabMapper::mapTaxonomy(),
     ]);
+})->middleware('web');
+
+/*
+ * API route - color family taxonomy metadata for server-to-server consumption.
+ *
+ * Keyed by family slug (the STABLE URL contract) so an external store can
+ * build localized color search and catalog filters: localized names,
+ * per-locale synonyms and a canonical swatch hex per family. Same ETag /
+ * If-None-Match conventions as offers.json.
+ */
+Route::get('/api/color-lab/families.json', function () {
+    $obFamilyExportBuilder = new FamilyExportBuilder();
+    $arPayload = $obFamilyExportBuilder->build();
+
+    $sEtag = '"' . $arPayload['version'] . '"';
+    $arHeaders = [
+        'ETag'          => $sEtag,
+        'Cache-Control' => 'public, max-age=3600',
+    ];
+
+    if (request()->header('If-None-Match') === $sEtag) {
+        return response('', 304, $arHeaders);
+    }
+
+    return response()->json($arPayload, 200, $arHeaders);
 })->middleware('web');
 
 /*
