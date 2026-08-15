@@ -9,9 +9,11 @@ namespace Logingrupa\ColorClassifier\Classes;
  * server-to-server by an external store (join key: offer UUID, the part of
  * offer_id after the last "#"). No routing, no HTTP concerns, no caching.
  *
- * Exported shape per offer: family, hex, hue, lightness. Rows without a
- * non-empty hex_color, without a resolved taxonomy family, or with malformed
- * taxonomy / oklch_values are skipped so a bad row can never break the export.
+ * Exported shape per offer: family, hex, hue, lightness, confidence (the
+ * classification certainty consumers order shades within a family by;
+ * null when the row has none). Rows without a non-empty hex_color, without
+ * a resolved taxonomy family, or with malformed taxonomy / oklch_values are
+ * skipped so a bad row can never break the export.
  *
  * @package Logingrupa\ColorClassifier\Classes
  */
@@ -30,7 +32,7 @@ class SheetExportBuilder
      *
      * @param iterable<int, object> $arColorEntries ColorEntry rows.
      *
-     * @return array{version: string, last_updated_at: string, count: int, offers: array<string, array{family: string, hex: string, hue: float, lightness: float}>}
+     * @return array{version: string, last_updated_at: string, count: int, offers: array<string, array{family: string, hex: string, hue: float, lightness: float, confidence: float|null}>}
      */
     public function build(iterable $arColorEntries): array
     {
@@ -75,7 +77,7 @@ class SheetExportBuilder
      *
      * @param object $obEntry ColorEntry row.
      *
-     * @return array{family: string, hex: string, hue: float, lightness: float}|null
+     * @return array{family: string, hex: string, hue: float, lightness: float, confidence: float|null}|null
      */
     private function buildOfferData(object $obEntry): ?array
     {
@@ -106,11 +108,17 @@ class SheetExportBuilder
             return null;
         }
 
+        // Eloquent's decimal cast hands over strings; a missing or malformed
+        // score exports as null rather than skipping the row - the color data
+        // is still good, only the in-family ordering signal is absent
+        $flConfidence = $obEntry->confidence_score ?? null;
+
         return [
-            'family'    => $sFamily,
-            'hex'       => $sHexColor,
-            'hue'       => (float) $flHue,
-            'lightness' => (float) $flLightness,
+            'family'     => $sFamily,
+            'hex'        => $sHexColor,
+            'hue'        => (float) $flHue,
+            'lightness'  => (float) $flLightness,
+            'confidence' => is_numeric($flConfidence) ? (float) $flConfidence : null,
         ];
     }
 

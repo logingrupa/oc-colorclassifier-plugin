@@ -48,6 +48,7 @@ class SheetExportBuilderTest extends TestCase
                 'chroma'    => 0.15,
                 'lightness' => 0.64,
             ],
+            'confidence_score' => '0.85',
             'updated_at'   => '2026-03-27 08:56:23',
         ], $overrides);
     }
@@ -71,14 +72,32 @@ class SheetExportBuilderTest extends TestCase
         $this->assertSame(['offer-1', 'offer-2'], array_keys($payload['offers']));
         $this->assertSame(
             [
-                'family'    => 'Pink',
-                'hex'       => '#EC407A',
-                'hue'       => 354.2,
-                'lightness' => 0.64,
+                'family'     => 'Pink',
+                'hex'        => '#EC407A',
+                'hue'        => 354.2,
+                'lightness'  => 0.64,
+                // decimal:2 cast strings become floats on export
+                'confidence' => 0.85,
             ],
             $payload['offers']['offer-1']
         );
         $this->assertSame('Nude', $payload['offers']['offer-2']['family']);
+    }
+
+    /**
+     * A missing or malformed confidence exports as null - the color data is
+     * still valid, only the in-family ordering signal is absent.
+     */
+    public function test_missing_or_malformed_confidence_exports_as_null(): void
+    {
+        $payload = $this->exportBuilder->build([
+            $this->makeColorEntryRow(['offer_id' => 'offer-none', 'confidence_score' => null]),
+            $this->makeColorEntryRow(['offer_id' => 'offer-junk', 'confidence_score' => 'high']),
+        ]);
+
+        $this->assertSame(2, $payload['count'], 'a bad confidence must not skip the row');
+        $this->assertNull($payload['offers']['offer-none']['confidence']);
+        $this->assertNull($payload['offers']['offer-junk']['confidence']);
     }
 
     /**
