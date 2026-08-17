@@ -22,8 +22,10 @@ class SheetExportBuilder
     /**
      * Build the compact export payload from ColorEntry rows.
      *
-     * The version stamp is derived from the latest updated_at value and the
-     * exported row count, so it only changes when the exported data changes.
+     * The version stamp is the sha1 of the encoded exported rows plus the
+     * latest updated_at, so it rotates exactly when any exported offer value,
+     * the payload shape (fields added / removed / reordered), the set of
+     * exported keys, or last_updated_at changes - and stays stable otherwise.
      * The same latest updated_at is exposed as last_updated_at (one global
      * value, not per offer) so consumers can see when data last changed.
      * Count reflects exported rows only, not total rows. Rows resolving to
@@ -61,7 +63,7 @@ class SheetExportBuilder
         }
 
         return [
-            'version'         => $this->buildVersionStamp($sLatestUpdatedAt, count($arOffers)),
+            'version'         => $this->buildVersionStamp($sLatestUpdatedAt, $arOffers),
             'last_updated_at' => $sLatestUpdatedAt,
             'count'           => count($arOffers),
             'offers'          => $arOffers,
@@ -111,14 +113,14 @@ class SheetExportBuilder
         // Eloquent's decimal cast hands over strings; a missing or malformed
         // score exports as null rather than skipping the row - the color data
         // is still good, only the in-family ordering signal is absent
-        $flConfidence = $obEntry->confidence_score ?? null;
+        $mConfidenceRaw = $obEntry->confidence_score ?? null;
 
         return [
             'family'     => $sFamily,
             'hex'        => $sHexColor,
             'hue'        => (float) $flHue,
             'lightness'  => (float) $flLightness,
-            'confidence' => is_numeric($flConfidence) ? (float) $flConfidence : null,
+            'confidence' => is_numeric($mConfidenceRaw) ? (float) $mConfidenceRaw : null,
         ];
     }
 
@@ -147,13 +149,17 @@ class SheetExportBuilder
     /**
      * Build a deterministic version stamp for the exported data set.
      *
+     * Hashes the same json_encode used for the response body, so the stamp
+     * rotates whenever the encoded rows change in any way - values, field
+     * shape, key set - never only on updated_at / count like before (1.5.2).
+     *
      * @param string $sLatestUpdatedAt Latest updated_at among exported rows.
-     * @param int $iExportedRowCount Number of exported rows.
+     * @param array<string, array{family: string, hex: string, hue: float, lightness: float, confidence: float|null}> $arOffers Exported rows keyed by offer UUID.
      *
      * @return string
      */
-    private function buildVersionStamp(string $sLatestUpdatedAt, int $iExportedRowCount): string
+    private function buildVersionStamp(string $sLatestUpdatedAt, array $arOffers): string
     {
-        return sha1($sLatestUpdatedAt . '|' . $iExportedRowCount);
+        return sha1($sLatestUpdatedAt . '|' . (string) json_encode($arOffers));
     }
 }

@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Logingrupa\ColorClassifier\Classes\ColorLabMapper;
+use Logingrupa\ColorClassifier\Classes\EtagRevalidation;
 use Logingrupa\ColorClassifier\Classes\FamilyExportBuilder;
 use Logingrupa\ColorClassifier\Classes\SheetExportBuilder;
 use Logingrupa\ColorClassifier\Models\ColorEntry;
@@ -62,17 +63,7 @@ Route::get('/api/color-lab/families.json', function () {
     $obFamilyExportBuilder = new FamilyExportBuilder();
     $arPayload = $obFamilyExportBuilder->build();
 
-    $sEtag = '"' . $arPayload['version'] . '"';
-    $arHeaders = [
-        'ETag'          => $sEtag,
-        'Cache-Control' => 'public, max-age=3600',
-    ];
-
-    if (request()->header('If-None-Match') === $sEtag) {
-        return response('', 304, $arHeaders);
-    }
-
-    return response()->json($arPayload, 200, $arHeaders);
+    return EtagRevalidation::respond($arPayload, (string) request()->header('If-None-Match', ''));
 })->middleware('web');
 
 /*
@@ -86,15 +77,5 @@ Route::get('/api/color-lab/offers.json', function () {
     $obExportBuilder = new SheetExportBuilder();
     $arPayload = $obExportBuilder->build(ColorEntry::all());
 
-    $sEtag = '"' . $arPayload['version'] . '"';
-    $arHeaders = [
-        'ETag'          => $sEtag,
-        'Cache-Control' => 'public, max-age=3600',
-    ];
-
-    if (request()->header('If-None-Match') === $sEtag) {
-        return response('', 304, $arHeaders);
-    }
-
-    return response()->json($arPayload, 200, $arHeaders);
+    return EtagRevalidation::respond($arPayload, (string) request()->header('If-None-Match', ''));
 })->middleware('web');

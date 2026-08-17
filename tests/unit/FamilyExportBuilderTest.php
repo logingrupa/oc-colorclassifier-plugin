@@ -80,4 +80,41 @@ class FamilyExportBuilderTest extends TestCase
             'consumers render pills in payload order - it must be the curated taxonomy order'
         );
     }
+
+    /**
+     * $familyMeta is hand-authored: a family with a missing slug must throw
+     * naming the family, never be silently dropped from the export.
+     * Taxonomy::$familyMeta is a public static, so the test mutates it and
+     * restores it in finally.
+     */
+    public function test_missing_slug_throws_naming_the_family(): void
+    {
+        $arOriginalMeta = Taxonomy::$familyMeta;
+        Taxonomy::$familyMeta['Red']['slug'] = '';
+
+        try {
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('familyMeta["Red"]');
+            (new FamilyExportBuilder())->build();
+        } finally {
+            Taxonomy::$familyMeta = $arOriginalMeta;
+        }
+    }
+
+    /**
+     * Two families sharing a slug must throw naming the second family.
+     */
+    public function test_duplicate_slug_throws_naming_the_family(): void
+    {
+        $arOriginalMeta = Taxonomy::$familyMeta;
+        Taxonomy::$familyMeta['Pink']['slug'] = Taxonomy::$familyMeta['Red']['slug'];
+
+        try {
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('familyMeta["Pink"] duplicates slug "red"');
+            (new FamilyExportBuilder())->build();
+        } finally {
+            Taxonomy::$familyMeta = $arOriginalMeta;
+        }
+    }
 }

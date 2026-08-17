@@ -7,12 +7,14 @@ use Logingrupa\ColorClassifier\Classes\SheetExportBuilder;
  * Unit tests for SheetExportBuilder.
  *
  * Covers the compact offer color export requirements:
- *   - Happy path: valid rows export family / hex / hue / lightness keyed by offer_id
+ *   - Happy path: valid rows export family / hex / hue / lightness /
+ *     confidence keyed by offer_id (confidence null when missing or malformed)
  *   - Rows without a non-empty hex_color are skipped
  *   - Rows with malformed taxonomy (not an array, or unresolved family) are skipped
  *   - Rows with malformed oklch_values are skipped
  *   - Count reflects exported rows only
- *   - Version stamp is deterministic and changes when the data set changes
+ *   - Version stamp is deterministic 40-hex, stable when nothing changes, and
+ *     rotates when any exported value, the payload shape, or updated_at changes
  *   - last_updated_at is one global value: the latest updated_at among exported rows
  *   - Offers map key is the offer UUID after the last "#" of offer_id
  *   - Keys without "#" are exported unchanged
@@ -217,7 +219,31 @@ class SheetExportBuilderTest extends TestCase
         $secondPayload = $this->exportBuilder->build($rows);
 
         $this->assertSame($firstPayload['version'], $secondPayload['version']);
-        $this->assertNotEmpty($firstPayload['version']);
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{40}$/', $firstPayload['version']);
+    }
+
+    /**
+     * The stamp hashes the exported rows themselves: a payload value change
+     * with the SAME count and SAME updated_at must still rotate it (the
+     * pre-1.5.2 updated_at|count stamp missed exactly this case and let
+     * consumers 304 forever on a stale body).
+     */
+    public function test_version_stamp_rotates_when_row_payload_changes(): void
+    {
+        $basePayload = $this->exportBuilder->build([
+            $this->makeColorEntryRow(),
+        ]);
+
+        $changedHexPayload = $this->exportBuilder->build([
+            $this->makeColorEntryRow(['hex_color' => '#123456']),
+        ]);
+
+        $changedConfidencePayload = $this->exportBuilder->build([
+            $this->makeColorEntryRow(['confidence_score' => '0.42']),
+        ]);
+
+        $this->assertNotSame($basePayload['version'], $changedHexPayload['version']);
+        $this->assertNotSame($basePayload['version'], $changedConfidencePayload['version']);
     }
 
     /**

@@ -29,3 +29,4 @@ require_once $pluginRootDirectory . '/classes/ColorClassifier.php';
 require_once $pluginRootDirectory . '/classes/NailoLabTransforms.php';
 require_once $pluginRootDirectory . '/classes/SheetExportBuilder.php';
 require_once $pluginRootDirectory . '/classes/FamilyExportBuilder.php';
+require_once $pluginRootDirectory . '/classes/EtagRevalidation.php';
