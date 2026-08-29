@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Logingrupa\ColorClassifier\Classes\ColorLabMapper;
+use Logingrupa\ColorClassifier\Classes\ColorLabPayloadCache;
 use Logingrupa\ColorClassifier\Classes\EtagRevalidation;
 use Logingrupa\ColorClassifier\Classes\FamilyExportBuilder;
 use Logingrupa\ColorClassifier\Classes\SheetExportBuilder;
@@ -15,39 +16,50 @@ use Logingrupa\ColorClassifier\Models\ColorEntry;
  * for theme integration via [colorLab].
  */
 Route::get('/tools/color-lab', function () {
-    $arColorEntries = ColorEntry::all();
+    $arPagePayload = ColorLabPayloadCache::remember(ColorLabPayloadCache::KEY_PAGE_ENTRIES, function () {
+        $arColorData = [];
+        foreach (ColorEntry::all() as $obEntry) {
+            $arColorData[] = ColorLabMapper::mapEntry($obEntry, true);
+        }
 
-    $arColorData = [];
-    foreach ($arColorEntries as $obEntry) {
-        $arColorData[] = ColorLabMapper::mapEntry($obEntry, true);
-    }
+        // Stored pre-encoded so a cache hit never hydrates 700+ models
+        // carrying base64 blobs just to json_encode them again.
+        return [
+            'entriesJson' => (string) json_encode($arColorData),
+            'entryCount'  => count($arColorData),
+        ];
+    });
 
-    return view('logingrupa.colorclassifier::color-lab', [
-        'colorLabEntriesJson'  => json_encode($arColorData),
-        'colorLabEntryCount'   => count($arColorData),
+    $obPageView = view('logingrupa.colorclassifier::color-lab', [
+        'colorLabEntriesJson'  => $arPagePayload['entriesJson'],
+        'colorLabEntryCount'   => $arPagePayload['entryCount'],
         'colorLabTaxonomyJson' => json_encode(ColorLabMapper::mapTaxonomy()),
         'colorLabPageTitle'    => 'Color Lab',
         'colorLabPlotlyCdn'    => 'https://cdn.plot.ly/plotly-2.35.2.min.js',
         'colorLabProductUrl'   => '/products/detail/:slug',
     ]);
+
+    return response($obPageView)->header('Cache-Control', 'public, max-age=3600');
 })->middleware('web');
 
 /*
  * API route - returns color data as JSON for external consumers.
  */
 Route::get('/api/color-lab/data', function () {
-    $arColorEntries = ColorEntry::all();
+    $arDataPayload = ColorLabPayloadCache::remember(ColorLabPayloadCache::KEY_DATA, function () {
+        $arColorData = [];
+        foreach (ColorEntry::withoutImageData()->get() as $obEntry) {
+            $arColorData[] = ColorLabMapper::mapEntry($obEntry);
+        }
 
-    $arColorData = [];
-    foreach ($arColorEntries as $obEntry) {
-        $arColorData[] = ColorLabMapper::mapEntry($obEntry);
-    }
+        return [
+            'last_updated_at' => (string) ColorEntry::max('updated_at'),
+            'entries'         => $arColorData,
+            'taxonomy'        => ColorLabMapper::mapTaxonomy(),
+        ];
+    });
 
-    return response()->json([
-        'last_updated_at' => (string) ColorEntry::max('updated_at'),
-        'entries'         => $arColorData,
-        'taxonomy'        => ColorLabMapper::mapTaxonomy(),
-    ]);
+    return response()->json($arDataPayload);
 })->middleware('web');
 
 /*
@@ -74,8 +86,11 @@ Route::get('/api/color-lab/families.json', function () {
  * revalidation with a one hour public cache lifetime.
  */
 Route::get('/api/color-lab/offers.json', function () {
-    $obExportBuilder = new SheetExportBuilder();
-    $arPayload = $obExportBuilder->build(ColorEntry::all());
+    // Payload comes from the cache, so an If-None-Match revalidation costs a
+    // cache read and a stamp compare, never a table load.
+    $arPayload = ColorLabPayloadCache::remember(ColorLabPayloadCache::KEY_OFFERS, function () {
+        return (new SheetExportBuilder())->build(ColorEntry::withoutImageData()->get());
+    });
 
     return EtagRevalidation::respond($arPayload, (string) request()->header('If-None-Match', ''));
 })->middleware('web');

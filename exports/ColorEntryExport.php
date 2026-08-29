@@ -32,7 +32,7 @@ class ColorEntryExport extends ExportModel
      */
     public function exportData($columns, $sessionKey = null): array
     {
-        $allColorEntries = ColorEntry::all();
+        $allColorEntries = ColorEntry::withoutImageData()->get();
 
         return $allColorEntries->map(function (ColorEntry $colorEntry) {
             return [
