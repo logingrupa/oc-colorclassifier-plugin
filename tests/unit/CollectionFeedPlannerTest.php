@@ -164,6 +164,21 @@ class CollectionFeedPlannerTest extends TestCase
         $this->assertSame(0, $obSecondPlan->countWrites());
     }
 
+    public function test_tagged_offer_without_a_shade_code_stays_in_the_feed_on_every_run(): void
+    {
+        $arTags = $this->makeTags([
+            'p#coded'  => ['shade_code' => 'DISCO 1', 'collections' => [self::DISCO]],
+            'p#nocode' => ['shade_code' => null, 'collections' => [self::DISCO]],
+        ]);
+        $obFirstPlan = $this->obPlanner->plan($arTags, $this->makeColorRows(), [], null, false);
+        [$arFamilies, $arMemberships] = $this->applyPlan($obFirstPlan, $this->makeColorRows(), []);
+
+        $obSecondPlan = $this->obPlanner->plan($arTags, $arFamilies, $arMemberships, 2, false);
+
+        $this->assertSame(2, $obFirstPlan->countSummary()['set']);
+        $this->assertSame(0, $obSecondPlan->countWrites());
+    }
+
     /**
      * @return array<string, array{0: array<string, mixed>}>
      */

@@ -321,7 +321,7 @@ class CollectionFeedPlanner
 
         foreach ($arRowsByValueId as $sValueId => $arRows) {
             foreach ($arRows as $sOfferId => $arRow) {
-                if (isset($arMembers[$sValueId][$sOfferId]) || !$arRow['in_feed']) {
+                if (array_key_exists($sOfferId, $arMembers[$sValueId] ?? []) || !$arRow['in_feed']) {
                     continue;
                 }
 
