@@ -5,6 +5,7 @@ namespace Logingrupa\ColorClassifier\Controllers;
 use Backend\Classes\Controller;
 use BackendMenu;
 use Flash;
+use Illuminate\Database\QueryException;
 use Logingrupa\ColorClassifier\Classes\CollectionFeedSync;
 
 /**
@@ -58,13 +59,31 @@ class ColorFamilies extends Controller
      */
     public function onSyncCollections(): array
     {
-        $obPlan = (new CollectionFeedSync())->run(false, false);
+        try {
+            $obPlan = (new CollectionFeedSync())->run(false, false);
+        } catch (QueryException $obException) {
+            report($obException);
+
+            return $this->flashSyncAbort('the database refused a write, see the log');
+        } catch (\RuntimeException $obException) {
+            return $this->flashSyncAbort($obException->getMessage());
+        }
 
         if ($obPlan->isAborted()) {
-            Flash::error('Aborted: ' . $obPlan->sAbortReason);
-        } else {
-            Flash::success($obPlan->describe('Applied'));
+            return $this->flashSyncAbort((string) $obPlan->sAbortReason);
         }
+
+        Flash::success($obPlan->describe('Applied'));
+
+        return $this->listRefresh();
+    }
+
+    /**
+     * @return array<string, string> Refreshed list partials.
+     */
+    private function flashSyncAbort(string $sReason): array
+    {
+        Flash::error('Aborted: ' . $sReason);
 
         return $this->listRefresh();
     }
