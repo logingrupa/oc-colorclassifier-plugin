@@ -242,14 +242,32 @@ class CollectionFeedPlannerTest extends TestCase
     }
 
     #[DataProvider('badKeyProvider')]
-    public function test_value_that_cannot_be_a_family_key_aborts(string $sValue): void
+    public function test_value_that_cannot_be_a_family_key_is_skipped_and_the_rest_still_syncs(string $sValue): void
     {
-        $arTags = $this->makeTags(['p#a' => ['shade_code' => 'X 1', 'collections' => [['value_id' => 'v-bad', 'value' => $sValue]]]]);
+        $arTags = $this->makeTags([
+            'p#bad'  => ['shade_code' => 'X 1', 'collections' => [['value_id' => 'v-bad', 'value' => $sValue]]],
+            'p#good' => ['shade_code' => 'DISCO 1', 'collections' => [self::DISCO]],
+        ]);
 
         $obPlan = $this->obPlanner->plan($arTags, $this->makeColorRows(), [], null, false);
 
-        $this->assertTrue($obPlan->isAborted());
-        $this->assertSame(0, $obPlan->countWrites());
+        $this->assertFalse($obPlan->isAborted());
+        $this->assertSame(['DISCO'], array_column($obPlan->arFamilyDrafts, 'family'));
+        $this->assertSame([['value_id' => 'v-disco', 'offer_id' => 'p#good', 'shade_code' => 'DISCO 1', 'row_id' => null]], $obPlan->arMembershipSets);
+        $this->assertCount(1, $obPlan->arSkippedValues);
+        $this->assertSame(['v-bad', $sValue], [$obPlan->arSkippedValues[0]['value_id'], $obPlan->arSkippedValues[0]['name']]);
+        $this->assertStringContainsString('Skipped 1: ' . $sValue . ' (', $obPlan->describe('Planned'));
+    }
+
+    public function test_skipped_value_is_reported_again_and_writes_nothing_on_the_next_run(): void
+    {
+        $arTags = $this->makeTags(['p#bad' => ['shade_code' => null, 'collections' => [['value_id' => 'v-bad', 'value' => 'Rudens 2.0']]]]);
+
+        $obFirstPlan = $this->obPlanner->plan($arTags, $this->makeColorRows(), [], null, false);
+        $obSecondPlan = $this->obPlanner->plan($arTags, $this->makeColorRows(), [], 1, false);
+
+        $this->assertSame(0, $obFirstPlan->countWrites());
+        $this->assertSame($obFirstPlan->arSkippedValues, $obSecondPlan->arSkippedValues);
     }
 
     public function test_slug_collision_gets_a_numeric_suffix(): void

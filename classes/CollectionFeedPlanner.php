@@ -66,19 +66,16 @@ class CollectionFeedPlanner
             }
         }
 
-        try {
-            $arDrafts = $this->planDrafts($arNames, $arFamilyByValueId, $arFamilyRows);
-        } catch (\DomainException $obException) {
-            return CollectionFeedPlan::abort($obException->getMessage());
-        }
+        [$arDrafts, $arSkippedValues] = $this->planDrafts($arNames, $arFamilyByValueId, $arFamilyRows);
 
         return $this->planMemberships(
             $arTags,
             $arDrafts,
             $this->planRenames($arNames, $arFamilyByValueId),
-            $arMembers,
+            array_diff_key($arMembers, array_column($arSkippedValues, null, 'value_id')),
             $arRowsByValueId,
-            $arMembershipRows
+            $arMembershipRows,
+            $arSkippedValues
         );
     }
 
@@ -202,9 +199,7 @@ class CollectionFeedPlanner
      * @param array<string, array<string, mixed>> $arFamilyByValueId
      * @param array<int, array<string, mixed>> $arFamilyRows
      *
-     * @return array<int, array<string, mixed>>
-     *
-     * @throws \DomainException When a new value cannot be a family key.
+     * @return array{0: array<int, array<string, mixed>>, 1: array<int, array{value_id: string, name: string, reason: string}>} Drafts, and the new values that cannot be a family key.
      */
     private function planDrafts(array $arNames, array $arFamilyByValueId, array $arFamilyRows): array
     {
@@ -215,21 +210,27 @@ class CollectionFeedPlanner
         $arTakenSlugs = array_flip(array_map(static fn (array $arRow): string => (string) $arRow['slug'], $arFamilyRows));
         $iSortOrder = (int) max(array_merge([0], array_map(static fn (array $arRow): int => (int) $arRow['sort_order'], $arFamilyRows)));
         $arDrafts = [];
+        $arSkippedValues = [];
 
         foreach ($arNewNames as $sValueId => $sName) {
+            $sSkipReason = null;
+
             if (preg_match(self::KEY_PATTERN, $sName) !== 1 || strlen($sName) > self::KEY_MAX_LENGTH) {
-                throw new \DomainException('1C collection "' . $sName . '" cannot be a family key');
+                $sSkipReason = 'cannot be a family key';
+            } elseif (isset($arTakenKeys[strtolower($sName)])) {
+                $sSkipReason = 'collides with an existing family';
             }
 
-            if (isset($arTakenKeys[strtolower($sName)])) {
-                throw new \DomainException('1C collection "' . $sName . '" collides with an existing family');
+            if ($sSkipReason !== null) {
+                $arSkippedValues[] = ['value_id' => (string) $sValueId, 'name' => $sName, 'reason' => $sSkipReason];
+                continue;
             }
 
             $arTakenKeys[strtolower($sName)] = true;
             $arDrafts[] = $this->buildDraft((string) $sValueId, $sName, $this->buildSlug($sName, $arTakenSlugs), ++$iSortOrder);
         }
 
-        return $arDrafts;
+        return [$arDrafts, $arSkippedValues];
     }
 
     /**
@@ -295,8 +296,9 @@ class CollectionFeedPlanner
      * @param array<string, array<string, string|null>> $arMembers
      * @param array<string, array<string, array<string, mixed>>> $arRowsByValueId
      * @param array<int, array<string, mixed>> $arMembershipRows
+     * @param array<int, array{value_id: string, name: string, reason: string}> $arSkippedValues
      */
-    private function planMemberships(array $arTags, array $arDrafts, array $arRenames, array $arMembers, array $arRowsByValueId, array $arMembershipRows): CollectionFeedPlan
+    private function planMemberships(array $arTags, array $arDrafts, array $arRenames, array $arMembers, array $arRowsByValueId, array $arMembershipRows, array $arSkippedValues): CollectionFeedPlan
     {
         $arSets = [];
         $arUnsets = [];
@@ -342,7 +344,8 @@ class CollectionFeedPlanner
             $arSets,
             $arUnsets,
             $arDeletes,
-            $this->planShadeUpdates($arTags, $arMembershipRows, $arHandledRowIds)
+            $this->planShadeUpdates($arTags, $arMembershipRows, $arHandledRowIds),
+            $arSkippedValues
         );
     }
 

@@ -22,6 +22,7 @@ final class CollectionFeedPlan
      * @param array<int, array{row_id: int}> $arMembershipUnsets Rows with a hand state that turn in_feed off.
      * @param array<int, array{row_id: int}> $arMembershipDeletes Rows no 1C tag and no hand state hold.
      * @param array<int, array{row_id: int, shade_code: string|null}> $arShadeUpdates
+     * @param array<int, array{value_id: string, name: string, reason: string}> $arSkippedValues 1C values that got no family and no membership.
      */
     public function __construct(
         public readonly ?string $sAbortReason = null,
@@ -31,6 +32,7 @@ final class CollectionFeedPlan
         public readonly array $arMembershipUnsets = [],
         public readonly array $arMembershipDeletes = [],
         public readonly array $arShadeUpdates = [],
+        public readonly array $arSkippedValues = [],
     ) {
     }
 
@@ -70,13 +72,12 @@ final class CollectionFeedPlan
     /**
      * @param string $sVerb "Planned" for a dry run, "Applied" for a real run.
      *
-     * @return string The one summary line the command and the Families page show.
+     * @return string The summary line the command and the Families page show, plus a second "Skipped" line when 1C values were left out.
      */
     public function describe(string $sVerb): string
     {
         $arCounts = $this->countSummary();
-
-        return sprintf(
+        $sSummary = sprintf(
             '%s: create %d, rename %d, set %d, unset %d, delete %d, shade %d, writes %d',
             $sVerb,
             $arCounts['create'],
@@ -87,5 +88,17 @@ final class CollectionFeedPlan
             $arCounts['shade'],
             $this->countWrites()
         );
+
+        return $this->arSkippedValues === [] ? $sSummary : $sSummary . "\n" . $this->describeSkipped();
+    }
+
+    private function describeSkipped(): string
+    {
+        $arEntries = array_map(
+            static fn (array $arSkipped): string => $arSkipped['name'] . ' (' . $arSkipped['reason'] . ')',
+            $this->arSkippedValues
+        );
+
+        return 'Skipped ' . count($arEntries) . ': ' . implode(', ', $arEntries);
     }
 }
