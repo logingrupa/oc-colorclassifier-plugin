@@ -13,7 +13,9 @@ use System\Models\Parameter;
  * tags from the warm parser cache, asks CollectionFeedPlanner for the plan and,
  * unless it is a dry run, applies the plan in one transaction. It writes only
  * the sync-owned columns (in_feed, shade_code, feed_value_name); hand_state is
- * never touched.
+ * never touched. The rows are read before the transaction, so a delete or an
+ * unset only matches a row whose hand_state still equals the planned one, and
+ * an insert yields to a row a person added since.
  *
  * @package Logingrupa\ColorClassifier\Classes
  */
@@ -132,7 +134,7 @@ class CollectionFeedSync
         }
 
         foreach (array_chunk($arInserts, self::INSERT_CHUNK_SIZE) as $arChunk) {
-            DB::table(self::MEMBERSHIP_TABLE)->insert($arChunk);
+            DB::table(self::MEMBERSHIP_TABLE)->insertOrIgnore($arChunk);
         }
     }
 
@@ -144,6 +146,7 @@ class CollectionFeedSync
         if ($arUnsets !== []) {
             DB::table(self::MEMBERSHIP_TABLE)
                 ->whereIn('id', array_column($arUnsets, 'row_id'))
+                ->whereNotNull('hand_state')
                 ->update(['in_feed' => false, 'updated_at' => now()]);
         }
     }
@@ -154,7 +157,7 @@ class CollectionFeedSync
     private function applyMembershipDeletes(array $arDeletes): void
     {
         if ($arDeletes !== []) {
-            DB::table(self::MEMBERSHIP_TABLE)->whereIn('id', array_column($arDeletes, 'row_id'))->delete();
+            DB::table(self::MEMBERSHIP_TABLE)->whereIn('id', array_column($arDeletes, 'row_id'))->whereNull('hand_state')->delete();
         }
     }
 
