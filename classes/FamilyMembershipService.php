@@ -24,10 +24,16 @@ class FamilyMembershipService
 
     private MembershipStateNormalizer $obNormalizer;
 
-    public function __construct(?ColorEntryOverrideService $obOverrideService = null, ?MembershipStateNormalizer $obNormalizer = null)
-    {
+    private OfferDataProvider $obOfferDataProvider;
+
+    public function __construct(
+        ?ColorEntryOverrideService $obOverrideService = null,
+        ?MembershipStateNormalizer $obNormalizer = null,
+        ?OfferDataProvider $obOfferDataProvider = null
+    ) {
         $this->obOverrideService = $obOverrideService ?? new ColorEntryOverrideService();
         $this->obNormalizer = $obNormalizer ?? new MembershipStateNormalizer();
+        $this->obOfferDataProvider = $obOfferDataProvider ?? new OfferDataProvider();
     }
 
     /**
@@ -43,9 +49,10 @@ class FamilyMembershipService
         $obFamily = $this->findFamily($sFamilyKey);
         $arEntries = $this->loadEntries($arEntryIds);
         $this->assertCanAdd($obFamily, $arEntries);
+        $arShadeCodes = $this->loadShadeCodes($obFamily, $arEntries);
 
-        DB::transaction(function () use ($obFamily, $arEntries): void {
-            $this->addToFamily($obFamily, $arEntries);
+        DB::transaction(function () use ($obFamily, $arEntries, $arShadeCodes): void {
+            $this->addToFamily($obFamily, $arEntries, $arShadeCodes);
             ColorLabPayloadCache::flushAfterCommit();
         });
     }
@@ -102,15 +109,16 @@ class FamilyMembershipService
 
         $this->assertAllInFamily($obFrom, $arExtraEntries);
         $this->assertCanAdd($obTo, $arExtraEntries);
+        $arShadeCodes = $this->loadShadeCodes($obTo, $arExtraEntries);
 
-        DB::transaction(function () use ($obTo, $sToKey, $arPrimaryEntries, $arExtraEntries, $obFrom): void {
+        DB::transaction(function () use ($obTo, $sToKey, $arPrimaryEntries, $arExtraEntries, $obFrom, $arShadeCodes): void {
             if ($arPrimaryEntries !== []) {
                 $this->obOverrideService->moveEntries(array_map(static fn (ColorEntry $obEntry): int => $obEntry->id, $arPrimaryEntries), $sToKey);
                 $this->deleteRows($obTo, $arPrimaryEntries);
             }
 
             $this->removeFromFamily($obFrom, $arExtraEntries);
-            $this->addToFamily($obTo, $arExtraEntries);
+            $this->addToFamily($obTo, $arExtraEntries, $arShadeCodes);
             ColorLabPayloadCache::flushAfterCommit();
         });
     }
@@ -163,15 +171,42 @@ class FamilyMembershipService
 
     /**
      * @param array<int, ColorEntry> $arEntries
+     * @param array<string, string|null> $arShadeCodes Shade code by offer id for new collection rows.
      */
-    private function addToFamily(ColorFamily $obFamily, array $arEntries): void
+    private function addToFamily(ColorFamily $obFamily, array $arEntries, array $arShadeCodes): void
     {
         $arRows = $this->loadRowsByOfferId($obFamily, $arEntries);
 
         foreach ($arEntries as $obEntry) {
             $obRow = $arRows[$obEntry->offer_id] ?? null;
-            $this->applyState($obRow ?? $this->newRow($obFamily, $obEntry), $this->obNormalizer->normalizeAdd((bool) $obRow?->in_feed));
+            $this->applyState(
+                $obRow ?? $this->newRow($obFamily, $obEntry, $arShadeCodes[$obEntry->offer_id] ?? null),
+                $this->obNormalizer->normalizeAdd((bool) $obRow?->in_feed)
+            );
         }
+    }
+
+    /**
+     * Same tag source as the sync, read before the transaction because a cold parser cache fetches the feed.
+     *
+     * @param array<int, ColorEntry> $arEntries
+     *
+     * @return array<string, string|null> Empty for a color, which carries no shade code.
+     */
+    private function loadShadeCodes(ColorFamily $obFamily, array $arEntries): array
+    {
+        if ($obFamily->kind !== FamilyKind::COLLECTION) {
+            return [];
+        }
+
+        $arTagOffers = $this->obOfferDataProvider->getCollectionTags()['offers'];
+        $arShadeCodes = [];
+
+        foreach ($arEntries as $obEntry) {
+            $arShadeCodes[(string) $obEntry->offer_id] = $arTagOffers[$obEntry->offer_id]['shade_code'] ?? null;
+        }
+
+        return $arShadeCodes;
     }
 
     /**
@@ -217,12 +252,13 @@ class FamilyMembershipService
         $obRow->save();
     }
 
-    private function newRow(ColorFamily $obFamily, ColorEntry $obEntry): FamilyMembership
+    private function newRow(ColorFamily $obFamily, ColorEntry $obEntry, ?string $sShadeCode): FamilyMembership
     {
         return new FamilyMembership([
-            'family_id' => $obFamily->id,
-            'offer_id'  => $obEntry->offer_id,
-            'in_feed'   => false,
+            'family_id'  => $obFamily->id,
+            'offer_id'   => $obEntry->offer_id,
+            'in_feed'    => false,
+            'shade_code' => $sShadeCode,
         ]);
     }
 
