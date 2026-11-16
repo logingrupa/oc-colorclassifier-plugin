@@ -81,11 +81,14 @@
             session.ghost.style.transform = 'translate(' + (session.x + GHOST_OFFSET_PX) + 'px,' + (session.y + GHOST_OFFSET_PX) + 'px)'
         }
 
-        /** Scrolls near the edges, then re-checks the target because the page moved under a still pointer. */
+        /**
+         * Scrolls near the edges, then re-checks the target because the page moved under a still pointer.
+         * The backend sets scroll-behavior: smooth, which would restart an animation every frame.
+         */
         function tick() {
             var step = resolveScrollStep(session.y, window.innerHeight)
             if (step !== 0) {
-                window.scrollBy(0, step)
+                window.scrollBy({ top: step, behavior: 'instant' })
             }
             updateTarget()
             session.frame = window.requestAnimationFrame(tick)

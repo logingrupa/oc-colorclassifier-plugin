@@ -204,11 +204,6 @@
     height: 1.5rem;
 }
 
-.fb-dot--large {
-    width: 1.375rem;
-    height: 1.375rem;
-}
-
 .fb-search {
     flex: 1 1 12rem;
     min-width: 10rem;
@@ -359,6 +354,11 @@
 .fb-dot--small {
     width: 0.625rem;
     height: 0.625rem;
+}
+
+.fb-dot--large {
+    width: 22px;
+    height: 22px;
 }
 
 .fb-grid {

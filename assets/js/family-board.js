@@ -39,12 +39,7 @@
          * @returns {Promise<Object|null>}
          */
         function sendRequest(handler, data) {
-            var startedAt = performance.now()
-            return window.oc.request(root, handler, { data: data, flash: true }).then(function (response) {
-                console.warn('DEBUGTIME', handler, Math.round(performance.now() - startedAt))
-                return response
-            }, function (failure) {
-                console.warn('DEBUGFAIL', handler, failure && (failure.message || JSON.stringify(failure)))
+            return window.oc.request(root, handler, { data: data, flash: true }).then(undefined, function () {
                 return null
             })
         }
@@ -61,7 +56,6 @@
          * @returns {boolean} Whether the server saved the change.
          */
         function applyResponse(response, clearSelection) {
-            console.warn('DEBUGAPPLY', response === null ? 'null' : JSON.stringify(Object.keys(response)), response && response.cards && response.cards.map(function (c) { return c.id + ':' + c.family }).join(','))
             if (response === null || !Array.isArray(response.cards)) {
                 return false
             }
