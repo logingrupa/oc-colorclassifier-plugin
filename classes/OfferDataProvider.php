@@ -8,9 +8,9 @@ use Logingrupa\ColorClassifier\Classes\NailoLabTransforms;
  * OfferDataProvider — Bridge to the theme CommerceMlParser.
  *
  * Loads the CommerceMlParser from the theme directory and returns a flat
- * array of all offers that have image URLs. This bridges the plugin to
- * the existing theme data layer without requiring the theme to be loaded
- * as a plugin dependency.
+ * array of all offers that have image URLs, or the 1C collection tags of
+ * every offer. This bridges the plugin to the existing theme data layer
+ * without requiring the theme to be loaded as a plugin dependency.
  *
  * @package Logingrupa\ColorClassifier\Classes
  */
@@ -36,16 +36,57 @@ class OfferDataProvider
      */
     public function getOffersWithImages(): array
     {
-        $parserClassFilePath  = base_path(self::PARSER_CLASS_PATH);
-        $productConfigPath    = base_path(self::PRODUCT_CONFIG_PATH);
+        return $this->flattenCatalogToOffersWithImages($this->loadCatalog());
+    }
+
+    /**
+     * Return the 1C collection tags of every catalog offer, image-less ones included.
+     *
+     * Reads the same getCatalog() result as getOffersWithImages, so a warm parser
+     * cache means no second feed fetch. A failed load gives an empty catalog,
+     * which the sync planner aborts on.
+     *
+     * @return array{has_collection_key: bool, offer_count: int, offers: array<string, array{shade_code: string|null, collections: array<int, array{value_id: string, value: string}>}>}
+     */
+    public function getCollectionTags(): array
+    {
+        return (new CollectionTagExtractor())->extract(
+            $this->loadCatalog(),
+            static fn (string $sOfferId): bool => NailoLabTransforms::isExcludedOffer($sOfferId)
+        );
+    }
+
+    /**
+     * @return string The 1C characteristic id the collection tags come from.
+     *
+     * @throws \RuntimeException When the product config does not name it.
+     */
+    public function getCollectionCharacteristicId(): string
+    {
+        $sCharacteristicId = (string) ($this->loadProductConfig()['collection_characteristic_id'] ?? '');
+
+        if ($sCharacteristicId === '') {
+            throw new \RuntimeException('product-config.php has no collection_characteristic_id');
+        }
+
+        return $sCharacteristicId;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>> Products from getCatalog(), empty when the parser or config is missing or fails.
+     */
+    private function loadCatalog(): array
+    {
+        $parserClassFilePath = base_path(self::PARSER_CLASS_PATH);
 
         if (!file_exists($parserClassFilePath)) {
             error_log('[ColorClassifier] CommerceMlParser not found at: ' . $parserClassFilePath);
             return [];
         }
 
-        if (!file_exists($productConfigPath)) {
-            error_log('[ColorClassifier] Product config not found at: ' . $productConfigPath);
+        $productConfig = $this->loadProductConfig();
+
+        if ($productConfig === []) {
             return [];
         }
 
@@ -53,18 +94,29 @@ class OfferDataProvider
             require_once $parserClassFilePath;
         }
 
-        $productConfig = require $productConfigPath;
-        $parserClass   = self::PARSER_FULLY_QUALIFIED_CLASS;
+        $parserClass = self::PARSER_FULLY_QUALIFIED_CLASS;
 
         try {
-            $parser  = new $parserClass($productConfig);
-            $catalog = $parser->getCatalog();
+            return (new $parserClass($productConfig))->getCatalog();
         } catch (\Throwable $exception) {
             error_log('[ColorClassifier] CommerceMlParser error: ' . $exception->getMessage());
             return [];
         }
+    }
 
-        return $this->flattenCatalogToOffersWithImages($catalog);
+    /**
+     * @return array<string, mixed> The theme product config, empty when the file is missing.
+     */
+    private function loadProductConfig(): array
+    {
+        $productConfigPath = base_path(self::PRODUCT_CONFIG_PATH);
+
+        if (!file_exists($productConfigPath)) {
+            error_log('[ColorClassifier] Product config not found at: ' . $productConfigPath);
+            return [];
+        }
+
+        return require $productConfigPath;
     }
 
     /**

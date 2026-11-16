@@ -10,6 +10,15 @@ columns:
         searchable: true
         sortable: true
 
+    kind:
+        label: Kind
+        sortable: true
+
+    feed_value_name:
+        label: 1C name
+        searchable: true
+        sortable: true
+
     slug:
         label: Slug
         searchable: true

@@ -1,0 +1,13 @@
+<?php
+    $arStops = array_values(array_filter(
+        (array) $model->gradient,
+        static fn ($mStop): bool => is_string($mStop) && preg_match('/^#[0-9a-fA-F]{6}$/', $mStop) === 1
+    ));
+    $sBackground = count($arStops) >= 2
+        ? 'linear-gradient(90deg, ' . implode(', ', $arStops) . ')'
+        : (string) $model->hex;
+?>
+<div class="form-group">
+    <label class="form-label">Preview</label>
+    <div data-gradient-preview style="height: 32px; border-radius: 16px; border: 1px solid rgba(0, 0, 0, .15); background: <?= e($sBackground) ?>;"></div>
+</div>

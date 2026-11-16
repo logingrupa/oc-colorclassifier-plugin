@@ -28,6 +28,29 @@ class Plugin extends PluginBase
     }
 
     /**
+     * Registers the 1C collection sync command.
+     *
+     * @return void
+     */
+    public function register(): void
+    {
+        $this->registerConsoleCommand('colorclassifier.sync_collections', \Logingrupa\ColorClassifier\Console\SyncCollections::class);
+    }
+
+    /**
+     * Keeps the collection families in step with 1C, 20 minutes past the hour so the
+     * catalog warmed at :00 is the one it reads.
+     *
+     * @param \Illuminate\Console\Scheduling\Schedule $schedule
+     *
+     * @return void
+     */
+    public function registerSchedule($schedule): void
+    {
+        $schedule->command('colorclassifier:sync-collections')->hourlyAt(20)->withoutOverlapping();
+    }
+
+    /**
      * Returns information about this plugin.
      *
      * @return array<string, string>

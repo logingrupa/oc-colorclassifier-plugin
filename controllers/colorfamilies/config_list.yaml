@@ -4,6 +4,7 @@ modelClass: Logingrupa\ColorClassifier\Models\ColorFamily
 
 recordUrl: logingrupa/colorclassifier/colorfamilies/update/:id
 noRecordsMessage: No families found.
+filter: $/logingrupa/colorclassifier/models/colorfamily/scopes.yaml
 
 recordsPerPage: 50
 showSetup: false

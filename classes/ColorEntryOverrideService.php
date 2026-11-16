@@ -173,13 +173,15 @@ class ColorEntryOverrideService
     }
 
     /**
+     * Shared with FamilyMembershipService so both bulk write paths accept the same id lists.
+     *
      * @param array<int, int|string> $arEntryIds Raw ids from the request.
      *
      * @return array<int, int> Unique positive integer ids.
      *
      * @throws ValidationException When the list is empty, too long or holds a non-id.
      */
-    private function validateEntryIds(array $arEntryIds): array
+    public function validateEntryIds(array $arEntryIds): array
     {
         if ($arEntryIds === [] || count($arEntryIds) > self::MAX_BULK_ENTRIES) {
             throw new ValidationException(['checked' => 'Select between 1 and ' . self::MAX_BULK_ENTRIES . ' color entries.']);

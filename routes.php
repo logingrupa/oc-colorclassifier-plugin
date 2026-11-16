@@ -5,6 +5,7 @@ use Logingrupa\ColorClassifier\Classes\ColorLabMapper;
 use Logingrupa\ColorClassifier\Classes\ColorLabPayloadCache;
 use Logingrupa\ColorClassifier\Classes\EtagRevalidation;
 use Logingrupa\ColorClassifier\Classes\FamilyExportBuilder;
+use Logingrupa\ColorClassifier\Classes\FamilyMembershipQuery;
 use Logingrupa\ColorClassifier\Classes\SheetExportBuilder;
 use Logingrupa\ColorClassifier\Models\ColorEntry;
 use Logingrupa\ColorClassifier\Models\ColorFamily;
@@ -90,7 +91,7 @@ Route::get('/api/color-lab/offers.json', function () {
     // Payload comes from the cache, so an If-None-Match revalidation costs a
     // cache read and a stamp compare, never a table load.
     $arPayload = ColorLabPayloadCache::remember(ColorLabPayloadCache::KEY_OFFERS, function () {
-        return (new SheetExportBuilder())->build(ColorEntry::withoutImageData()->get());
+        return (new SheetExportBuilder())->build(ColorEntry::withoutImageData()->get(), (new FamilyMembershipQuery())->buildIndex());
     });
 
     return EtagRevalidation::respond($arPayload, (string) request()->header('If-None-Match', ''));

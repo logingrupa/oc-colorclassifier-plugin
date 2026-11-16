@@ -32,6 +32,60 @@ fields:
         default: true
         comment: Switch off to retire a family. Families are never deleted.
 
+    gradient_stops:
+        label: Gradient
+        type: repeater
+        span: left
+        prompt: Add gradient stop
+        maxItems: 3
+        comment: Optional, 2 or 3 stops drawn left to right on the shop pill. The color above is the fallback.
+        form:
+            fields:
+                stop:
+                    label: Stop color
+                    type: colorpicker
+                    default: '#ffffff'
+                    allowEmpty: false
+                    allowCustom: true
+                    showAlpha: false
+
+    gradient_preview:
+        type: partial
+        path: field_gradient_preview
+        span: right
+        dependsOn: gradient_stops
+
+    kind:
+        label: Kind
+        type: dropdown
+        span: left
+        context: update
+        options:
+            color: Color
+            collection: Collection
+        comment: Fixed when the family is created. Collections come from the 1C sync.
+
+    feed_value_name:
+        label: 1C name
+        type: text
+        span: right
+        context: update
+        disabled: true
+        trigger:
+            action: show
+            field: kind
+            condition: value[collection]
+
+    feed_value_id:
+        label: 1C value id
+        type: text
+        span: right
+        context: update
+        trigger:
+            action: show
+            field: kind
+            condition: value[collection]
+
 tabs:
     fields:
         names[en]:

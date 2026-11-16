@@ -80,6 +80,29 @@ class ColorFamily extends Model
     ];
 
     /**
+     * @return array<int, array{stop: string}> The gradient as repeater items, one per stop.
+     */
+    public function getGradientStopsAttribute(): array
+    {
+        return array_map(static fn (string $sStop): array => ['stop' => $sStop], (array) $this->gradient);
+    }
+
+    /**
+     * Maps the repeater items back to the stored list of stops. Validation runs in beforeValidate.
+     *
+     * @param mixed $mItems Repeater items, each holding a stop. An empty repeater posts an empty string.
+     *
+     * @return void
+     */
+    public function setGradientStopsAttribute($mItems): void
+    {
+        $this->gradient = array_values(array_map(
+            static fn (array $arItem): string => (string) ($arItem['stop'] ?? ''),
+            array_filter((array) $mItems, 'is_array')
+        ));
+    }
+
+    /**
      * Cache flush also covers drag-and-drop reordering, which writes
      * sort_order through the query builder and skips afterSave.
      *

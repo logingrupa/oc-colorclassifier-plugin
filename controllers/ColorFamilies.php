@@ -4,6 +4,8 @@ namespace Logingrupa\ColorClassifier\Controllers;
 
 use Backend\Classes\Controller;
 use BackendMenu;
+use Flash;
+use Logingrupa\ColorClassifier\Classes\CollectionFeedSync;
 
 /**
  * ColorFamilies Backend Controller - the Families editor.
@@ -47,5 +49,23 @@ class ColorFamilies extends Controller
         parent::__construct();
 
         BackendMenu::setContext('Logingrupa.ColorClassifier', 'colorclassifier', 'families');
+    }
+
+    /**
+     * Runs the 1C collection sync and flashes its summary line or the abort reason.
+     *
+     * @return array<string, string> Refreshed list partials.
+     */
+    public function onSyncCollections(): array
+    {
+        $obPlan = (new CollectionFeedSync())->run(false, false);
+
+        if ($obPlan->isAborted()) {
+            Flash::error('Aborted: ' . $obPlan->sAbortReason);
+        } else {
+            Flash::success($obPlan->describe('Applied'));
+        }
+
+        return $this->listRefresh();
     }
 }

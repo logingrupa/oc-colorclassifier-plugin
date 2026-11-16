@@ -1,0 +1,12 @@
+# ===================================
+#  Family Filter Scopes
+# ===================================
+
+scopes:
+    kind:
+        label: Kind
+        type: group
+        conditions: kind in (:filtered)
+        options:
+            color: Color
+            collection: Collection

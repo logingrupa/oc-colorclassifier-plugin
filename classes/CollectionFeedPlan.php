@@ -66,4 +66,26 @@ final class CollectionFeedPlan
     {
         return array_sum($this->countSummary());
     }
+
+    /**
+     * @param string $sVerb "Planned" for a dry run, "Applied" for a real run.
+     *
+     * @return string The one summary line the command and the Families page show.
+     */
+    public function describe(string $sVerb): string
+    {
+        $arCounts = $this->countSummary();
+
+        return sprintf(
+            '%s: create %d, rename %d, set %d, unset %d, delete %d, shade %d, writes %d',
+            $sVerb,
+            $arCounts['create'],
+            $arCounts['rename'],
+            $arCounts['set'],
+            $arCounts['unset'],
+            $arCounts['delete'],
+            $arCounts['shade'],
+            $this->countWrites()
+        );
+    }
 }
