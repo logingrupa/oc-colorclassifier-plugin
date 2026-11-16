@@ -15,6 +15,9 @@ namespace Logingrupa\ColorClassifier\Classes;
  */
 class CollectionTagExtractor
 {
+    /** Length of the shade_code column of the membership table. */
+    public const SHADE_CODE_MAX_LENGTH = 64;
+
     /**
      * @param array<int, array<string, mixed>> $arCatalog Products from CommerceMlParser::getCatalog().
      * @param callable(string): bool $fnIsExcludedOffer Receives the full offer id.
@@ -36,7 +39,7 @@ class CollectionTagExtractor
                 }
 
                 $arOffers[$sOfferId] = [
-                    'shade_code'  => $arOffer['shade_code'] ?? null,
+                    'shade_code'  => $this->normalizeShadeCode($arOffer['shade_code'] ?? null),
                     'collections' => (array) ($arOffer['collections'] ?? []),
                 ];
             }
@@ -47,5 +50,21 @@ class CollectionTagExtractor
             'offer_count'        => count($arOffers),
             'offers'             => $arOffers,
         ];
+    }
+
+    /**
+     * Every shade code the plugin writes passes through here, so no write exceeds the column.
+     *
+     * @param mixed $mShadeCode Parenthesis text of the offer name.
+     *
+     * @return string|null Null when empty, not text or longer than the column.
+     */
+    private function normalizeShadeCode(mixed $mShadeCode): ?string
+    {
+        if (!is_string($mShadeCode) || $mShadeCode === '' || mb_strlen($mShadeCode) > self::SHADE_CODE_MAX_LENGTH) {
+            return null;
+        }
+
+        return $mShadeCode;
     }
 }
