@@ -16,6 +16,7 @@
  *   7. ColorClassifier — reads from Settings with fallback constants
  *   8. EffectiveColorResolver - depends on ColorConverter
  *   9. OverrideNormalizer, SheetExportBuilder, FamilyExportBuilder - no dependencies
+ *  10. ImageHexSampler (ColorConverter), FamilyBoardPayloadBuilder (resolver, SheetExportBuilder, Taxonomy)
  */
 
 $pluginRootDirectory = dirname(__DIR__);
@@ -32,5 +33,7 @@ require_once $pluginRootDirectory . '/classes/ColorClassifier.php';
 require_once $pluginRootDirectory . '/classes/NailoLabTransforms.php';
 require_once $pluginRootDirectory . '/classes/SheetExportBuilder.php';
 require_once $pluginRootDirectory . '/classes/FamilyExportBuilder.php';
+require_once $pluginRootDirectory . '/classes/ImageHexSampler.php';
+require_once $pluginRootDirectory . '/classes/FamilyBoardPayloadBuilder.php';
 require_once $pluginRootDirectory . '/classes/EtagRevalidation.php';
 require_once $pluginRootDirectory . '/classes/ColorLabPayloadCache.php';

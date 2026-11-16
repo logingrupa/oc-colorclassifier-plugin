@@ -75,6 +75,12 @@ class Plugin extends PluginBase
                         'icon'        => 'icon-list',
                         'permissions' => ['logingrupa.colorclassifier.manage'],
                     ],
+                    'board' => [
+                        'label'       => 'Family board',
+                        'url'         => \Backend::url('logingrupa/colorclassifier/familyboard'),
+                        'icon'        => 'icon-th-large',
+                        'permissions' => ['logingrupa.colorclassifier.manage'],
+                    ],
                     'families' => [
                         'label'       => 'Families',
                         'url'         => \Backend::url('logingrupa/colorclassifier/colorfamilies'),

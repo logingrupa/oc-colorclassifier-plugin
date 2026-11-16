@@ -1,0 +1,52 @@
+<?php Block::put('breadcrumb') ?>
+    <ul>
+        <li><a href="<?= Backend::url('logingrupa/colorclassifier/colorentries') ?>">Color Classifier</a></li>
+        <li><?= e($this->pageTitle) ?></li>
+    </ul>
+<?php Block::endPut() ?>
+
+<div id="familyBoard" class="family-board">
+    <div class="fb-toolbar">
+        <button
+            type="button"
+            class="btn btn-primary oc-icon-refresh"
+            data-control="popup"
+            data-handler="onLoadBatchPopup"
+            data-request-data="mode: 'all'"
+            data-size="medium">
+            Process All <small data-fb-skip-label></small>
+        </button>
+        <button
+            type="button"
+            class="btn btn-default oc-icon-plus"
+            data-control="popup"
+            data-handler="onLoadBatchPopup"
+            data-request-data="mode: 'new'"
+            data-size="medium">
+            Process New
+        </button>
+        <div class="fb-product" data-fb-product></div>
+        <input
+            type="search"
+            class="form-control fb-search"
+            data-fb-search
+            placeholder="Search variation, hex, color name"
+            aria-label="Search offers">
+        <div class="fb-chips" role="group" aria-label="Filters">
+            <button type="button" class="fb-chip" data-fb-chip="low" aria-pressed="false">Confidence &lt; 0.55</button>
+            <button type="button" class="fb-chip" data-fb-chip="manual" aria-pressed="false">Manual</button>
+            <button type="button" class="fb-chip" data-fb-chip="locked" aria-pressed="false">Locked</button>
+        </div>
+    </div>
+
+    <div class="fb-body">
+        <nav class="fb-rail" data-fb-rail aria-label="Families"></nav>
+        <div class="fb-board" data-fb-board></div>
+    </div>
+
+    <div class="fb-bulk" data-fb-bulk hidden></div>
+    <div class="fb-popover" data-fb-popover hidden></div>
+    <aside class="fb-drawer" data-fb-drawer hidden aria-label="Offer details"></aside>
+
+    <script type="application/json" data-fb-payload><?= $payloadJson ?></script>
+</div>
