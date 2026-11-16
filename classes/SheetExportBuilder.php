@@ -11,8 +11,10 @@ namespace Logingrupa\ColorClassifier\Classes;
  *
  * Exported shape per offer: family, hex, hue, lightness, confidence (the
  * classification certainty consumers order shades within a family by;
- * null when the row has none) and manual (true when an admin overrode the
- * family or hex). Values are the EFFECTIVE ones from EffectiveColorResolver.
+ * null when the row has none), manual (true when an admin overrode the
+ * family or hex), families (the primary first, then every other active
+ * membership) and shade_code (the 1C shade number, null when unknown).
+ * Values are the EFFECTIVE ones from EffectiveColorResolver.
  * Rows without an effective hex or family, or without a numeric hue and
  * lightness, are skipped so a bad row can never break the export.
  *
@@ -34,16 +36,18 @@ class SheetExportBuilder
      * (first row wins on collision).
      *
      * @param iterable<int, object> $arColorEntries ColorEntry rows.
+     * @param FamilyMembershipIndex|null $obMembershipIndex Extra families and shade codes; none means every offer sits in its primary only.
      *
-     * @return array{version: string, last_updated_at: string, count: int, offers: array<string, array{family: string, hex: string, hue: float, lightness: float, confidence: float|null, manual: bool}>}
+     * @return array{version: string, last_updated_at: string, count: int, offers: array<string, array{family: string, hex: string, hue: float, lightness: float, confidence: float|null, manual: bool, families: array<int, string>, shade_code: string|null}>}
      */
-    public function build(iterable $arColorEntries): array
+    public function build(iterable $arColorEntries, ?FamilyMembershipIndex $obMembershipIndex = null): array
     {
         $arOffers = [];
         $sLatestUpdatedAt = '';
+        $obMembershipIndex ??= new FamilyMembershipIndex();
 
         foreach ($arColorEntries as $obEntry) {
-            $arOfferData = $this->buildOfferData($obEntry);
+            $arOfferData = $this->buildOfferData($obEntry, $obMembershipIndex);
 
             if ($arOfferData === null) {
                 continue;
@@ -78,10 +82,11 @@ class SheetExportBuilder
      * is empty, or when the effective hue / lightness is not numeric.
      *
      * @param object $obEntry ColorEntry row.
+     * @param FamilyMembershipIndex $obMembershipIndex Extra families and shade codes by offer id.
      *
-     * @return array{family: string, hex: string, hue: float, lightness: float, confidence: float|null, manual: bool}|null
+     * @return array{family: string, hex: string, hue: float, lightness: float, confidence: float|null, manual: bool, families: array<int, string>, shade_code: string|null}|null
      */
-    private function buildOfferData(object $obEntry): ?array
+    private function buildOfferData(object $obEntry, FamilyMembershipIndex $obMembershipIndex): ?array
     {
         if ((string) ($obEntry->offer_id ?? '') === '') {
             return null;
@@ -107,6 +112,8 @@ class SheetExportBuilder
             'lightness'  => (float) $arEffective['lightness'],
             'confidence' => $arEffective['confidence'],
             'manual'     => $arEffective['manual'],
+            'families'   => $obMembershipIndex->listFamilyNames((string) $obEntry->offer_id, $arEffective['family']),
+            'shade_code' => $obMembershipIndex->findShadeCode((string) $obEntry->offer_id),
         ];
     }
 
@@ -140,7 +147,7 @@ class SheetExportBuilder
      * shape, key set - never only on updated_at / count like before (1.5.2).
      *
      * @param string $sLatestUpdatedAt Latest updated_at among exported rows.
-     * @param array<string, array{family: string, hex: string, hue: float, lightness: float, confidence: float|null, manual: bool}> $arOffers Exported rows keyed by offer UUID.
+     * @param array<string, array{family: string, hex: string, hue: float, lightness: float, confidence: float|null, manual: bool, families: array<int, string>, shade_code: string|null}> $arOffers Exported rows keyed by offer UUID.
      *
      * @return string
      */

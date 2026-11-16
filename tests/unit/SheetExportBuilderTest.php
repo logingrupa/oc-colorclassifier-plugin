@@ -1,6 +1,7 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
+use Logingrupa\ColorClassifier\Classes\FamilyMembershipIndex;
 use Logingrupa\ColorClassifier\Classes\SheetExportBuilder;
 
 /**
@@ -84,6 +85,8 @@ class SheetExportBuilderTest extends TestCase
                 // decimal:2 cast strings become floats on export
                 'confidence' => 0.85,
                 'manual'     => false,
+                'families'   => ['Pink'],
+                'shade_code' => null,
             ],
             $payload['offers']['offer-1']
         );
@@ -125,15 +128,73 @@ class SheetExportBuilderTest extends TestCase
     }
 
     /**
-     * Manual is the last key after confidence, so consumers read a stable shape.
+     * Consumers read a stable key order: the 1.6.0 fields, then families and shade_code.
      */
-    public function test_manual_key_follows_confidence(): void
+    public function test_row_keys_are_stable(): void
     {
         $payload = $this->exportBuilder->build([$this->makeColorEntryRow()]);
 
         $this->assertSame(
-            ['family', 'hex', 'hue', 'lightness', 'confidence', 'manual'],
+            ['family', 'hex', 'hue', 'lightness', 'confidence', 'manual', 'families', 'shade_code'],
             array_keys($payload['offers']['offer-1'])
+        );
+    }
+
+    /**
+     * EXP-02: without a membership index every row sits in its primary only.
+     */
+    public function test_without_an_index_every_row_exports_its_primary_and_no_shade_code(): void
+    {
+        $payload = $this->exportBuilder->build([
+            $this->makeColorEntryRow(),
+            $this->makeColorEntryRow(['offer_id' => 'offer-2', 'family_override' => 'Rose', 'is_locked' => true]),
+        ]);
+
+        $this->assertSame(['Pink'], $payload['offers']['offer-1']['families']);
+        $this->assertSame(['Rose'], $payload['offers']['offer-2']['families']);
+        $this->assertNull($payload['offers']['offer-1']['shade_code']);
+    }
+
+    /**
+     * EXP-02: the index adds extra families after the effective primary and the shade code.
+     */
+    public function test_index_adds_families_after_the_effective_primary_and_the_shade_code(): void
+    {
+        $obIndex = new FamilyMembershipIndex(
+            [
+                ['id' => 1, 'family' => 'Rose', 'is_active' => true, 'sort_order' => 1],
+                ['id' => 2, 'family' => 'DISCO', 'is_active' => true, 'sort_order' => 2],
+            ],
+            [
+                ['family_id' => 2, 'offer_id' => 'aaa#bbb', 'in_feed' => true, 'hand_state' => null, 'shade_code' => 'DISCO 30'],
+                ['family_id' => 1, 'offer_id' => 'aaa#bbb', 'in_feed' => false, 'hand_state' => 'added', 'shade_code' => null],
+            ]
+        );
+
+        $payload = $this->exportBuilder->build(
+            [$this->makeColorEntryRow(['offer_id' => 'aaa#bbb', 'family_override' => 'Rose', 'is_locked' => true])],
+            $obIndex
+        );
+
+        $this->assertSame(['Rose', 'DISCO'], $payload['offers']['bbb']['families']);
+        $this->assertSame('Rose', $payload['offers']['bbb']['family']);
+        $this->assertSame('DISCO 30', $payload['offers']['bbb']['shade_code']);
+    }
+
+    /**
+     * The version stamp covers families and shade_code, so a membership change rotates it.
+     */
+    public function test_version_stamp_rotates_when_the_membership_index_changes(): void
+    {
+        $arRows = [$this->makeColorEntryRow(['offer_id' => 'aaa#bbb'])];
+        $obIndex = new FamilyMembershipIndex(
+            [['id' => 2, 'family' => 'DISCO', 'is_active' => true, 'sort_order' => 2]],
+            [['family_id' => 2, 'offer_id' => 'aaa#bbb', 'in_feed' => true, 'hand_state' => null, 'shade_code' => 'DISCO 30']]
+        );
+
+        $this->assertNotSame(
+            $this->exportBuilder->build($arRows)['version'],
+            $this->exportBuilder->build($arRows, $obIndex)['version']
         );
     }
 

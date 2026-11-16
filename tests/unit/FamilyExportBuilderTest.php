@@ -119,6 +119,68 @@ class FamilyExportBuilderTest extends TestCase
         $this->assertTrue($arPayload['families']['red']['active']);
     }
 
+    public function test_seeded_colors_export_kind_color_and_no_gradient(): void
+    {
+        $arPayload = (new FamilyExportBuilder())->build($this->makeSeedRows());
+
+        foreach ($arPayload['families'] as $sSlug => $arFamily) {
+            $this->assertSame('color', $arFamily['kind'], $sSlug);
+            $this->assertNull($arFamily['gradient'], $sSlug);
+        }
+    }
+
+    /**
+     * @return array<int, object>
+     */
+    private function makeRowsWithCollections(): array
+    {
+        $arRows = $this->makeSeedRows();
+        $arRows[] = (object) [
+            'id' => 24, 'family' => 'DISCO', 'slug' => 'disco', 'hex' => '#9e9e9e', 'names' => ['en' => 'DISCO'],
+            'synonyms' => [], 'sort_order' => 3, 'is_active' => true, 'kind' => 'collection',
+            'gradient' => ['#FF00AA', '#00e5ff'],
+        ];
+        $arRows[] = (object) [
+            'id' => 25, 'family' => 'NEON', 'slug' => 'neon', 'hex' => '#9e9e9e', 'names' => ['en' => 'NEON'],
+            'synonyms' => [], 'sort_order' => 4, 'is_active' => false, 'kind' => 'collection', 'gradient' => null,
+        ];
+
+        return $arRows;
+    }
+
+    public function test_active_collection_is_exported_in_order_with_kind_and_gradient(): void
+    {
+        $arPayload = (new FamilyExportBuilder())->build($this->makeRowsWithCollections());
+
+        $this->assertSame('collection', $arPayload['families']['disco']['kind']);
+        $this->assertSame(['#ff00aa', '#00e5ff'], $arPayload['families']['disco']['gradient']);
+        $this->assertSame('#9e9e9e', $arPayload['families']['disco']['hex']);
+        $arSlugList = array_keys($arPayload['families']);
+        $sSlugWithSameSortOrder = $this->makeSeedRows()[2]->slug;
+        $this->assertSame(array_search($sSlugWithSameSortOrder, $arSlugList, true) + 1, array_search('disco', $arSlugList, true));
+    }
+
+    public function test_inactive_collection_is_left_out_but_inactive_color_stays(): void
+    {
+        $arRows = $this->makeRowsWithCollections();
+        $arRows[1]->is_active = false;
+
+        $arPayload = (new FamilyExportBuilder())->build($arRows);
+
+        $this->assertArrayNotHasKey('neon', $arPayload['families']);
+        $this->assertArrayHasKey('orange', $arPayload['families']);
+        $this->assertSame(24, $arPayload['count']);
+    }
+
+    public function test_bad_stored_gradient_throws(): void
+    {
+        $arRows = $this->makeRowsWithCollections();
+        $arRows[23]->gradient = ['#ff00aa'];
+
+        $this->expectException(\InvalidArgumentException::class);
+        (new FamilyExportBuilder())->build($arRows);
+    }
+
     public function test_custom_family_is_exported(): void
     {
         $arRows = $this->makeSeedRows();

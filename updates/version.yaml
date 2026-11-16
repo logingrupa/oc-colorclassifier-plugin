@@ -28,3 +28,7 @@
     - create_color_families_table.php
     - seed_color_families_table.php
     - add_override_columns_to_color_entries.php
+1.7.0:
+    - "Collections from the 1C Kolekcija characteristic live in the same family list as the colors (kind column, 1C link, optional 2-3 stop gradient), and one offer can sit in several families through a memberships table. families.json adds kind and gradient and leaves out inactive collections, offers.json adds families (primary first) and shade_code"
+    - add_kind_and_feed_link_to_color_families.php
+    - create_family_memberships_table.php

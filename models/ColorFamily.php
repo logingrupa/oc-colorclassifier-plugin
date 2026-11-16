@@ -5,7 +5,10 @@ namespace Logingrupa\ColorClassifier\Models;
 use Model;
 use October\Rain\Exception\ApplicationException;
 use October\Rain\Exception\ValidationException;
+use Logingrupa\ColorClassifier\Classes\CollectionFeedPlanner;
 use Logingrupa\ColorClassifier\Classes\ColorLabPayloadCache;
+use Logingrupa\ColorClassifier\Classes\FamilyKind;
+use Logingrupa\ColorClassifier\Classes\GradientNormalizer;
 
 /**
  * ColorFamily Model - one editable color family: names, synonyms, hex and order.
@@ -14,6 +17,10 @@ use Logingrupa\ColorClassifier\Classes\ColorLabPayloadCache;
  * are fixed after create because shop catalogs and ?color= URLs depend on
  * them, and a family is retired with is_active instead of being deleted
  * because shop sync removes rows whose slug leaves families.json.
+ *
+ * A row is a color or a collection. Collections come only from the 1C sync
+ * (kind and the feed link are fixed at create) and never serve as a primary
+ * color, so the color lists below skip them.
  *
  * @package Logingrupa\ColorClassifier\Models
  */
@@ -26,13 +33,23 @@ class ColorFamily extends Model
     protected $table = 'logingrupa_colorclassifier_color_families';
 
     /** @var array<int, string> Attributes stored as JSON. */
-    protected $jsonable = ['names', 'synonyms'];
+    protected $jsonable = ['names', 'synonyms', 'gradient'];
+
+    /** @var array<string, mixed> Defaults for a new row, so the Create form always makes a color. */
+    public $attributes = [
+        'kind' => FamilyKind::COLOR,
+    ];
 
     /** @var array<int, string> Attributes that are mass assignable. */
     protected $fillable = [
         'family',
         'slug',
+        'kind',
+        'feed_characteristic_id',
+        'feed_value_id',
+        'feed_value_name',
         'hex',
+        'gradient',
         'names',
         'synonyms',
         'sort_order',
@@ -47,10 +64,12 @@ class ColorFamily extends Model
 
     /** @var array<string, mixed> Validation rules. */
     public $rules = [
-        'family'   => ['required', 'max:64', 'regex:/^[A-Za-z][A-Za-z0-9 -]*$/', 'unique'],
-        'slug'     => ['required', 'max:64', 'regex:/^[a-z0-9-]+$/', 'unique'],
-        'hex'      => ['required', 'regex:/^#[0-9a-f]{6}$/'],
-        'names.en' => 'required',
+        'family'        => ['required', 'max:' . CollectionFeedPlanner::KEY_MAX_LENGTH, 'regex:' . CollectionFeedPlanner::KEY_PATTERN, 'unique'],
+        'slug'          => ['required', 'max:64', 'regex:/^[a-z0-9-]+$/', 'unique'],
+        'kind'          => ['required', 'in:color,collection'],
+        'feed_value_id' => ['nullable', 'max:36', 'unique', 'required_if:kind,collection', 'prohibited_if:kind,color'],
+        'hex'           => ['required', 'regex:/^#[0-9a-f]{6}$/'],
+        'names.en'      => 'required',
     ];
 
     /** @var array<string, string> Validation messages. */
@@ -76,7 +95,7 @@ class ColorFamily extends Model
     }
 
     /**
-     * The key and slug inputs are read-only once the family exists.
+     * The key, slug, kind and 1C link inputs are read-only once the family exists.
      *
      * @param object $obFields Form field definitions.
      * @param string|null $sContext Form context.
@@ -85,20 +104,33 @@ class ColorFamily extends Model
      */
     public function filterFields($obFields, $sContext = null)
     {
-        if ($sContext === 'update') {
-            $obFields->family->disabled = true;
-            $obFields->slug->disabled = true;
+        if ($sContext !== 'update') {
+            return;
+        }
+
+        foreach (['family', 'slug', 'kind', 'feed_characteristic_id', 'feed_value_id'] as $sFieldName) {
+            if (isset($obFields->{$sFieldName})) {
+                $obFields->{$sFieldName}->disabled = true;
+            }
         }
     }
 
     /**
      * @return void
+     *
+     * @throws ValidationException When the gradient is not 2 or 3 hex stops.
      */
     public function beforeValidate()
     {
         $this->family = trim((string) $this->family);
         $this->slug = trim((string) $this->slug);
         $this->hex = strtolower(trim((string) $this->hex));
+
+        try {
+            $this->gradient = (new GradientNormalizer())->normalize($this->gradient);
+        } catch (\InvalidArgumentException $obException) {
+            throw new ValidationException(['gradient' => $obException->getMessage()]);
+        }
     }
 
     /**
@@ -125,6 +157,12 @@ class ColorFamily extends Model
                 'family' => 'The family key and slug are locked because nc shops and ?color= URLs depend on them.',
             ]);
         }
+
+        if ($this->isDirty('kind') || $this->isDirty('feed_characteristic_id') || $this->isDirty('feed_value_id')) {
+            throw new ValidationException([
+                'kind' => 'The kind and the 1C link are fixed when the family is created.',
+            ]);
+        }
     }
 
     /**
@@ -146,18 +184,38 @@ class ColorFamily extends Model
     }
 
     /**
-     * @return array<int, string> Every family key in Families page order.
+     * @param \October\Rain\Database\Builder $obQuery
+     *
+     * @return \October\Rain\Database\Builder
      */
-    public static function listFamilyNamesInOrder(): array
+    public function scopeColors($obQuery)
     {
-        return static::query()->orderBy('sort_order')->orderBy('id')->pluck('family')->all();
+        return $obQuery->where('kind', FamilyKind::COLOR);
     }
 
     /**
-     * @return array<int, string> Active family keys in Families page order.
+     * @param \October\Rain\Database\Builder $obQuery
+     *
+     * @return \October\Rain\Database\Builder
+     */
+    public function scopeCollections($obQuery)
+    {
+        return $obQuery->where('kind', FamilyKind::COLLECTION);
+    }
+
+    /**
+     * @return array<int, string> Every color key in Families page order.
+     */
+    public static function listFamilyNamesInOrder(): array
+    {
+        return static::query()->colors()->orderBy('sort_order')->orderBy('id')->pluck('family')->all();
+    }
+
+    /**
+     * @return array<int, string> Active color keys in Families page order.
      */
     public static function listActiveFamilyNames(): array
     {
-        return static::query()->where('is_active', true)->orderBy('sort_order')->orderBy('id')->pluck('family')->all();
+        return static::query()->colors()->where('is_active', true)->orderBy('sort_order')->orderBy('id')->pluck('family')->all();
     }
 }

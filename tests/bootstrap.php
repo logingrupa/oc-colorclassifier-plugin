@@ -17,6 +17,8 @@
  *   8. EffectiveColorResolver - depends on ColorConverter
  *   9. OverrideNormalizer, SheetExportBuilder, FamilyExportBuilder - no dependencies
  *  10. ImageHexSampler (ColorConverter), FamilyBoardPayloadBuilder (resolver, SheetExportBuilder, Taxonomy)
+ *  11. Collections: FamilyKind, GradientNormalizer, MembershipStateNormalizer, FamilyMembershipIndex,
+ *      CollectionTagExtractor, CollectionFeedPlan, CollectionFeedPlanner - no CMS dependencies
  */
 
 $pluginRootDirectory = dirname(__DIR__);
@@ -31,6 +33,13 @@ require_once $pluginRootDirectory . '/classes/ColorNamer.php';
 require_once $pluginRootDirectory . '/classes/ColorExtractor.php';
 require_once $pluginRootDirectory . '/classes/ColorClassifier.php';
 require_once $pluginRootDirectory . '/classes/NailoLabTransforms.php';
+require_once $pluginRootDirectory . '/classes/FamilyKind.php';
+require_once $pluginRootDirectory . '/classes/GradientNormalizer.php';
+require_once $pluginRootDirectory . '/classes/MembershipStateNormalizer.php';
+require_once $pluginRootDirectory . '/classes/FamilyMembershipIndex.php';
+require_once $pluginRootDirectory . '/classes/CollectionTagExtractor.php';
+require_once $pluginRootDirectory . '/classes/CollectionFeedPlan.php';
+require_once $pluginRootDirectory . '/classes/CollectionFeedPlanner.php';
 require_once $pluginRootDirectory . '/classes/SheetExportBuilder.php';
 require_once $pluginRootDirectory . '/classes/FamilyExportBuilder.php';
 require_once $pluginRootDirectory . '/classes/ImageHexSampler.php';

@@ -12,8 +12,11 @@ namespace Logingrupa\ColorClassifier\Classes;
  *
  * Exported shape per family (keyed by slug): name (the family key used by
  * offers.json), localized display names, per-locale synonym lists, hex,
- * sort_order and active. Inactive families stay in the export with
- * active false, because consumers delete shop rows whose slug disappears.
+ * sort_order, active, kind (color or collection) and gradient (null or 2-3
+ * hex stops). Inactive color families stay in the export with active false,
+ * because consumers delete shop rows whose slug disappears. Inactive
+ * collection drafts are left out: a draft is not shown until the owner
+ * activates it.
  *
  * Export ORDER is a contract: consumers render family pills in payload key
  * order, which is the Families page sort order (sort_order, then id).
@@ -31,15 +34,21 @@ class FamilyExportBuilder
      *
      * @param iterable<int, object|array<string, mixed>> $arFamilyRows color_families rows (models, objects or arrays).
      *
-     * @return array{version: string, count: int, families: array<string, array{name: string, names: array<string, string>, synonyms: array<string, array<int, string>>, hex: string, sort_order: int, active: bool}>}
+     * @return array{version: string, count: int, families: array<string, array{name: string, names: array<string, string>, synonyms: array<string, array<int, string>>, hex: string, sort_order: int, active: bool, kind: string, gradient: array<int, string>|null}>}
      *
      * @throws \RuntimeException When a family has a missing slug or hex, or a slug appears twice.
+     * @throws \InvalidArgumentException When a stored gradient is not 2 or 3 hex stops.
      */
     public function build(iterable $arFamilyRows): array
     {
         $arFamilies = [];
+        $obGradientNormalizer = new GradientNormalizer();
 
         foreach ($this->sortRows($arFamilyRows) as $arRow) {
+            if ($arRow['kind'] === FamilyKind::COLLECTION && !$arRow['is_active']) {
+                continue;
+            }
+
             $sFamilyName = (string) $arRow['family'];
             $sSlug = (string) $arRow['slug'];
             $sHex = (string) $arRow['hex'];
@@ -59,6 +68,8 @@ class FamilyExportBuilder
                 'hex'        => $sHex,
                 'sort_order' => (int) $arRow['sort_order'],
                 'active'     => (bool) $arRow['is_active'],
+                'kind'       => $arRow['kind'],
+                'gradient'   => $obGradientNormalizer->normalize($arRow['gradient']),
             ];
         }
 
@@ -90,6 +101,8 @@ class FamilyExportBuilder
                 'synonyms'   => $this->readField($mFamilyRow, 'synonyms'),
                 'sort_order' => $this->readField($mFamilyRow, 'sort_order'),
                 'is_active'  => $this->readField($mFamilyRow, 'is_active'),
+                'kind'       => FamilyKind::normalize($this->readField($mFamilyRow, 'kind')),
+                'gradient'   => $this->readField($mFamilyRow, 'gradient'),
             ];
         }
 
