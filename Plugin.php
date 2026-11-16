@@ -2,6 +2,7 @@
 
 namespace Logingrupa\ColorClassifier;
 
+use Logingrupa\ColorClassifier\Classes\EffectiveColorResolver;
 use System\Classes\PluginBase;
 
 /**
@@ -67,6 +68,20 @@ class Plugin extends PluginBase
                 'icon'        => 'icon-eyedropper',
                 'permissions' => ['logingrupa.colorclassifier.manage'],
                 'order'       => 500,
+                'sideMenu'    => [
+                    'entries' => [
+                        'label'       => 'Color entries',
+                        'url'         => \Backend::url('logingrupa/colorclassifier/colorentries'),
+                        'icon'        => 'icon-list',
+                        'permissions' => ['logingrupa.colorclassifier.manage'],
+                    ],
+                    'families' => [
+                        'label'       => 'Families',
+                        'url'         => \Backend::url('logingrupa/colorclassifier/colorfamilies'),
+                        'icon'        => 'icon-paint-brush',
+                        'permissions' => ['logingrupa.colorclassifier.manage'],
+                    ],
+                ],
             ],
         ];
     }
@@ -97,6 +112,8 @@ class Plugin extends PluginBase
             'color_swatch'      => [$this, 'evalColorSwatchColumn'],
             'palette_gradient'  => [$this, 'evalPaletteGradientColumn'],
             'taxonomy_value'    => [$this, 'evalTaxonomyValueColumn'],
+            'effective_family'  => [$this, 'evalEffectiveFamilyColumn'],
+            'lock_state'        => [$this, 'evalLockStateColumn'],
             'image_thumbnail'   => [$this, 'evalImageThumbnailColumn'],
             'cropped_preview'   => [$this, 'evalCroppedPreviewColumn'],
             'confidence_badge'  => [$this, 'evalConfidenceBadgeColumn'],
@@ -114,27 +131,81 @@ class Plugin extends PluginBase
      */
     public function evalColorSwatchColumn($value, $column, $record): string
     {
-        if (empty($value)) {
+        $arEffective = EffectiveColorResolver::resolve($record);
+
+        if (empty($arEffective['hex'])) {
             return '<span class="text-muted">—</span>';
         }
 
-        $hexColor = e($value);
-        $oklchValues = $record->oklch_values;
+        $hexColor = e($arEffective['hex']);
         $oklchLabel = '';
 
-        if (is_array($oklchValues)) {
-            $lightness = round($oklchValues['lightness'] ?? 0, 3);
-            $chroma = round($oklchValues['chroma'] ?? 0, 3);
-            $hue = round($oklchValues['hue'] ?? 0, 1);
+        if ($arEffective['lightness'] !== null) {
+            $lightness = round((float) $arEffective['lightness'], 3);
+            $chroma = round((float) ($arEffective['chroma'] ?? 0), 3);
+            $hue = round((float) ($arEffective['hue'] ?? 0), 1);
             $oklchLabel = "<div style=\"font-size:10px;color:#888;margin-top:2px;\">oklch({$lightness} {$chroma} {$hue})</div>";
         }
 
-        $textColor = ($oklchValues['lightness'] ?? 0.5) > 0.6 ? '#000' : '#fff';
+        $autoHexLabel = '';
+
+        if ($arEffective['hex_overridden'] && !empty($arEffective['auto_hex'])) {
+            $autoHex = e($arEffective['auto_hex']);
+            $autoHexLabel = "<div style=\"font-size:10px;color:#888;text-decoration:line-through;\">{$autoHex}</div>";
+        }
 
         return "<div style=\"display:inline-flex;align-items:center;gap:8px;\">"
             . "<span style=\"display:inline-block;width:28px;height:28px;border-radius:4px;border:1px solid rgba(0,0,0,.15);background:{$hexColor};\"></span>"
-            . "<div><code style=\"font-size:12px;\">{$hexColor}</code>{$oklchLabel}</div>"
+            . "<div><code style=\"font-size:12px;\">{$hexColor}</code>{$autoHexLabel}{$oklchLabel}</div>"
             . "</div>";
+    }
+
+    /**
+     * Renders the effective family with a manual marker and the struck-through classifier family.
+     *
+     * @param mixed $value The taxonomy value (unused, the resolver reads the record).
+     * @param object $column Column definition.
+     * @param \Logingrupa\ColorClassifier\Models\ColorEntry $record The model record.
+     * @return string
+     */
+    public function evalEffectiveFamilyColumn($value, $column, $record): string
+    {
+        $arEffective = EffectiveColorResolver::resolve($record);
+
+        if (empty($arEffective['family'])) {
+            return '<span class="text-muted">—</span>';
+        }
+
+        $sMarkup = '<span>' . e($arEffective['family']) . '</span>';
+
+        if ($arEffective['manual']) {
+            $sMarkup .= ' <span style="display:inline-block;padding:0 6px;border-radius:8px;font-size:10px;font-weight:600;background:#6f42c1;color:#fff;">manual</span>';
+        }
+
+        if ($arEffective['family_overridden'] && !empty($arEffective['auto_family'])) {
+            $sMarkup .= '<div style="font-size:11px;opacity:.6;text-decoration:line-through;">auto: ' . e($arEffective['auto_family']) . '</div>';
+        } elseif (is_array($record->taxonomy) && !empty($record->taxonomy['secondary_family'])) {
+            $sMarkup .= ' <span style="opacity:.5;font-size:.85em;">/ ' . e($record->taxonomy['secondary_family']) . '</span>';
+        }
+
+        return $sMarkup;
+    }
+
+    /**
+     * Renders a lock icon for rows Process All skips.
+     *
+     * @param mixed $value The is_locked value.
+     * @param object $column Column definition.
+     * @param \Logingrupa\ColorClassifier\Models\ColorEntry $record The model record.
+     * @return string
+     */
+    public function evalLockStateColumn($value, $column, $record): string
+    {
+        if (!$value) {
+            return '<span class="text-muted">—</span>';
+        }
+
+        return '<i class="icon-lock" title="Locked: Process All skips it"></i>';
     }
 
     /**

@@ -155,6 +155,47 @@ class ColorEntry extends Model
     }
 
     /**
+     * Adapter for the family filter: reads the picked families off the filter scope.
+     *
+     * @param \October\Rain\Database\Builder $obQuery
+     * @param object $obFilterScope Backend filter scope holding the picked family keys.
+     * @return \October\Rain\Database\Builder
+     */
+    public function scopeEffectiveFamilyFilter($obQuery, $obFilterScope)
+    {
+        return $this->scopeEffectiveFamilyIn($obQuery, array_values((array) $obFilterScope->value));
+    }
+
+    /**
+     * Dropdown options for the family override field: active families, plus
+     * the stored override when that family was switched off since.
+     *
+     * @return array<string, string>
+     */
+    public function getFamilyOverrideOptions(): array
+    {
+        $arFamilyNames = ColorFamily::listActiveFamilyNames();
+
+        if ($this->family_override && !in_array($this->family_override, $arFamilyNames, true)) {
+            $arFamilyNames[] = $this->family_override;
+        }
+
+        return array_combine($arFamilyNames, $arFamilyNames);
+    }
+
+    /**
+     * Options for the family filter: every family in Families page order.
+     *
+     * @return array<string, string>
+     */
+    public function getFamilyFilterOptions(): array
+    {
+        $arFamilyNames = ColorFamily::listFamilyNamesInOrder();
+
+        return array_combine($arFamilyNames, $arFamilyNames);
+    }
+
+    /**
      * afterSave drops the cached Color Lab payloads derived from this table.
      *
      * @return void

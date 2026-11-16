@@ -49,13 +49,17 @@ columns:
         searchable: true
         sortable: true
 
-    taxonomy_family:
+    effective_family:
         label: Family
-        type: taxonomy_value
+        type: effective_family
         sortable: false
         valueFrom: taxonomy
-        config:
-            taxonomyField: family
+
+    is_locked:
+        label: Locked
+        type: lock_state
+        sortable: true
+        width: 70px
 
     taxonomy_undertone:
         label: Undertone

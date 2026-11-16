@@ -1,0 +1,83 @@
+fields:
+    family:
+        label: Family key
+        type: text
+        span: left
+        required: true
+        comment: English key the classifier and the shops use. Locked after create.
+
+    slug:
+        label: Slug
+        type: text
+        span: right
+        required: true
+        preset:
+            field: family
+            type: slug
+        comment: Used in ?color= URLs. Locked after create.
+
+    hex:
+        label: Color
+        type: colorpicker
+        span: left
+        required: true
+        allowEmpty: false
+        allowCustom: true
+        showAlpha: false
+
+    is_active:
+        label: Active
+        type: switch
+        span: right
+        default: true
+        comment: Switch off to retire a family. Families are never deleted.
+
+tabs:
+    fields:
+        names[en]:
+            label: English
+            type: text
+            tab: Names
+            required: true
+        names[lv]:
+            label: Latvian
+            type: text
+            tab: Names
+        names[ru]:
+            label: Russian
+            type: text
+            tab: Names
+        names[lt]:
+            label: Lithuanian
+            type: text
+            tab: Names
+        names[nb-no]:
+            label: Norwegian (nb-no)
+            type: text
+            tab: Names
+
+        synonyms[en]:
+            label: English synonyms
+            type: taglist
+            mode: array
+            tab: Synonyms
+        synonyms[lv]:
+            label: Latvian synonyms
+            type: taglist
+            mode: array
+            tab: Synonyms
+        synonyms[ru]:
+            label: Russian synonyms
+            type: taglist
+            mode: array
+            tab: Synonyms
+        synonyms[lt]:
+            label: Lithuanian synonyms
+            type: taglist
+            mode: array
+            tab: Synonyms
+        synonyms[nb-no]:
+            label: Norwegian (nb-no) synonyms
+            type: taglist
+            mode: array
+            tab: Synonyms

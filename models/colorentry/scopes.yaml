@@ -1,0 +1,25 @@
+# ===================================
+#  Color Entry Filter Scopes
+# ===================================
+
+scopes:
+    is_locked:
+        label: Locked
+        type: checkbox
+        modelScope: locked
+
+    manual:
+        label: Manual
+        type: checkbox
+        modelScope: manual
+
+    low_confidence:
+        label: Confidence < 0.55
+        type: checkbox
+        modelScope: lowConfidence
+
+    family:
+        label: Family
+        type: group
+        options: getFamilyFilterOptions
+        modelScope: effectiveFamilyFilter

@@ -2,11 +2,14 @@
 
 namespace Logingrupa\ColorClassifier\Controllers;
 
+use Backend;
 use Backend\Classes\Controller;
 use Backend\Widgets\Form;
 use BackendMenu;
 use Flash;
 use Logingrupa\ColorClassifier\Classes\BatchProcessor;
+use Logingrupa\ColorClassifier\Classes\ColorEntryOverrideService;
+use Logingrupa\ColorClassifier\Controllers\Concerns\BatchProcessingHandlers;
 use Logingrupa\ColorClassifier\Models\ColorEntry;
 use Logingrupa\ColorClassifier\Models\Settings;
 
@@ -14,13 +17,16 @@ use Logingrupa\ColorClassifier\Models\Settings;
  * ColorEntries Backend Controller — manages the color classification list view.
  *
  * Provides a backend list of processed color entries with Process All,
- * Process New, and Export actions. Uses OctoberCMS ListController and
+ * Process New, Export, override/lock bulk actions and an update form for one
+ * entry. Uses OctoberCMS ListController, FormController and
  * ImportExportController behaviors.
  *
  * @package Logingrupa\ColorClassifier\Controllers
  */
 class ColorEntries extends Controller
 {
+    use BatchProcessingHandlers;
+
     /**
      * Implemented controller behaviors.
      *
@@ -28,8 +34,16 @@ class ColorEntries extends Controller
      */
     public $implement = [
         \Backend\Behaviors\ListController::class,
+        \Backend\Behaviors\FormController::class,
         \Backend\Behaviors\ImportExportController::class,
     ];
+
+    /**
+     * Path to the form behavior configuration file.
+     *
+     * @var string
+     */
+    public $formConfig = 'config_form.yaml';
 
     /**
      * Path to the list behavior configuration file.
@@ -59,50 +73,14 @@ class ColorEntries extends Controller
     {
         parent::__construct();
 
-        BackendMenu::setContext('Logingrupa.ColorClassifier', 'colorclassifier');
+        BackendMenu::setContext('Logingrupa.ColorClassifier', 'colorclassifier', 'entries');
 
         $this->addCss('/plugins/logingrupa/colorclassifier/assets/css/matrix.css');
         $this->addJs('/plugins/logingrupa/colorclassifier/assets/js/matrix.js');
     }
 
     /**
-     * AJAX handler — prepare a chunked batch run and return the total offer count.
-     *
-     * Called once before the frontend begins looping onProcessBatch requests.
-     * Caches the offer list so subsequent chunks read from cache, not the XML feed.
-     *
-     * @return array{total: int}
-     */
-    public function onStartBatch(): array
-    {
-        $sMode          = post('mode', 'all');
-        $batchProcessor = new BatchProcessor();
-
-        return $batchProcessor->prepareBatch($sMode);
-    }
-
-    /**
-     * AJAX handler — process a single chunk of offers.
-     *
-     * The frontend calls this repeatedly with incrementing offsets until
-     * the 'done' flag is true. Each request processes a small batch to
-     * stay within serverless/hosting time limits.
-     *
-     * @return array{processed: int, skipped: int, failed: int, total: int, done: bool}
-     */
-    public function onProcessBatch(): array
-    {
-        $iOffset    = (int) post('offset', 0);
-        $iBatchSize = (int) post('batch_size', 5);
-        $sMode      = post('mode', 'all');
-
-        $batchProcessor = new BatchProcessor();
-
-        return $batchProcessor->processChunk($iOffset, $iBatchSize, $sMode);
-    }
-
-    /**
-     * AJAX handler — re-process only the checked entries.
+     * AJAX handler — re-process the checked entries that are not locked.
      *
      * @return array<string, mixed> List refresh response.
      */
@@ -120,35 +98,102 @@ class ColorEntries extends Controller
 
         $processed = 0;
         $failed = 0;
+        $skippedLocked = 0;
 
         foreach ($entries as $entry) {
+            if ($entry->is_locked) {
+                $skippedLocked++;
+                continue;
+            }
+
             $result = $batchProcessor->reprocessEntry($entry);
             $result ? $processed++ : $failed++;
         }
 
-        Flash::success("Re-processed {$processed} of " . count($selectedIds) . " entries" . ($failed ? ", {$failed} failed." : "."));
+        $sMessage = "Re-processed {$processed} of " . count($selectedIds) . ' entries, skipped ' . $skippedLocked . ' locked';
+        Flash::success($sMessage . ($failed ? ", {$failed} failed." : '.'));
 
         return $this->listRefresh();
     }
 
     /**
-     * AJAX handler — open the batch processing popup.
+     * AJAX handler — lock the checked entries so Process All skips them.
      *
-     * Prepares the offer list (clearing cache when mode is 'all') and
-     * returns the popup partial with the total offer count pre-loaded.
-     *
-     * @return string Rendered popup partial HTML.
+     * @return array<string, mixed> List refresh response.
      */
-    public function onLoadBatchPopup(): string
+    public function onLockSelected(): array
     {
-        $sMode          = post('mode', 'all');
-        $batchProcessor = new BatchProcessor();
-        $arResult       = $batchProcessor->prepareBatch($sMode);
+        $arEntries = (new ColorEntryOverrideService())->lockEntries(post('checked', []));
 
-        return $this->makePartial('batch_popup', [
-            'mode'        => $sMode,
-            'totalOffers' => $arResult['total'],
-        ]);
+        Flash::success('Locked ' . count($arEntries) . ' entries.');
+
+        return $this->listRefresh();
+    }
+
+    /**
+     * AJAX handler — unlock the checked entries and keep their overrides.
+     *
+     * @return array<string, mixed> List refresh response.
+     */
+    public function onUnlockSelected(): array
+    {
+        $arEntries = (new ColorEntryOverrideService())->unlockEntries(post('checked', []));
+
+        Flash::success('Unlocked ' . count($arEntries) . ' entries.');
+
+        return $this->listRefresh();
+    }
+
+    /**
+     * AJAX handler — clear overrides and unlock the checked entries.
+     *
+     * @return array<string, mixed> List refresh response.
+     */
+    public function onResetSelected(): array
+    {
+        $arEntries = (new ColorEntryOverrideService())->resetEntries(post('checked', []));
+
+        Flash::success('Reset ' . count($arEntries) . ' entries to the classifier result.');
+
+        return $this->listRefresh();
+    }
+
+    /**
+     * AJAX handler on the update page — reset this entry to the classifier result.
+     *
+     * @param int|string $recordId Entry id from the page URL.
+     *
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function update_onResetToAuto($recordId)
+    {
+        (new ColorEntryOverrideService())->resetEntries([$recordId]);
+
+        Flash::success('Entry reset to the classifier result.');
+
+        return Backend::redirect('logingrupa/colorclassifier/colorentries/update/' . (int) $recordId);
+    }
+
+    /**
+     * Form hook — normalize the posted override just before the model is saved.
+     *
+     * The form fills the posted values after this hook runs, so the rules
+     * run on the model's own beforeSave event, after that fill.
+     *
+     * @param ColorEntry $obModel Entry being saved.
+     *
+     * @return void
+     */
+    public function formBeforeSave($obModel)
+    {
+        $obModel->bindEvent('model.beforeSave', function () use ($obModel): void {
+            (new ColorEntryOverrideService())->applyToEntry(
+                $obModel,
+                (string) $obModel->family_override,
+                (string) $obModel->hex_override,
+                (bool) $obModel->is_locked
+            );
+        });
     }
 
     /**

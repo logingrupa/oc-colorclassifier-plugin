@@ -1,0 +1,14 @@
+name: Family
+form: $/logingrupa/colorclassifier/models/colorfamily/fields.yaml
+modelClass: Logingrupa\ColorClassifier\Models\ColorFamily
+defaultRedirect: logingrupa/colorclassifier/colorfamilies
+
+create:
+    title: New family
+    redirect: logingrupa/colorclassifier/colorfamilies/update/:id
+    redirectClose: logingrupa/colorclassifier/colorfamilies
+
+update:
+    title: Edit family
+    redirect: logingrupa/colorclassifier/colorfamilies
+    redirectClose: logingrupa/colorclassifier/colorfamilies

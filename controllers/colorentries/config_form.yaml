@@ -1,0 +1,13 @@
+# ===================================
+#  Form Behavior Config
+# ===================================
+
+name: Color entry
+form: $/logingrupa/colorclassifier/models/colorentry/fields.yaml
+modelClass: Logingrupa\ColorClassifier\Models\ColorEntry
+defaultRedirect: logingrupa/colorclassifier/colorentries
+
+update:
+    title: Edit color entry
+    redirect: logingrupa/colorclassifier/colorentries/update/:id
+    redirectClose: logingrupa/colorclassifier/colorentries

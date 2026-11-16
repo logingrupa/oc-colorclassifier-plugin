@@ -75,6 +75,22 @@ class ColorFamily extends Model
     }
 
     /**
+     * The key and slug inputs are read-only once the family exists.
+     *
+     * @param object $obFields Form field definitions.
+     * @param string|null $sContext Form context.
+     *
+     * @return void
+     */
+    public function filterFields($obFields, $sContext = null)
+    {
+        if ($sContext === 'update') {
+            $obFields->family->disabled = true;
+            $obFields->slug->disabled = true;
+        }
+    }
+
+    /**
      * @return void
      */
     public function beforeValidate()

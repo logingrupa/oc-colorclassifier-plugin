@@ -6,8 +6,9 @@ title: Color Classifier
 list: $/logingrupa/colorclassifier/models/colorentry/columns.yaml
 modelClass: Logingrupa\ColorClassifier\Models\ColorEntry
 
-recordUrl: false
+recordUrl: logingrupa/colorclassifier/colorentries/update/:id
 noRecordsMessage: No color entries found. Click "Process All" to analyze product colors.
+filter: $/logingrupa/colorclassifier/models/colorentry/scopes.yaml
 
 recordsPerPage: 20
 perPageOptions: [10, 20, 50, 100, 200]

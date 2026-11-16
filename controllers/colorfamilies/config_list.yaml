@@ -1,0 +1,18 @@
+title: Families
+list: $/logingrupa/colorclassifier/models/colorfamily/columns.yaml
+modelClass: Logingrupa\ColorClassifier\Models\ColorFamily
+
+recordUrl: logingrupa/colorclassifier/colorfamilies/update/:id
+noRecordsMessage: No families found.
+
+recordsPerPage: 50
+showSetup: false
+showSorting: false
+showCheckboxes: false
+
+defaultSort:
+    column: sort_order
+    direction: asc
+
+toolbar:
+    buttons: list_toolbar

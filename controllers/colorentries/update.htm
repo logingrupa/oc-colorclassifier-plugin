@@ -1,0 +1,55 @@
+<?php Block::put('breadcrumb') ?>
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="<?= Backend::url('logingrupa/colorclassifier/colorentries') ?>">Color entries</a></li>
+        <li class="breadcrumb-item active" aria-current="page"><?= e($this->pageTitle) ?></li>
+    </ol>
+<?php Block::endPut() ?>
+
+<?php if (!$this->fatalError): ?>
+
+    <?= Form::open(['class' => 'd-flex flex-column h-100']) ?>
+
+        <div class="flex-grow-1">
+            <?= $this->formRender() ?>
+        </div>
+
+        <div class="form-buttons">
+            <div data-control="loader-container" class="control-loader-container">
+                <?= Ui::ajaxButton(
+                    label: 'Save',
+                    handler: 'onSave',
+                    primary: true,
+                    hotkey: ['ctrl+s', 'cmd+s'],
+                    dataRequestData: 'redirect: false',
+                    dataRequestMessage: 'Saving...'
+                ) ?>
+                <?= Ui::ajaxButton(
+                    label: 'Save & Close',
+                    handler: 'onSave',
+                    secondary: true,
+                    hotkey: ['ctrl+enter', 'cmd+enter'],
+                    dataRequestData: 'close: true',
+                    dataRequestMessage: 'Saving...'
+                ) ?>
+                <?= Ui::ajaxButton(
+                    label: 'Reset to auto',
+                    handler: 'onResetToAuto',
+                    secondary: true,
+                    dataRequestConfirm: 'Clear the overrides and unlock this entry?',
+                    dataRequestMessage: 'Resetting...'
+                ) ?>
+            </div>
+        </div>
+
+    <?= Form::close() ?>
+
+<?php else: ?>
+    <p class="flash-message static error"><?= e($this->fatalError) ?></p>
+    <p>
+        <?= Ui::button(
+            label: 'Return to Color entries',
+            href: Backend::url('logingrupa/colorclassifier/colorentries'),
+            secondary: true
+        ) ?>
+    </p>
+<?php endif ?>

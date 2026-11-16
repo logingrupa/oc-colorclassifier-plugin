@@ -28,6 +28,34 @@
     </button>
 
     <button
+        class="btn btn-default oc-icon-lock"
+        data-request="onLockSelected"
+        data-list-checked-trigger
+        data-list-checked-request
+        data-stripe-load-indicator>
+        Lock selected
+    </button>
+
+    <button
+        class="btn btn-default oc-icon-unlock"
+        data-request="onUnlockSelected"
+        data-list-checked-trigger
+        data-list-checked-request
+        data-stripe-load-indicator>
+        Unlock selected
+    </button>
+
+    <button
+        class="btn btn-default oc-icon-undo"
+        data-request="onResetSelected"
+        data-request-confirm="Clear the overrides and unlock the selected entries?"
+        data-list-checked-trigger
+        data-list-checked-request
+        data-stripe-load-indicator>
+        Reset selected to auto
+    </button>
+
+    <button
         class="btn btn-danger oc-icon-trash"
         data-request="onDeleteSelected"
         data-request-confirm="Delete selected entries?"

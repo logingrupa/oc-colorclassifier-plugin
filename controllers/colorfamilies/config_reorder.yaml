@@ -1,0 +1,3 @@
+title: Reorder families
+modelClass: Logingrupa\ColorClassifier\Models\ColorFamily
+nameFrom: family

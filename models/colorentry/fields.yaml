@@ -1,61 +1,27 @@
 fields:
-    offer_id:
-        label: Offer ID
-        type: text
-        span: left
+    classifier_result:
+        type: partial
+        path: field_classifier_result
+        span: full
 
-    product_name:
-        label: Product Name
-        type: text
+    family_override:
+        label: Family override
+        type: dropdown
+        emptyOption: Auto (classifier)
+        span: left
+        comment: Overrides the classifier family. Only active families can be chosen.
+
+    hex_override:
+        label: Hex override
+        type: colorpicker
+        allowEmpty: true
+        allowCustom: true
+        showAlpha: false
         span: right
+        comment: Replaces the exported hex, hue and lightness. Leave empty to keep the classifier color.
 
-    variation_name:
-        label: Variation Name
-        type: text
-        span: left
-
-    hex_color:
-        label: Hex Color
-        type: text
-        span: right
-        comment: Dominant color as #RRGGBB hex string
-
-    image_url:
-        label: Image URL
-        type: text
+    is_locked:
+        label: Locked
+        type: switch
         span: full
-
-    color_name:
-        label: Color Name
-        type: text
-        span: left
-
-    confidence_score:
-        label: Confidence Score
-        type: number
-        span: right
-        comment: Classification confidence (0.00 – 1.00)
-
-    oklch_values:
-        label: OKLCH Values
-        type: codeeditor
-        language: json
-        span: full
-
-    palette_colors:
-        label: Palette Colors
-        type: codeeditor
-        language: json
-        span: full
-
-    taxonomy:
-        label: Taxonomy
-        type: codeeditor
-        language: json
-        span: full
-
-    processed_at:
-        label: Processed At
-        type: datepicker
-        mode: datetime
-        span: left
+        comment: Process All skips locked offers. Saving an override locks the row.

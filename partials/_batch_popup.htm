@@ -27,6 +27,12 @@
                 <p class="help-block">Offers per request. Lower values are safer on slow servers.</p>
             </div>
         </div>
+        <?php if ($mode === 'all'): ?>
+            <div class="batch-popup-info-row">
+                <span class="batch-popup-info-label">Locked offers</span>
+                <strong class="batch-popup-info-value"><?= (int) $lockedOffers ?> (skipped, overrides kept)</strong>
+            </div>
+        <?php endif; ?>
         <?php if ((int) $totalOffers === 0): ?>
             <div class="callout callout-warning">
                 <p>No offers found in catalog. Check that CommerceMlParser is accessible.</p>

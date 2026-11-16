@@ -1,0 +1,31 @@
+<?php
+    $arEffective = \Logingrupa\ColorClassifier\Classes\EffectiveColorResolver::resolve($formModel);
+    $arTaxonomy = is_array($formModel->taxonomy) ? $formModel->taxonomy : [];
+    $flConfidence = $arEffective['auto_confidence'];
+?>
+<div class="d-flex align-items-center" style="gap:16px;flex-wrap:wrap;">
+    <?php if ($formModel->image_url): ?>
+        <img src="<?= e($formModel->image_url) ?>" alt="" loading="lazy"
+            style="width:96px;height:96px;object-fit:cover;border-radius:6px;border:1px solid rgba(0,0,0,.15);">
+    <?php endif ?>
+    <div>
+        <div><strong><?= e($formModel->product_name) ?></strong></div>
+        <div class="text-muted"><?= e($formModel->variation_name) ?></div>
+        <div style="margin-top:6px;">
+            <?php if ($arEffective['auto_hex']): ?>
+                <span style="display:inline-block;vertical-align:middle;width:20px;height:20px;border-radius:4px;border:1px solid rgba(0,0,0,.15);background:<?= e($arEffective['auto_hex']) ?>;"></span>
+                <code><?= e($arEffective['auto_hex']) ?></code>
+            <?php endif ?>
+            <span style="margin-left:8px;">Classifier family: <strong><?= e($arEffective['auto_family'] ?? '-') ?></strong></span>
+        </div>
+        <div class="text-muted" style="font-size:12px;margin-top:4px;">
+            Confidence <?= $flConfidence === null ? '-' : e(number_format($flConfidence, 2)) ?>
+            <?php if ($arEffective['lightness'] !== null && !$arEffective['hex_overridden']): ?>
+                &middot; oklch(<?= e(round((float) $arEffective['lightness'], 3)) ?> <?= e(round((float) $arEffective['chroma'], 3)) ?> <?= e(round((float) $arEffective['hue'], 1)) ?>)
+            <?php endif ?>
+            <?php if (!empty($arTaxonomy['undertone'])): ?>
+                &middot; <?= e($arTaxonomy['undertone']) ?>
+            <?php endif ?>
+        </div>
+    </div>
+</div>
