@@ -7,6 +7,7 @@ use Logingrupa\ColorClassifier\Classes\EtagRevalidation;
 use Logingrupa\ColorClassifier\Classes\FamilyExportBuilder;
 use Logingrupa\ColorClassifier\Classes\SheetExportBuilder;
 use Logingrupa\ColorClassifier\Models\ColorEntry;
+use Logingrupa\ColorClassifier\Models\ColorFamily;
 
 /*
  * Frontend route for the Color Lab page.
@@ -33,7 +34,7 @@ Route::get('/tools/color-lab', function () {
     $obPageView = view('logingrupa.colorclassifier::color-lab', [
         'colorLabEntriesJson'  => $arPagePayload['entriesJson'],
         'colorLabEntryCount'   => $arPagePayload['entryCount'],
-        'colorLabTaxonomyJson' => json_encode(ColorLabMapper::mapTaxonomy()),
+        'colorLabTaxonomyJson' => json_encode(ColorLabMapper::mapTaxonomy(ColorFamily::listFamilyNamesInOrder())),
         'colorLabPageTitle'    => 'Color Lab',
         'colorLabPlotlyCdn'    => 'https://cdn.plot.ly/plotly-2.35.2.min.js',
         'colorLabProductUrl'   => '/products/detail/:slug',
@@ -55,7 +56,7 @@ Route::get('/api/color-lab/data', function () {
         return [
             'last_updated_at' => (string) ColorEntry::max('updated_at'),
             'entries'         => $arColorData,
-            'taxonomy'        => ColorLabMapper::mapTaxonomy(),
+            'taxonomy'        => ColorLabMapper::mapTaxonomy(ColorFamily::listFamilyNamesInOrder()),
         ];
     });
 
@@ -67,13 +68,13 @@ Route::get('/api/color-lab/data', function () {
  *
  * Keyed by family slug (the STABLE URL contract) so an external store can
  * build localized color search and catalog filters: localized names,
- * per-locale synonyms and a canonical swatch hex per family. Payload key
- * ORDER is the pill order consumers render: the hand-curated taxonomy
- * order. Same ETag / If-None-Match conventions as offers.json.
+ * per-locale synonyms, a canonical swatch hex, sort_order and active per
+ * family. Payload key ORDER is the pill order consumers render: the
+ * Families page sort order. Same ETag / If-None-Match conventions as
+ * offers.json.
  */
 Route::get('/api/color-lab/families.json', function () {
-    $obFamilyExportBuilder = new FamilyExportBuilder();
-    $arPayload = $obFamilyExportBuilder->build();
+    $arPayload = (new FamilyExportBuilder())->build(ColorFamily::all());
 
     return EtagRevalidation::respond($arPayload, (string) request()->header('If-None-Match', ''));
 })->middleware('web');

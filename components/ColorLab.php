@@ -3,8 +3,9 @@
 namespace Logingrupa\ColorClassifier\Components;
 
 use Cms\Classes\ComponentBase;
-use Logingrupa\ColorClassifier\Classes\Taxonomy;
+use Logingrupa\ColorClassifier\Classes\ColorLabMapper;
 use Logingrupa\ColorClassifier\Models\ColorEntry;
+use Logingrupa\ColorClassifier\Models\ColorFamily;
 
 /**
  * ColorLab Component — OKLCH Color Space Explorer.
@@ -129,43 +130,22 @@ class ColorLab extends ComponentBase
      */
     private function buildColorEntriesArray(): array
     {
-        $arColorEntries = ColorEntry::all();
         $arColorData = [];
 
-        foreach ($arColorEntries as $obEntry) {
-            $arColorData[] = [
-                'id'               => $obEntry->id,
-                'productName'      => $obEntry->product_name,
-                'variationName'    => $obEntry->variation_name,
-                'hexColor'         => $obEntry->hex_color,
-                'colorName'        => $obEntry->color_name,
-                'oklch'            => $obEntry->oklch_values,
-                'paletteColors'    => $obEntry->palette_colors,
-                'taxonomy'         => $obEntry->taxonomy,
-                'confidenceScore'  => (float) $obEntry->confidence_score,
-                'imageUrl'         => $obEntry->image_url,
-                'detailUrl'        => $obEntry->detail_url,
-                'croppedImageData' => $obEntry->cropped_image_data,
-            ];
+        foreach (ColorEntry::all() as $obEntry) {
+            $arColorData[] = ColorLabMapper::mapEntry($obEntry, true);
         }
 
         return $arColorData;
     }
 
     /**
-     * Builds the taxonomy options array from Taxonomy constants.
+     * Builds the taxonomy options array, families listed from the table.
      *
      * @return array<string, array<int, string>>
      */
     private function buildTaxonomyArray(): array
     {
-        return [
-            'families'    => Taxonomy::$colorFamilies,
-            'undertones'  => Taxonomy::$undertones,
-            'depths'      => Taxonomy::$depths,
-            'saturations' => Taxonomy::$saturations,
-            'finishes'    => Taxonomy::$finishes,
-            'opacities'   => Taxonomy::$opacities,
-        ];
+        return ColorLabMapper::mapTaxonomy(ColorFamily::listFamilyNamesInOrder());
     }
 }

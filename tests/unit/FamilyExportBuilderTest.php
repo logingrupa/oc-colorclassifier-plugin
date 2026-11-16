@@ -1,120 +1,183 @@
 <?php
 
-use PHPUnit\Framework\TestCase;
 use Logingrupa\ColorClassifier\Classes\FamilyExportBuilder;
-use Logingrupa\ColorClassifier\Classes\Taxonomy;
+use PHPUnit\Framework\TestCase;
 
 /**
  * The families export is a contract for external stores: one entry per
- * taxonomy family, keyed by a stable slug, carrying localized names,
- * per-locale synonyms and a canonical hex. The version stamp must be
- * deterministic so ETag revalidation works.
- *
- * Payload key ORDER is part of the contract - consumers render family pills
- * in it: the hand-curated taxonomy order (owner decision 2026-08-15, after
- * rejecting confidence-derived family ordering).
+ * families-table row, keyed by a stable slug, carrying localized names,
+ * per-locale synonyms, a canonical hex, the Families page order and the
+ * active flag. The version stamp must be deterministic so ETag revalidation
+ * works. Payload key ORDER is the pill order consumers render.
  */
 class FamilyExportBuilderTest extends TestCase
 {
+    private const LOCALES = ['en', 'lv', 'ru', 'lt', 'nb-no'];
+
     /**
-     * @return string[] Export slugs in taxonomy order.
+     * Rows shaped like ColorFamily models, built from the seed file.
+     *
+     * @return array<int, object>
      */
-    private function taxonomyOrderSlugs(): array
+    private function makeSeedRows(): array
     {
-        return array_map(
-            static fn (array $arMeta): string => $arMeta['slug'],
-            array_values(Taxonomy::$familyMeta)
-        );
+        $arSeed = require dirname(__DIR__, 2) . '/updates/data/color_families_seed.php';
+        $arRows = [];
+
+        foreach ($arSeed as $iIndex => $arFamily) {
+            $arRows[] = (object) [
+                'id'         => $iIndex + 1,
+                'family'     => $arFamily['family'],
+                'slug'       => $arFamily['slug'],
+                'hex'        => $arFamily['hex'],
+                'names'      => $arFamily['names'],
+                'synonyms'   => $arFamily['synonyms'],
+                'sort_order' => $iIndex + 1,
+                'is_active'  => true,
+            ];
+        }
+
+        return $arRows;
     }
 
-    public function test_every_taxonomy_family_is_exported_with_full_metadata(): void
+    public function test_every_row_is_exported_with_full_metadata(): void
     {
-        $arPayload = (new FamilyExportBuilder())->build();
+        $arPayload = (new FamilyExportBuilder())->build($this->makeSeedRows());
 
-        $this->assertSame(count(Taxonomy::$colorFamilies), $arPayload['count']);
-        $this->assertCount($arPayload['count'], $arPayload['families']);
+        $this->assertSame(23, $arPayload['count']);
+        $this->assertCount(23, $arPayload['families']);
 
         foreach ($arPayload['families'] as $sSlug => $arFamily) {
-            $this->assertMatchesRegularExpression('/^[a-z0-9-]+$/', $sSlug, 'slug must be URL-stable');
-            $this->assertContains($arFamily['name'], Taxonomy::$colorFamilies, 'name must be an offers.json family');
+            $this->assertMatchesRegularExpression('/^[a-z0-9-]+$/', $sSlug);
             $this->assertMatchesRegularExpression('/^#[0-9a-f]{6}$/', $arFamily['hex']);
-            foreach (['en', 'lv', 'ru'] as $sLocale) {
-                $this->assertArrayHasKey($sLocale, $arFamily['names'], $sSlug . ' missing ' . $sLocale . ' name');
-                $this->assertNotSame('', $arFamily['names'][$sLocale]);
-                $this->assertArrayHasKey($sLocale, $arFamily['synonyms'], $sSlug . ' missing ' . $sLocale . ' synonym list');
+            $this->assertIsInt($arFamily['sort_order']);
+            $this->assertTrue($arFamily['active']);
+            foreach (self::LOCALES as $sLocale) {
+                $this->assertNotSame('', $arFamily['names'][$sLocale], $sSlug . ' ' . $sLocale);
+                $this->assertArrayHasKey($sLocale, $arFamily['synonyms'], $sSlug . ' ' . $sLocale);
             }
         }
-    }
 
-    public function test_meta_covers_exactly_the_taxonomy_family_list(): void
-    {
-        $this->assertSame(
-            Taxonomy::$colorFamilies,
-            array_keys(Taxonomy::$familyMeta),
-            'familyMeta must stay in lockstep with $colorFamilies - offers.json families join on these names'
-        );
+        $this->assertSame('Red', $arPayload['families']['red']['name']);
+        $this->assertSame('Raudona', $arPayload['families']['red']['names']['lt']);
     }
 
     public function test_version_stamp_is_deterministic(): void
     {
         $obBuilder = new FamilyExportBuilder();
+        $arRows = $this->makeSeedRows();
 
-        $this->assertSame($obBuilder->build()['version'], $obBuilder->build()['version']);
-        $this->assertMatchesRegularExpression('/^[0-9a-f]{40}$/', $obBuilder->build()['version']);
+        $this->assertSame($obBuilder->build($arRows)['version'], $obBuilder->build($arRows)['version']);
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{40}$/', $obBuilder->build($arRows)['version']);
     }
 
-    public function test_slugs_are_unique(): void
+    public function test_version_stamp_rotates_when_a_name_changes(): void
     {
-        $arSlugList = array_keys((new FamilyExportBuilder())->build()['families']);
+        $obBuilder = new FamilyExportBuilder();
+        $arRows = $this->makeSeedRows();
+        $sBaseVersion = $obBuilder->build($arRows)['version'];
 
-        $this->assertSame($arSlugList, array_unique($arSlugList));
+        $arRows[0]->names['lv'] = 'Sarkans!';
+
+        $this->assertNotSame($sBaseVersion, $obBuilder->build($arRows)['version']);
     }
 
-    public function test_export_order_is_the_curated_taxonomy_order(): void
+    public function test_shuffled_input_is_ordered_by_sort_order_then_id(): void
     {
-        $arSlugList = array_keys((new FamilyExportBuilder())->build()['families']);
+        $arRows = $this->makeSeedRows();
+        $arShuffled = array_reverse($arRows);
+
+        $arSlugList = array_keys((new FamilyExportBuilder())->build($arShuffled)['families']);
+
+        $this->assertSame(array_column($arRows, 'slug'), $arSlugList);
+    }
+
+    public function test_equal_sort_order_falls_back_to_id(): void
+    {
+        $arRows = $this->makeSeedRows();
+        $arRows[0]->sort_order = 5;
+        $arRows[0]->id = 900;
+        $arRows[4]->sort_order = 5;
+        $arRows[4]->id = 4;
+
+        $arSlugList = array_keys((new FamilyExportBuilder())->build($arRows)['families']);
+        $iYellowPosition = array_search('yellow', $arSlugList, true);
+        $iRedPosition = array_search('red', $arSlugList, true);
+
+        $this->assertLessThan($iRedPosition, $iYellowPosition);
+    }
+
+    public function test_inactive_rows_stay_in_the_export(): void
+    {
+        $arRows = $this->makeSeedRows();
+        $arRows[1]->is_active = false;
+
+        $arPayload = (new FamilyExportBuilder())->build($arRows);
+
+        $this->assertSame(23, $arPayload['count']);
+        $this->assertFalse($arPayload['families']['orange']['active']);
+        $this->assertTrue($arPayload['families']['red']['active']);
+    }
+
+    public function test_custom_family_is_exported(): void
+    {
+        $arRows = $this->makeSeedRows();
+        $arRows[] = (object) [
+            'id'         => 24,
+            'family'     => 'Nude Pink',
+            'slug'       => 'nude-pink',
+            'hex'        => '#e8b4b8',
+            'names'      => ['en' => 'Nude Pink'],
+            'synonyms'   => [],
+            'sort_order' => 24,
+            'is_active'  => true,
+        ];
+
+        $arPayload = (new FamilyExportBuilder())->build($arRows);
+
+        $this->assertSame(24, $arPayload['count']);
+        $this->assertSame('Nude Pink', $arPayload['families']['nude-pink']['name']);
+        $this->assertSame('nude-pink', array_key_last($arPayload['families']));
+    }
+
+    public function test_array_rows_work_like_object_rows(): void
+    {
+        $arObjectRows = $this->makeSeedRows();
+        $arArrayRows = array_map(static fn (object $obRow): array => (array) $obRow, $arObjectRows);
 
         $this->assertSame(
-            $this->taxonomyOrderSlugs(),
-            $arSlugList,
-            'consumers render pills in payload order - it must be the curated taxonomy order'
+            (new FamilyExportBuilder())->build($arObjectRows),
+            (new FamilyExportBuilder())->build($arArrayRows)
         );
     }
 
-    /**
-     * $familyMeta is hand-authored: a family with a missing slug must throw
-     * naming the family, never be silently dropped from the export.
-     * Taxonomy::$familyMeta is a public static, so the test mutates it and
-     * restores it in finally.
-     */
     public function test_missing_slug_throws_naming_the_family(): void
     {
-        $arOriginalMeta = Taxonomy::$familyMeta;
-        Taxonomy::$familyMeta['Red']['slug'] = '';
+        $arRows = $this->makeSeedRows();
+        $arRows[0]->slug = '';
 
-        try {
-            $this->expectException(\RuntimeException::class);
-            $this->expectExceptionMessage('familyMeta["Red"]');
-            (new FamilyExportBuilder())->build();
-        } finally {
-            Taxonomy::$familyMeta = $arOriginalMeta;
-        }
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('"Red"');
+        (new FamilyExportBuilder())->build($arRows);
     }
 
-    /**
-     * Two families sharing a slug must throw naming the second family.
-     */
-    public function test_duplicate_slug_throws_naming_the_family(): void
+    public function test_missing_hex_throws_naming_the_family(): void
     {
-        $arOriginalMeta = Taxonomy::$familyMeta;
-        Taxonomy::$familyMeta['Pink']['slug'] = Taxonomy::$familyMeta['Red']['slug'];
+        $arRows = $this->makeSeedRows();
+        $arRows[1]->hex = '';
 
-        try {
-            $this->expectException(\RuntimeException::class);
-            $this->expectExceptionMessage('familyMeta["Pink"] duplicates slug "red"');
-            (new FamilyExportBuilder())->build();
-        } finally {
-            Taxonomy::$familyMeta = $arOriginalMeta;
-        }
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('"Orange"');
+        (new FamilyExportBuilder())->build($arRows);
+    }
+
+    public function test_duplicate_slug_throws_naming_the_family_and_slug(): void
+    {
+        $arRows = $this->makeSeedRows();
+        $arRows[15]->slug = 'red';
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('"Pink" duplicates slug "red"');
+        (new FamilyExportBuilder())->build($arRows);
     }
 }

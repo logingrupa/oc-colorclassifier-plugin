@@ -14,7 +14,8 @@
  *   5. ColorNamer      — depends on ColorConverter (hexToRgbArray)
  *   6. ColorExtractor  — reads from Settings with fallback constants
  *   7. ColorClassifier — reads from Settings with fallback constants
- *   8. SheetExportBuilder - no dependencies
+ *   8. EffectiveColorResolver - depends on ColorConverter
+ *   9. OverrideNormalizer, SheetExportBuilder, FamilyExportBuilder - no dependencies
  */
 
 $pluginRootDirectory = dirname(__DIR__);
@@ -23,6 +24,8 @@ require_once $pluginRootDirectory . '/tests/stubs/SettingModelStub.php';
 require_once $pluginRootDirectory . '/models/Settings.php';
 require_once $pluginRootDirectory . '/classes/Taxonomy.php';
 require_once $pluginRootDirectory . '/classes/ColorConverter.php';
+require_once $pluginRootDirectory . '/classes/EffectiveColorResolver.php';
+require_once $pluginRootDirectory . '/classes/OverrideNormalizer.php';
 require_once $pluginRootDirectory . '/classes/ColorNamer.php';
 require_once $pluginRootDirectory . '/classes/ColorExtractor.php';
 require_once $pluginRootDirectory . '/classes/ColorClassifier.php';

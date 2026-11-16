@@ -4,6 +4,7 @@ namespace Logingrupa\ColorClassifier\Models;
 
 use Model;
 use Logingrupa\ColorClassifier\Classes\ColorLabPayloadCache;
+use Logingrupa\ColorClassifier\Classes\EffectiveColorResolver;
 
 /**
  * ColorEntry Model — stores extracted and classified color data for each product offer.
@@ -38,6 +39,9 @@ class ColorEntry extends Model
         'color_name',
         'taxonomy',
         'confidence_score',
+        'family_override',
+        'hex_override',
+        'is_locked',
         'processed_at',
         'created_at',
         'updated_at',
@@ -61,6 +65,9 @@ class ColorEntry extends Model
         'color_name',
         'taxonomy',
         'confidence_score',
+        'family_override',
+        'hex_override',
+        'is_locked',
         'processed_at',
     ];
 
@@ -78,6 +85,7 @@ class ColorEntry extends Model
         'taxonomy'         => 'array',
         'processed_at'     => 'datetime',
         'confidence_score' => 'decimal:2',
+        'is_locked'        => 'boolean',
     ];
 
     /**
@@ -89,6 +97,61 @@ class ColorEntry extends Model
     public function scopeWithoutImageData($obQuery)
     {
         return $obQuery->select(self::COLUMNS_WITHOUT_IMAGE_DATA);
+    }
+
+    /**
+     * Rows Process All skips.
+     *
+     * @param \October\Rain\Database\Builder $obQuery
+     * @return \October\Rain\Database\Builder
+     */
+    public function scopeLocked($obQuery)
+    {
+        return $obQuery->where('is_locked', true);
+    }
+
+    /**
+     * Rows with a family or hex override.
+     *
+     * @param \October\Rain\Database\Builder $obQuery
+     * @return \October\Rain\Database\Builder
+     */
+    public function scopeManual($obQuery)
+    {
+        return $obQuery->where(function ($obNested) {
+            $obNested->whereNotNull('family_override')->orWhereNotNull('hex_override');
+        });
+    }
+
+    /**
+     * Rows whose effective confidence is below the review threshold. A family
+     * override reports confidence 1.0, so those rows never match.
+     *
+     * @param \October\Rain\Database\Builder $obQuery
+     * @return \October\Rain\Database\Builder
+     */
+    public function scopeLowConfidence($obQuery)
+    {
+        return $obQuery
+            ->whereNull('family_override')
+            ->where('confidence_score', '<', EffectiveColorResolver::LOW_CONFIDENCE_THRESHOLD);
+    }
+
+    /**
+     * Rows whose effective family is one of the given family keys.
+     *
+     * @param \October\Rain\Database\Builder $obQuery
+     * @param array<int, string> $arFamilyNames Family keys.
+     * @return \October\Rain\Database\Builder
+     */
+    public function scopeEffectiveFamilyIn($obQuery, array $arFamilyNames)
+    {
+        return $obQuery->where(function ($obNested) use ($arFamilyNames) {
+            $obNested->whereIn('family_override', $arFamilyNames)
+                ->orWhere(function ($obAuto) use ($arFamilyNames) {
+                    $obAuto->whereNull('family_override')->whereIn('taxonomy->family', $arFamilyNames);
+                });
+        });
     }
 
     /**

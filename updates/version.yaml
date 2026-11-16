@@ -23,3 +23,8 @@
     - "offers.json version stamp now hashes the encoded exported rows, so payload shape changes (like the 1.5.0 confidence field) rotate the ETag instead of letting consumers 304 forever on a stale body; the stamp rotates once on deploy. Shared EtagRevalidation helper deduplicates the route cache blocks and matches If-None-Match tolerantly (W/ prefix, ETag lists, nginx -gzip suffix). FamilyExportBuilder now throws on a malformed or duplicate curated family slug instead of silently dropping it"
 1.5.3:
     - "Color Lab memory diet: /api/color-lab/data, offers.json and the backend CSV export select every column except the cropped_image_data base64 blobs (about 14 KB per row) they never render. All three Color Lab payloads are cached via ColorLabPayloadCache and flushed whenever a ColorEntry saves or deletes, so an offers.json If-None-Match revalidation costs a cache read instead of a table load. /tools/color-lab responds with Cache-Control public max-age=3600 and serves its entries JSON pre-encoded from the cache"
+1.6.0:
+    - "Color families table (23 seeded families, lt and nb-no names added) edited on a Families page, per-offer family and hex override with a lock that Process All skips, effective values in offers.json, families.json and the Color Lab, Family board, and a Color entries edit form with lock filters"
+    - create_color_families_table.php
+    - seed_color_families_table.php
+    - add_override_columns_to_color_entries.php

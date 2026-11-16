@@ -42,7 +42,8 @@ class BatchProcessor
     }
 
     /**
-     * Process all offers — re-process even those already in the database.
+     * Process all offers — re-process even those already in the database,
+     * except locked rows, which count as skipped.
      *
      * Clears the offer list cache before fetching to ensure fresh data.
      * Each offer runs through the full pipeline and its ColorEntry is
@@ -56,7 +57,7 @@ class BatchProcessor
 
         $offersWithImages = $this->fetchAndCacheOfferList();
 
-        return $this->processBatch($offersWithImages, []);
+        return $this->processBatch($offersWithImages, $this->fetchLockedOfferIds());
     }
 
     /**
@@ -104,7 +105,7 @@ class BatchProcessor
      *
      * @param int    $iOffset    Zero-based index into the cached offer list.
      * @param int    $iBatchSize Number of offers to process in this chunk.
-     * @param string $sMode      'all' or 'new'.
+     * @param string $sMode      'all' (skips locked rows) or 'new' (skips existing rows).
      *
      * @return array{processed: int, skipped: int, failed: int, total: int, done: bool}
      */
@@ -113,7 +114,7 @@ class BatchProcessor
         $arOffersWithImages = $this->fetchAndCacheOfferList();
         $arChunk            = array_slice($arOffersWithImages, $iOffset, $iBatchSize);
 
-        $arExistingOfferIdMap = ($sMode === 'new') ? $this->fetchExistingOfferIds() : [];
+        $arExistingOfferIdMap = ($sMode === 'new') ? $this->fetchExistingOfferIds() : $this->fetchLockedOfferIds();
 
         $arResult         = $this->processBatch($arChunk, $arExistingOfferIdMap);
         $arResult['done'] = ($iOffset + $iBatchSize) >= count($arOffersWithImages);
@@ -159,6 +160,22 @@ class BatchProcessor
         });
 
         return $existingOfferIdMap;
+    }
+
+    /**
+     * Fetch the offer IDs whose ColorEntry is locked, so Process All skips them.
+     *
+     * @return array<string, true> Lookup map of offer_id => true.
+     */
+    private function fetchLockedOfferIds(): array
+    {
+        $arLockedOfferIdMap = [];
+
+        foreach (ColorEntry::locked()->pluck('offer_id') as $sOfferId) {
+            $arLockedOfferIdMap[$sOfferId] = true;
+        }
+
+        return $arLockedOfferIdMap;
     }
 
     /**

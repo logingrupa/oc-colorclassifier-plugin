@@ -11,9 +11,10 @@ namespace Logingrupa\ColorClassifier\Classes;
  *
  * Exported shape per offer: family, hex, hue, lightness, confidence (the
  * classification certainty consumers order shades within a family by;
- * null when the row has none). Rows without a non-empty hex_color, without
- * a resolved taxonomy family, or with malformed taxonomy / oklch_values are
- * skipped so a bad row can never break the export.
+ * null when the row has none) and manual (true when an admin overrode the
+ * family or hex). Values are the EFFECTIVE ones from EffectiveColorResolver.
+ * Rows without an effective hex or family, or without a numeric hue and
+ * lightness, are skipped so a bad row can never break the export.
  *
  * @package Logingrupa\ColorClassifier\Classes
  */
@@ -34,7 +35,7 @@ class SheetExportBuilder
      *
      * @param iterable<int, object> $arColorEntries ColorEntry rows.
      *
-     * @return array{version: string, last_updated_at: string, count: int, offers: array<string, array{family: string, hex: string, hue: float, lightness: float, confidence: float|null}>}
+     * @return array{version: string, last_updated_at: string, count: int, offers: array<string, array{family: string, hex: string, hue: float, lightness: float, confidence: float|null, manual: bool}>}
      */
     public function build(iterable $arColorEntries): array
     {
@@ -48,7 +49,7 @@ class SheetExportBuilder
                 continue;
             }
 
-            $sOfferKey = $this->resolveOfferKey((string) $obEntry->offer_id);
+            $sOfferKey = self::resolveOfferKey((string) $obEntry->offer_id);
 
             if ($sOfferKey === '' || array_key_exists($sOfferKey, $arOffers)) {
                 continue;
@@ -73,54 +74,39 @@ class SheetExportBuilder
     /**
      * Map a single ColorEntry row to its compact offer data, or null to skip.
      *
-     * Skips the row when offer_id or hex_color is empty, taxonomy or
-     * oklch_values is not an array, the taxonomy family is unresolved,
-     * or hue / lightness is not numeric.
+     * Skips the row when offer_id, the effective hex or the effective family
+     * is empty, or when the effective hue / lightness is not numeric.
      *
      * @param object $obEntry ColorEntry row.
      *
-     * @return array{family: string, hex: string, hue: float, lightness: float, confidence: float|null}|null
+     * @return array{family: string, hex: string, hue: float, lightness: float, confidence: float|null, manual: bool}|null
      */
     private function buildOfferData(object $obEntry): ?array
     {
-        $sOfferId  = (string) ($obEntry->offer_id ?? '');
-        $sHexColor = (string) ($obEntry->hex_color ?? '');
-
-        if ($sOfferId === '' || $sHexColor === '') {
+        if ((string) ($obEntry->offer_id ?? '') === '') {
             return null;
         }
 
-        $arTaxonomy    = $obEntry->taxonomy ?? null;
-        $arOklchValues = $obEntry->oklch_values ?? null;
+        $arEffective = EffectiveColorResolver::resolve($obEntry);
 
-        if (!is_array($arTaxonomy) || !is_array($arOklchValues)) {
+        if ($arEffective['hex'] === null || $arEffective['family'] === null) {
             return null;
         }
 
-        $sFamily = $arTaxonomy['family'] ?? null;
-
-        if (!is_string($sFamily) || $sFamily === '') {
+        if (!is_numeric($arEffective['hue']) || !is_numeric($arEffective['lightness'])) {
             return null;
         }
 
-        $flHue       = $arOklchValues['hue'] ?? null;
-        $flLightness = $arOklchValues['lightness'] ?? null;
-
-        if (!is_numeric($flHue) || !is_numeric($flLightness)) {
-            return null;
-        }
-
-        // Eloquent's decimal cast hands over strings; a missing or malformed
-        // score exports as null rather than skipping the row - the color data
-        // is still good, only the in-family ordering signal is absent
-        $mConfidenceRaw = $obEntry->confidence_score ?? null;
-
+        // A missing or malformed score exports as null rather than skipping the
+        // row - the color data is still good, only the in-family ordering
+        // signal is absent
         return [
-            'family'     => $sFamily,
-            'hex'        => $sHexColor,
-            'hue'        => (float) $flHue,
-            'lightness'  => (float) $flLightness,
-            'confidence' => is_numeric($mConfidenceRaw) ? (float) $mConfidenceRaw : null,
+            'family'     => $arEffective['family'],
+            'hex'        => $arEffective['hex'],
+            'hue'        => (float) $arEffective['hue'],
+            'lightness'  => (float) $arEffective['lightness'],
+            'confidence' => $arEffective['confidence'],
+            'manual'     => $arEffective['manual'],
         ];
     }
 
@@ -135,7 +121,7 @@ class SheetExportBuilder
      *
      * @return string
      */
-    private function resolveOfferKey(string $sOfferId): string
+    public static function resolveOfferKey(string $sOfferId): string
     {
         $iLastHashPosition = strrpos($sOfferId, '#');
 
@@ -154,7 +140,7 @@ class SheetExportBuilder
      * shape, key set - never only on updated_at / count like before (1.5.2).
      *
      * @param string $sLatestUpdatedAt Latest updated_at among exported rows.
-     * @param array<string, array{family: string, hex: string, hue: float, lightness: float, confidence: float|null}> $arOffers Exported rows keyed by offer UUID.
+     * @param array<string, array{family: string, hex: string, hue: float, lightness: float, confidence: float|null, manual: bool}> $arOffers Exported rows keyed by offer UUID.
      *
      * @return string
      */

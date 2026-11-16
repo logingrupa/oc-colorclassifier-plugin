@@ -51,6 +51,9 @@ class SheetExportBuilderTest extends TestCase
                 'lightness' => 0.64,
             ],
             'confidence_score' => '0.85',
+            'family_override'  => null,
+            'hex_override'     => null,
+            'is_locked'        => false,
             'updated_at'   => '2026-03-27 08:56:23',
         ], $overrides);
     }
@@ -80,10 +83,58 @@ class SheetExportBuilderTest extends TestCase
                 'lightness'  => 0.64,
                 // decimal:2 cast strings become floats on export
                 'confidence' => 0.85,
+                'manual'     => false,
             ],
             $payload['offers']['offer-1']
         );
         $this->assertSame('Nude', $payload['offers']['offer-2']['family']);
+    }
+
+    /**
+     * A family override exports as the effective family with full confidence.
+     */
+    public function test_family_override_exports_effective_family_and_manual_flag(): void
+    {
+        $payload = $this->exportBuilder->build([
+            $this->makeColorEntryRow(['family_override' => 'Rose', 'is_locked' => true]),
+        ]);
+
+        $this->assertSame('Rose', $payload['offers']['offer-1']['family']);
+        $this->assertSame(1.0, $payload['offers']['offer-1']['confidence']);
+        $this->assertTrue($payload['offers']['offer-1']['manual']);
+        $this->assertSame('#EC407A', $payload['offers']['offer-1']['hex']);
+    }
+
+    /**
+     * A hex override exports the override hex with hue and lightness recomputed.
+     */
+    public function test_hex_override_exports_override_hex_and_recomputed_oklch(): void
+    {
+        $arExpectedOklch = \Logingrupa\ColorClassifier\Classes\ColorConverter::rgbToOklch(0x12, 0x34, 0x56);
+
+        $payload = $this->exportBuilder->build([
+            $this->makeColorEntryRow(['hex_override' => '#123456']),
+        ]);
+
+        $this->assertSame('#123456', $payload['offers']['offer-1']['hex']);
+        $this->assertSame($arExpectedOklch['hue'], $payload['offers']['offer-1']['hue']);
+        $this->assertSame($arExpectedOklch['lightness'], $payload['offers']['offer-1']['lightness']);
+        $this->assertSame('Pink', $payload['offers']['offer-1']['family']);
+        $this->assertSame(0.85, $payload['offers']['offer-1']['confidence']);
+        $this->assertTrue($payload['offers']['offer-1']['manual']);
+    }
+
+    /**
+     * Manual is the last key after confidence, so consumers read a stable shape.
+     */
+    public function test_manual_key_follows_confidence(): void
+    {
+        $payload = $this->exportBuilder->build([$this->makeColorEntryRow()]);
+
+        $this->assertSame(
+            ['family', 'hex', 'hue', 'lightness', 'confidence', 'manual'],
+            array_keys($payload['offers']['offer-1'])
+        );
     }
 
     /**

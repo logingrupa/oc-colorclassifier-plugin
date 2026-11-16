@@ -3,67 +3,62 @@
 namespace Logingrupa\ColorClassifier\Classes;
 
 /**
- * FamilyExportBuilder - maps the family taxonomy metadata to the compact
- * families export.
+ * FamilyExportBuilder - maps color_families rows to the compact families export.
  *
- * Sole responsibility: turn Taxonomy::$familyMeta into the payload consumed
- * server-to-server by an external store (join/URL key: family slug). No
- * routing, no HTTP concerns, no caching - the same split SheetExportBuilder
- * keeps for offers.json.
+ * Sole responsibility: turn the rows the route queries into the payload
+ * consumed server-to-server by an external store (join/URL key: family slug).
+ * No routing, no HTTP concerns, no caching, no database access - the same
+ * split SheetExportBuilder keeps for offers.json.
  *
  * Exported shape per family (keyed by slug): name (the family key used by
- * offers.json), localized display names, per-locale synonym lists, canonical
- * hex. Taxonomy::$familyMeta is hand-authored compile-time data, so a family
- * with a missing slug / hex or a duplicate slug throws instead of being
- * silently dropped from production (fail fast on authored data).
+ * offers.json), localized display names, per-locale synonym lists, hex,
+ * sort_order and active. Inactive families stay in the export with
+ * active false, because consumers delete shop rows whose slug disappears.
  *
  * Export ORDER is a contract: consumers render family pills in payload key
- * order, which is the hand-curated Taxonomy::$familyMeta order (spectral:
- * Red through Black). The owner rejected confidence-derived ordering for
- * families (1.5.1) - reorder by editing the taxonomy, never by data.
+ * order, which is the Families page sort order (sort_order, then id).
  *
  * @package Logingrupa\ColorClassifier\Classes
  */
 class FamilyExportBuilder
 {
     /**
-     * Build the families export payload from the taxonomy metadata.
+     * Build the families export payload.
      *
      * The version stamp is derived from the exported payload itself, so it
-     * changes exactly when the metadata changes (the family ORDER is the
-     * metadata key order) and ETag revalidation stays a 304 otherwise.
+     * changes exactly when a name, synonym, hex, order or active flag changes
+     * and ETag revalidation stays a 304 otherwise.
      *
-     * @return array{version: string, count: int, families: array<string, array{name: string, names: array<string, string>, synonyms: array<string, array<int, string>>, hex: string}>}
+     * @param iterable<int, object|array<string, mixed>> $arFamilyRows color_families rows (models, objects or arrays).
      *
-     * @throws \RuntimeException When a curated family has a missing slug / hex or a duplicate slug.
+     * @return array{version: string, count: int, families: array<string, array{name: string, names: array<string, string>, synonyms: array<string, array<int, string>>, hex: string, sort_order: int, active: bool}>}
+     *
+     * @throws \RuntimeException When a family has a missing slug or hex, or a slug appears twice.
      */
-    public function build(): array
+    public function build(iterable $arFamilyRows): array
     {
         $arFamilies = [];
 
-        foreach (Taxonomy::$familyMeta as $sFamilyName => $arMeta) {
-            $sSlug = (string) ($arMeta['slug'] ?? '');
-            $sHex = (string) ($arMeta['hex'] ?? '');
+        foreach ($this->sortRows($arFamilyRows) as $arRow) {
+            $sFamilyName = (string) $arRow['family'];
+            $sSlug = (string) $arRow['slug'];
+            $sHex = (string) $arRow['hex'];
 
-            // $familyMeta is hand-authored: a typo must fail loudly, never
-            // silently drop a family from the production export
             if ($sSlug === '' || $sHex === '') {
-                throw new \RuntimeException(
-                    'Taxonomy::$familyMeta["' . $sFamilyName . '"] is missing a slug or hex'
-                );
+                throw new \RuntimeException('Family "' . $sFamilyName . '" is missing a slug or hex');
             }
 
             if (array_key_exists($sSlug, $arFamilies)) {
-                throw new \RuntimeException(
-                    'Taxonomy::$familyMeta["' . $sFamilyName . '"] duplicates slug "' . $sSlug . '"'
-                );
+                throw new \RuntimeException('Family "' . $sFamilyName . '" duplicates slug "' . $sSlug . '"');
             }
 
             $arFamilies[$sSlug] = [
-                'name'     => $sFamilyName,
-                'names'    => (array) ($arMeta['names'] ?? []),
-                'synonyms' => (array) ($arMeta['synonyms'] ?? []),
-                'hex'      => $sHex,
+                'name'       => $sFamilyName,
+                'names'      => (array) $arRow['names'],
+                'synonyms'   => (array) $arRow['synonyms'],
+                'hex'        => $sHex,
+                'sort_order' => (int) $arRow['sort_order'],
+                'active'     => (bool) $arRow['is_active'],
             ];
         }
 
@@ -72,5 +67,46 @@ class FamilyExportBuilder
             'count'    => count($arFamilies),
             'families' => $arFamilies,
         ];
+    }
+
+    /**
+     * Read every row into one array shape and order it by sort_order, then id.
+     *
+     * @param iterable<int, object|array<string, mixed>> $arFamilyRows
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function sortRows(iterable $arFamilyRows): array
+    {
+        $arRows = [];
+
+        foreach ($arFamilyRows as $mFamilyRow) {
+            $arRows[] = [
+                'id'         => $this->readField($mFamilyRow, 'id'),
+                'family'     => $this->readField($mFamilyRow, 'family'),
+                'slug'       => $this->readField($mFamilyRow, 'slug'),
+                'hex'        => $this->readField($mFamilyRow, 'hex'),
+                'names'      => $this->readField($mFamilyRow, 'names'),
+                'synonyms'   => $this->readField($mFamilyRow, 'synonyms'),
+                'sort_order' => $this->readField($mFamilyRow, 'sort_order'),
+                'is_active'  => $this->readField($mFamilyRow, 'is_active'),
+            ];
+        }
+
+        usort($arRows, static fn (array $arLeft, array $arRight): int => [(int) $arLeft['sort_order'], (int) $arLeft['id']]
+            <=> [(int) $arRight['sort_order'], (int) $arRight['id']]);
+
+        return $arRows;
+    }
+
+    /**
+     * @param object|array<string, mixed> $mFamilyRow Model, object or array row.
+     * @param string $sField Column name.
+     *
+     * @return mixed
+     */
+    private function readField(object|array $mFamilyRow, string $sField): mixed
+    {
+        return is_array($mFamilyRow) ? ($mFamilyRow[$sField] ?? null) : ($mFamilyRow->{$sField} ?? null);
     }
 }
