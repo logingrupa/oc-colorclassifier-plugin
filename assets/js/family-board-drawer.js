@@ -15,12 +15,16 @@
 
     var escapeHtml = namespace.escapeHtml
     var backgroundStyle = namespace.backgroundStyle
+    var swatchStyle = namespace.swatchStyle
 
     /**
      * @typedef {Object} DrawerHandlers
      * @property {function(number, number, number): Promise<string|null>} sampleHex Offer id, relative x, relative y; resolves the hex or null on failure.
      * @property {function({id: number, family: string, hex: string, locked: boolean}): Promise<boolean>} save Resolves true when saved.
      * @property {function(number): Promise<boolean>} reset Offer id; resolves true when reset.
+     * @property {function(number, string): Promise<boolean>} addMembership Offer id and family key; resolves true when added.
+     * @property {function(number, string): Promise<boolean>} removeMembership Offer id and family key; resolves true when removed.
+     * @property {function(number, string): Promise<boolean>} resetMembership Offer id and collection key; resolves true when 1C decides again.
      */
 
     /**
@@ -94,7 +98,7 @@
          * @returns {import('./family-board-dropdown.js').DropdownOption[]}
          */
         function buildFamilyChoices() {
-            var active = store.getActiveFamilies()
+            var active = store.getActiveColors()
             var choices = namespace.buildFamilyDropdownOptions(active)
             var isListed = active.some(function (family) {
                 return family.family === card.family
@@ -109,6 +113,86 @@
                 })
             }
             return choices
+        }
+
+        /**
+         * @param {string} familyName
+         * @returns {string} A color dot for the family, gradient or hex.
+         */
+        function renderFamilyDot(familyName) {
+            return '<span class="fb-dot fb-dot--small"' + swatchStyle(store.findFamily(familyName)) + '></span>'
+        }
+
+        /**
+         * @param {string} attribute Data attribute that names the action.
+         * @param {string} familyName
+         * @param {string} label
+         * @param {string} buttonClass
+         * @returns {string}
+         */
+        function renderMembershipButton(attribute, familyName, label, buttonClass) {
+            return '<button type="button" class="' + buttonClass + '" ' + attribute + '="' + escapeHtml(familyName) + '">' + label + '</button>'
+        }
+
+        /**
+         * One chip per effective extra color or collection, plus one muted chip per 1C tag a hand edit removed.
+         *
+         * @returns {string}
+         */
+        function renderAlsoInChips() {
+            var memberChips = card.extraColors.concat(card.collections).map(function (familyName) {
+                var resetButton = card.collectionStates[familyName] === 'added'
+                    ? renderMembershipButton('data-fb-also-reset', familyName, 'Reset to 1C', 'fb-tag fb-tag--action')
+                    : ''
+                return '<span class="fb-also-chip">' + renderFamilyDot(familyName) + escapeHtml(familyName) + resetButton
+                    + '<button type="button" class="fb-also-remove" data-fb-also-remove="' + escapeHtml(familyName) + '" aria-label="Remove from ' + escapeHtml(familyName) + '">&times;</button></span>'
+            })
+            var removedChips = Object.keys(card.collectionStates).filter(function (familyName) {
+                return card.collectionStates[familyName] === 'removed'
+            }).map(function (familyName) {
+                return '<span class="fb-also-chip is-removed">' + renderFamilyDot(familyName) + escapeHtml(familyName)
+                    + ' <small>1C tag removed by hand</small> '
+                    + renderMembershipButton('data-fb-also-reset', familyName, 'Reset to 1C', 'fb-tag fb-tag--action') + '</span>'
+            })
+            return memberChips.concat(removedChips).join('')
+        }
+
+        /**
+         * @returns {string} Add control with the colors and collections the offer is not in yet, empty when none is left.
+         */
+        function renderAlsoInAdd() {
+            var memberKeys = [card.family].concat(card.extraColors, card.collections)
+            var choices = store.getDropFamilies().filter(function (family) {
+                return memberKeys.indexOf(family.family) === -1
+            })
+            if (choices.length === 0) {
+                return ''
+            }
+            return '<span class="fb-also-add"><select class="form-control" data-fb-also-select aria-label="Add to a color or collection">'
+                + choices.map(function (family) {
+                    return '<option value="' + escapeHtml(family.family) + '">' + escapeHtml(family.family) + (family.kind === 'collection' ? ' (collection)' : '') + '</option>'
+                }).join('')
+                + '</select><button type="button" class="btn btn-default" data-fb-also-add>Add</button></span>'
+        }
+
+        function renderAlsoIn() {
+            drawer.querySelector('[data-fb-drawer-also]').innerHTML = renderAlsoInChips() + renderAlsoInAdd()
+        }
+
+        /**
+         * Runs a membership request for the open offer, then redraws only the Also in row so unsaved drawer edits stay.
+         *
+         * @param {function(number, string): Promise<boolean>} send
+         * @param {string} familyName
+         */
+        function changeMembership(send, familyName) {
+            var changedCardId = card.id
+            send(changedCardId, familyName).then(function (done) {
+                if (done && card !== null && card.id === changedCardId) {
+                    card = store.getCard(changedCardId)
+                    renderAlsoIn()
+                }
+            })
         }
 
         function render() {
@@ -126,6 +210,7 @@
                 + '<code data-fb-pick-hex></code><span class="fb-tag" data-fb-picked hidden>picked</span></div>'
                 + '<div class="fb-row"><span class="fb-row-label">Palette</span><div class="fb-pal fb-pal--pick">' + paletteButtons + '</div></div>'
                 + '<div class="fb-row"><span class="fb-row-label">Family</span><div data-fb-drawer-family></div></div>'
+                + '<div class="fb-row fb-row--also"><span class="fb-row-label">Also in</span><div class="fb-also-in" data-fb-drawer-also></div></div>'
                 + '<div class="fb-row"><span class="fb-row-label">Lock</span>'
                 + '<label class="fb-switch"><input type="checkbox" data-fb-drawer-lock' + (card.locked ? ' checked' : '') + '> Process All skips this offer</label></div>'
                 + '<div class="fb-compare">'
@@ -142,6 +227,7 @@
                 value: card.family || '',
                 onChange: syncLockSwitch
             })
+            renderAlsoIn()
             syncPickedHex()
         }
 
@@ -193,6 +279,12 @@
                 close()
             } else if (target.closest('[data-fb-pick-image]')) {
                 pickFromImage(target.closest('[data-fb-pick-image]'), event)
+            } else if (target.closest('[data-fb-also-remove]')) {
+                changeMembership(handlers.removeMembership, target.closest('[data-fb-also-remove]').getAttribute('data-fb-also-remove'))
+            } else if (target.closest('[data-fb-also-reset]')) {
+                changeMembership(handlers.resetMembership, target.closest('[data-fb-also-reset]').getAttribute('data-fb-also-reset'))
+            } else if (target.closest('[data-fb-also-add]')) {
+                changeMembership(handlers.addMembership, drawer.querySelector('[data-fb-also-select]').value)
             } else if (target.closest('[data-hex]')) {
                 pendingHex = target.closest('[data-hex]').getAttribute('data-hex')
                 syncPickedHex()

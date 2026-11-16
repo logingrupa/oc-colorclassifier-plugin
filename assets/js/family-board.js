@@ -86,6 +86,86 @@
             return changeEntries('onMoveEntries', ids, { family: family })
         }
 
+        function addMemberships(ids, family) {
+            return changeEntries('onAddMemberships', ids, { family: family })
+        }
+
+        function removeMemberships(ids, family) {
+            return changeEntries('onRemoveMemberships', ids, { family: family })
+        }
+
+        function resetMemberships(ids, family) {
+            return changeEntries('onResetMemberships', ids, { family: family })
+        }
+
+        /**
+         * A membership change from the drawer leaves the board selection alone.
+         *
+         * @param {string} handler
+         * @param {number} id
+         * @param {string} family
+         * @returns {Promise<boolean>}
+         */
+        function changeMembershipFromDrawer(handler, id, family) {
+            return sendRequest(handler, { ids: [id], family: family }).then(function (response) {
+                return applyResponse(response, false)
+            })
+        }
+
+        var chooser = namespace.createChooser(root)
+
+        /**
+         * @param {number[]} ids
+         * @param {string} sourceKey
+         * @returns {boolean} Whether any dragged offer has the source as its primary color.
+         */
+        function isPrimaryOfAny(ids, sourceKey) {
+            return ids.some(function (cardId) {
+                return store.getCard(cardId).family === sourceKey
+            })
+        }
+
+        /**
+         * A drop on a group of another kind adds without asking; a drop on the same kind asks Move or Clone;
+         * a drop on a group the offer is already in does nothing.
+         *
+         * @param {number[]} ids
+         * @param {string} targetKey
+         * @param {string} sourceKey Empty when the card was dragged from Unclassified.
+         * @param {{x: number, y: number}} point
+         */
+        function routeDrop(ids, targetKey, sourceKey, point) {
+            var target = store.findFamily(targetKey)
+            var droppedIds = ids.filter(function (cardId) {
+                return store.getGroupKeys(cardId).indexOf(targetKey) === -1
+            })
+            if (!target || droppedIds.length === 0) {
+                return
+            }
+
+            var source = sourceKey === '' ? null : store.findFamily(sourceKey)
+            if (target.kind !== (source ? source.kind : 'color')) {
+                addMemberships(droppedIds, targetKey)
+            } else if (source === null) {
+                moveEntries(droppedIds, targetKey)
+            } else {
+                chooser.ask({
+                    x: point.x,
+                    y: point.y,
+                    prompt: 'Move or clone ' + droppedIds.length + (droppedIds.length === 1 ? ' offer' : ' offers') + ' to ' + targetKey + '?',
+                    moveHint: isPrimaryOfAny(droppedIds, sourceKey) ? targetKey + ' becomes the primary color and the offer locks' : 'leaves ' + sourceKey,
+                    cloneHint: 'stays in ' + sourceKey + ' too',
+                    onChoose: function (choice) {
+                        if (choice === 'move') {
+                            changeEntries('onMoveMemberships', droppedIds, { from: sourceKey, family: targetKey })
+                        } else {
+                            addMemberships(droppedIds, targetKey)
+                        }
+                    }
+                })
+            }
+        }
+
         var drawer = namespace.createDrawer(root.querySelector('[data-fb-drawer]'), store, {
             sampleHex: function (id, relativeX, relativeY) {
                 return sendRequest('onSampleHex', { id: id, x: relativeX, y: relativeY }).then(function (response) {
@@ -106,6 +186,15 @@
                 return sendRequest('onResetEntries', { ids: [id] }).then(function (response) {
                     return applyResponse(response, false)
                 })
+            },
+            addMembership: function (id, family) {
+                return changeMembershipFromDrawer('onAddMemberships', id, family)
+            },
+            removeMembership: function (id, family) {
+                return changeMembershipFromDrawer('onRemoveMemberships', id, family)
+            },
+            resetMembership: function (id, family) {
+                return changeMembershipFromDrawer('onResetMemberships', id, family)
             }
         })
 
@@ -114,12 +203,13 @@
                 hoverElement = null
                 view.hidePopover()
             },
-            onDrop: moveEntries
+            onDrop: routeDrop
         })
 
         var bulkHandlers = {
             move: function (ids) {
-                return moveEntries(ids, root.querySelector('[data-fb-bulk-family]').value)
+                var family = root.querySelector('[data-fb-bulk-family]').value
+                return store.findFamily(family).kind === 'collection' ? addMemberships(ids, family) : moveEntries(ids, family)
             },
             lock: function (ids) {
                 return changeEntries('onLockEntries', ids)
@@ -139,6 +229,8 @@
             var target = event.target
             var chip = target.closest('[data-fb-chip]')
             var action = target.closest('[data-fb-action]')
+            var cardAction = target.closest('[data-fb-card-action]')
+            var groupReset = target.closest('[data-fb-group-reset]')
             var cardElement = target.closest('[data-fb-card]')
 
             if (chip) {
@@ -147,6 +239,17 @@
                 refresh()
             } else if (action) {
                 runBulkAction(action.getAttribute('data-fb-action'))
+            } else if (cardAction) {
+                var cardId = Number(cardElement.getAttribute('data-fb-card'))
+                var familyKey = cardAction.getAttribute('data-fb-family')
+                if (cardAction.getAttribute('data-fb-card-action') === 'remove') {
+                    removeMemberships([cardId], familyKey)
+                } else {
+                    resetMemberships([cardId], familyKey)
+                }
+            } else if (groupReset) {
+                var collectionKey = groupReset.getAttribute('data-fb-group-reset')
+                resetMemberships(store.getHandEditedIds(collectionKey), collectionKey)
             } else if (target.closest('[data-fb-check]')) {
                 store.toggleSelection(Number(cardElement.getAttribute('data-fb-card')))
                 view.renderSelection()

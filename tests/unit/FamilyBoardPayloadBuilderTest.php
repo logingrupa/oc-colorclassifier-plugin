@@ -60,7 +60,17 @@ class FamilyBoardPayloadBuilderTest extends TestCase
 
         $this->assertSame(['Red', 'Orange', 'Nude Pink', 'Retired'], array_column($arPayload['families'], 'family'));
         $this->assertSame(
-            ['family' => 'Red', 'slug' => 'red', 'hex' => '#d32f2f', 'active' => true, 'custom' => false],
+            [
+                'family'                => 'Red',
+                'slug'                  => 'red',
+                'hex'                   => '#d32f2f',
+                'active'                => true,
+                'custom'                => false,
+                'kind'                  => 'color',
+                'fromFeed'              => false,
+                'gradient'              => null,
+                'feedOffersWithoutCard' => 0,
+            ],
             $arPayload['families'][0]
         );
         $this->assertTrue($arPayload['families'][2]['custom']);
@@ -89,7 +99,94 @@ class FamilyBoardPayloadBuilderTest extends TestCase
             'autoConfidence'  => 0.88,
             'manual'          => false,
             'locked'          => false,
+            'extraColors'      => [],
+            'collections'      => [],
+            'collectionStates' => [],
         ], $arCard);
+    }
+
+    private function makeCollectionRow(int $iId, string $sFamily, int $iSortOrder, bool $blActive = false): object
+    {
+        return (object) array_merge((array) $this->makeFamilyRow($iId, $sFamily, $iSortOrder, $blActive), [
+            'kind'          => 'collection',
+            'feed_value_id' => 'value-' . $iId,
+            'gradient'      => ['#ff00aa', '#00e5ff'],
+        ]);
+    }
+
+    private function makeMembership(int $iFamilyId, string $sOfferId, bool $blInFeed, ?string $sHandState = null): array
+    {
+        return ['family_id' => $iFamilyId, 'offer_id' => $sOfferId, 'in_feed' => $blInFeed ? 1 : 0, 'hand_state' => $sHandState];
+    }
+
+    public function test_collection_rows_carry_kind_feed_flag_gradient_and_the_count_of_tagged_offers_without_a_card(): void
+    {
+        $arPayload = $this->obBuilder->build(
+            [$this->makeEntry()],
+            [$this->makeFamilyRow(1, 'Red', 1), $this->makeCollectionRow(2, 'DISCO', 2)],
+            [
+                $this->makeMembership(2, 'product-uuid#offer-uuid', true),
+                $this->makeMembership(2, 'p#no-image-1', true),
+                $this->makeMembership(2, 'p#no-image-2', true),
+                $this->makeMembership(2, 'p#no-image-3', true, 'removed'),
+                $this->makeMembership(2, 'p#hand-only', false, 'added'),
+            ]
+        );
+
+        $this->assertSame(
+            ['family' => 'DISCO', 'slug' => 'disco', 'hex' => '#d32f2f', 'active' => false, 'custom' => false, 'kind' => 'collection', 'fromFeed' => true, 'gradient' => ['#ff00aa', '#00e5ff'], 'feedOffersWithoutCard' => 2],
+            $arPayload['families'][1]
+        );
+        $this->assertSame(0, $arPayload['families'][0]['feedOffersWithoutCard']);
+    }
+
+    public function test_card_lists_extra_colors_and_collections_in_family_order_with_every_collection_state(): void
+    {
+        $arFamilies = [
+            $this->makeFamilyRow(1, 'Red', 1),
+            $this->makeFamilyRow(2, 'Pink', 2),
+            $this->makeCollectionRow(3, 'NEON', 3),
+            $this->makeCollectionRow(4, 'DISCO', 4, true),
+            $this->makeCollectionRow(5, 'MATTE', 5),
+        ];
+        $arMemberships = [
+            $this->makeMembership(4, 'product-uuid#offer-uuid', true),
+            $this->makeMembership(3, 'product-uuid#offer-uuid', false, 'added'),
+            $this->makeMembership(5, 'product-uuid#offer-uuid', true, 'removed'),
+            $this->makeMembership(2, 'product-uuid#offer-uuid', false, 'added'),
+            $this->makeMembership(1, 'product-uuid#offer-uuid', false, 'added'),
+        ];
+
+        $arCard = $this->obBuilder->build([$this->makeEntry()], $arFamilies, $arMemberships)['cards'][0];
+
+        $this->assertSame(['Pink'], $arCard['extraColors'], 'the primary color is never an extra');
+        $this->assertSame(['NEON', 'DISCO'], $arCard['collections']);
+        $this->assertSame(['NEON' => 'added', 'DISCO' => 'feed', 'MATTE' => 'removed'], $arCard['collectionStates']);
+    }
+
+    public function test_map_cards_reads_memberships_for_the_given_entries_only(): void
+    {
+        $arCards = $this->obBuilder->mapCards(
+            [$this->makeEntry(['id' => 8, 'offer_id' => 'p#o2'])],
+            [$this->makeFamilyRow(1, 'Red', 1), $this->makeCollectionRow(2, 'DISCO', 2)],
+            [$this->makeMembership(2, 'product-uuid#offer-uuid', true), $this->makeMembership(2, 'p#o2', true)]
+        );
+
+        $this->assertCount(1, $arCards);
+        $this->assertSame(8, $arCards[0]['id']);
+        $this->assertSame(['DISCO'], $arCards[0]['collections']);
+    }
+
+    public function test_a_membership_row_that_is_neither_in_the_feed_nor_hand_edited_is_not_listed(): void
+    {
+        $arCard = $this->obBuilder->build(
+            [$this->makeEntry()],
+            [$this->makeFamilyRow(1, 'Red', 1), $this->makeCollectionRow(2, 'DISCO', 2)],
+            [$this->makeMembership(2, 'product-uuid#offer-uuid', false)]
+        )['cards'][0];
+
+        $this->assertSame([], $arCard['collections']);
+        $this->assertSame([], $arCard['collectionStates']);
     }
 
     public function test_family_override_card_has_full_confidence_and_manual_flag(): void

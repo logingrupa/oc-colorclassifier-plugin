@@ -47,12 +47,12 @@
     /**
      * @param {HTMLElement} root Board root element.
      * @param {import('./family-board-store.js').Store} store
-     * @param {{onStart: function(): void, onDrop: function(number[], string): void}} handlers
+     * @param {{onStart: function(): void, onDrop: function(number[], string, string, {x: number, y: number}): void}} handlers onDrop gets the ids, the target key, the source key (empty for Unclassified) and the drop point.
      */
     function createDragController(root, store, handlers) {
-        /** @type {{cardId: number, startX: number, startY: number, pointerId: number}|null} */
+        /** @type {{cardId: number, sourceKey: string, element: HTMLElement, startX: number, startY: number, pointerId: number}|null} */
         var pending = null
-        /** @type {{ids: number[], ghost: HTMLElement, x: number, y: number, target: Element|null, frame: number}|null} */
+        /** @type {{ids: number[], sourceKey: string, ghost: HTMLElement, x: number, y: number, target: Element|null, frame: number}|null} */
         var session = null
         var clickSuppressed = false
 
@@ -102,11 +102,12 @@
         function createGhost(cardElement, count) {
             var ghost = cardElement.cloneNode(true)
             ghost.removeAttribute('data-fb-card')
+            ghost.removeAttribute('data-fb-source')
             ghost.classList.remove('is-selected', 'is-dragging')
             ghost.classList.add('fb-ghost')
             ghost.style.width = cardElement.getBoundingClientRect().width + 'px'
-            ghost.querySelectorAll('[data-fb-check]').forEach(function (checkbox) {
-                checkbox.remove()
+            ghost.querySelectorAll('[data-fb-check], [data-fb-card-action]').forEach(function (control) {
+                control.remove()
             })
             if (count > 1) {
                 ghost.insertAdjacentHTML('beforeend', '<span class="fb-ghost-count">' + count + '</span>')
@@ -116,15 +117,13 @@
 
         function startSession(event) {
             var ids = store.getDragIds(pending.cardId)
-            var cardElement = root.querySelector('[data-fb-card="' + pending.cardId + '"]')
 
-            session = { ids: ids, ghost: createGhost(cardElement, ids.length), x: event.clientX, y: event.clientY, target: null, frame: 0 }
+            session = { ids: ids, sourceKey: pending.sourceKey, ghost: createGhost(pending.element, ids.length), x: event.clientX, y: event.clientY, target: null, frame: 0 }
             root.appendChild(session.ghost)
             ids.forEach(function (cardId) {
-                var source = root.querySelector('[data-fb-card="' + cardId + '"]')
-                if (source) {
+                root.querySelectorAll('[data-fb-card="' + cardId + '"]').forEach(function (source) {
                     source.classList.add('is-dragging')
-                }
+                })
             })
             document.body.classList.add('fb-dragging')
             clickSuppressed = true
@@ -148,7 +147,7 @@
             pending = null
 
             if (shouldDrop && dropTarget) {
-                handlers.onDrop(finished.ids, dropTarget.getAttribute('data-fb-drop'))
+                handlers.onDrop(finished.ids, dropTarget.getAttribute('data-fb-drop'), finished.sourceKey, { x: finished.x, y: finished.y })
             }
         }
 
@@ -158,11 +157,13 @@
                 return
             }
             var cardElement = event.target.closest('[data-fb-card]')
-            if (!cardElement || event.target.closest('[data-fb-check]')) {
+            if (!cardElement || event.target.closest('[data-fb-check], [data-fb-card-action]')) {
                 return
             }
             pending = {
                 cardId: Number(cardElement.getAttribute('data-fb-card')),
+                sourceKey: cardElement.getAttribute('data-fb-source') || '',
+                element: cardElement,
                 startX: event.clientX,
                 startY: event.clientY,
                 pointerId: event.pointerId

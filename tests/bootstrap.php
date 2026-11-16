@@ -43,6 +43,7 @@ require_once $pluginRootDirectory . '/classes/CollectionFeedPlanner.php';
 require_once $pluginRootDirectory . '/classes/SheetExportBuilder.php';
 require_once $pluginRootDirectory . '/classes/FamilyExportBuilder.php';
 require_once $pluginRootDirectory . '/classes/ImageHexSampler.php';
+require_once $pluginRootDirectory . '/classes/FamilyBoardMembershipMap.php';
 require_once $pluginRootDirectory . '/classes/FamilyBoardPayloadBuilder.php';
 require_once $pluginRootDirectory . '/classes/EtagRevalidation.php';
 require_once $pluginRootDirectory . '/classes/ColorLabPayloadCache.php';

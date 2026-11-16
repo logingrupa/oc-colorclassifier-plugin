@@ -47,6 +47,31 @@
     }
 
     /**
+     * A collection with a gradient draws it, every other family draws its hex.
+     *
+     * @param {import('./family-board-store.js').Family|null|undefined} family
+     * @returns {string} A background style attribute, empty when nothing valid can be drawn.
+     */
+    function swatchStyle(family) {
+        var gradient = family ? family.gradient : null
+        if (Array.isArray(gradient) && gradient.length >= 2 && gradient.length <= 3 && gradient.every(isHexColor)) {
+            return ' style="background:linear-gradient(90deg,' + gradient.join(',') + ')"'
+        }
+        return backgroundStyle(family ? family.hex : '')
+    }
+
+    /**
+     * @param {import('./family-board-store.js').Family} family
+     * @returns {string} A tag for a family that shops do not receive, empty otherwise.
+     */
+    function renderInactiveTag(family) {
+        if (family.active) {
+            return ''
+        }
+        return '<span class="fb-tag fb-tag--muted">' + (family.kind === 'collection' ? 'draft' : 'inactive') + '</span>'
+    }
+
+    /**
      * @param {number|null} confidence
      * @param {number} threshold
      * @returns {string}
@@ -80,16 +105,39 @@
 
     /**
      * @param {import('./family-board-store.js').Card} card
+     * @param {string} groupKey Group the instance renders in; empty for Unclassified.
+     * @returns {string} The note under the name: where else the card sits, or which color it belongs to here.
+     */
+    function renderGroupNote(card, groupKey) {
+        var otherKeys = card.extraColors.concat(card.collections)
+        if (groupKey !== '' && groupKey !== card.family) {
+            return card.family ? '<div class="fb-sub"><span class="fb-also">primary: ' + escapeHtml(card.family) + '</span></div>' : ''
+        }
+        return otherKeys.length > 0 ? '<div class="fb-sub"><span class="fb-also">also: ' + escapeHtml(otherKeys.join(', ')) + '</span></div>' : ''
+    }
+
+    /**
+     * @param {import('./family-board-store.js').Card} card
      * @param {import('./family-board-store.js').Store} store
+     * @param {string} groupKey Group the instance renders in; empty for Unclassified.
      * @returns {string}
      */
-    function renderCard(card, store) {
+    function renderCard(card, store, groupKey) {
         var selected = store.isSelected(card.id)
+        var isExtraGroup = groupKey !== '' && groupKey !== card.family
         var autoLine = card.familyOverridden && card.autoFamily
             ? '<div class="fb-sub"><span class="fb-auto">auto: ' + escapeHtml(card.autoFamily) + '</span></div>'
             : ''
+        var familyAttribute = ' data-fb-family="' + escapeHtml(groupKey) + '"'
+        var resetButton = card.collectionStates[groupKey] === 'added'
+            ? '<button type="button" class="fb-tag fb-tag--action" data-fb-card-action="reset"' + familyAttribute + '>Reset to 1C</button>'
+            : ''
+        var removeButton = isExtraGroup
+            ? '<button type="button" class="fb-card-remove" data-fb-card-action="remove"' + familyAttribute
+                + ' aria-label="Remove from ' + escapeHtml(groupKey) + '" title="Remove from ' + escapeHtml(groupKey) + '">&times;</button>'
+            : ''
 
-        return '<div class="fb-card' + (selected ? ' is-selected' : '') + '" data-fb-card="' + card.id + '">'
+        return '<div class="fb-card' + (selected ? ' is-selected' : '') + '" data-fb-card="' + card.id + '" data-fb-source="' + escapeHtml(groupKey) + '">'
             + '<span class="fb-thumb"><img src="' + escapeHtml(card.imageUrl) + '" alt="" loading="lazy" decoding="async" draggable="false"></span>'
             + '<div class="fb-meta">'
             + '<div class="fb-name" title="' + escapeHtml(card.variationName) + '">' + escapeHtml(card.variationName) + '</div>'
@@ -98,10 +146,13 @@
             + (card.manual ? '<span class="fb-tag">manual</span>' : '')
             + (card.locked ? '<i class="icon-lock fb-lock" title="Locked: Process All skips it"></i>' : '')
             + '<span class="fb-dot fb-dot--small"' + backgroundStyle(card.hex) + ' title="' + escapeHtml(card.hex) + '"></span>'
+            + resetButton
             + '</div>'
             + autoLine
+            + renderGroupNote(card, groupKey)
             + '</div>'
             + '<input type="checkbox" class="fb-check" data-fb-check aria-label="Select ' + escapeHtml(card.variationName) + '"' + (selected ? ' checked' : '') + '>'
+            + removeButton
             + '</div>'
     }
 
@@ -112,15 +163,22 @@
      */
     function renderGroup(group, store) {
         var family = group.family
-        var dropAttribute = family ? ' data-fb-drop="' + escapeHtml(family.family) + '"' : ''
-        var inactiveTag = family && !family.active ? '<span class="fb-tag fb-tag--muted">inactive</span>' : ''
+        var groupKey = family ? family.family : ''
+        var dropAttribute = family ? ' data-fb-drop="' + escapeHtml(groupKey) + '"' : ''
+        var isCollection = family !== null && family.kind === 'collection'
+        var note = isCollection && family.feedOffersWithoutCard > 0
+            ? '<div class="fb-hint fb-group-note">+' + family.feedOffersWithoutCard + ' tagged in 1C, no image</div>'
+            : ''
+        var resetButton = isCollection && store.getHandEditedIds(groupKey).length > 0
+            ? '<button type="button" class="fb-tag fb-tag--action" data-fb-group-reset="' + escapeHtml(groupKey) + '">Reset to 1C</button>'
+            : ''
 
         return '<section class="fb-group"' + dropAttribute + '>'
-            + '<header class="fb-group-head"><span class="fb-dot"' + backgroundStyle(family ? family.hex : '#9e9e9e') + '></span>'
-            + '<span>' + escapeHtml(group.label) + '</span>' + inactiveTag
-            + '<span class="fb-count">' + group.cards.length + '</span></header>'
+            + '<header class="fb-group-head"><span class="fb-dot"' + (family ? swatchStyle(family) : backgroundStyle('#9e9e9e')) + '></span>'
+            + '<span>' + escapeHtml(group.label) + '</span>' + (family ? renderInactiveTag(family) : '') + resetButton
+            + '<span class="fb-count">' + group.cards.length + '</span></header>' + note
             + '<div class="fb-grid">' + group.cards.map(function (card) {
-                return renderCard(card, store)
+                return renderCard(card, store, groupKey)
             }).join('') + '</div></section>'
     }
 
@@ -131,9 +189,10 @@
      */
     function renderRailItem(family, count) {
         return '<div class="fb-rail-item' + (count === 0 ? ' is-empty' : '') + '" data-fb-drop="' + escapeHtml(family.family) + '">'
-            + '<span class="fb-dot"' + backgroundStyle(family.hex) + '></span>'
+            + '<span class="fb-dot"' + swatchStyle(family) + '></span>'
             + '<span class="fb-rail-name">' + escapeHtml(family.family) + '</span>'
             + (family.custom ? '<span class="fb-tag">custom</span>' : '')
+            + renderInactiveTag(family)
             + '<span class="fb-count">' + count + '</span></div>'
     }
 
@@ -145,8 +204,18 @@
     function renderFamilyOptions(families, selectedFamily) {
         return families.map(function (family) {
             return '<option value="' + escapeHtml(family.family) + '"' + (family.family === selectedFamily ? ' selected' : '') + '>'
-                + escapeHtml(family.family) + '</option>'
+                + escapeHtml(family.family) + (family.active ? '' : ' (draft)') + '</option>'
         }).join('')
+    }
+
+    /**
+     * @param {import('./family-board-store.js').Store} store
+     * @returns {string} Bulk target options: colors move and lock, collections only add.
+     */
+    function renderBulkTargetOptions(store) {
+        var collections = store.getCollections()
+        return renderFamilyOptions(store.getActiveColors(), '')
+            + (collections.length > 0 ? '<optgroup label="Collections (add, no lock)">' + renderFamilyOptions(collections, '') + '</optgroup>' : '')
     }
 
     /**
@@ -237,9 +306,14 @@
 
         function renderRail() {
             var counts = store.getRailCounts()
-            rail.innerHTML = '<h4 class="fb-rail-title">Drop on a family</h4>' + store.getActiveFamilies().map(function (family) {
-                return renderRailItem(family, counts.get(family.family) || 0)
-            }).join('')
+            var collections = store.getCollections()
+            var renderItems = function (families) {
+                return families.map(function (family) {
+                    return renderRailItem(family, counts.get(family.family) || 0)
+                }).join('')
+            }
+            rail.innerHTML = '<h4 class="fb-rail-title">Drop on a family</h4>' + renderItems(store.getActiveColors())
+                + (collections.length > 0 ? '<h4 class="fb-rail-title">Collections</h4>' + renderItems(collections) : '')
         }
 
         function renderBoard() {
@@ -266,7 +340,7 @@
             if (bulk.innerHTML === '') {
                 bulk.innerHTML = '<strong data-fb-bulk-count></strong>'
                     + '<label class="fb-bulk-move">Move to <select class="form-control" data-fb-bulk-family>'
-                    + renderFamilyOptions(store.getActiveFamilies(), '') + '</select></label>'
+                    + renderBulkTargetOptions(store) + '</select></label>'
                     + '<button type="button" class="btn btn-primary" data-fb-action="move">Move + lock</button>'
                     + '<button type="button" class="btn btn-default" data-fb-action="lock"><i class="icon-lock"></i> Lock</button>'
                     + '<button type="button" class="btn btn-default" data-fb-action="unlock">Unlock</button>'
@@ -328,6 +402,7 @@
     namespace.escapeHtml = escapeHtml
     namespace.isHexColor = isHexColor
     namespace.backgroundStyle = backgroundStyle
+    namespace.swatchStyle = swatchStyle
     namespace.formatConfidence = formatConfidence
     namespace.confidenceBadge = confidenceBadge
     namespace.buildFamilyDropdownOptions = buildFamilyDropdownOptions

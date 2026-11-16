@@ -29,6 +29,9 @@
      * @property {number|null} autoConfidence Classifier confidence.
      * @property {boolean} manual
      * @property {boolean} locked
+     * @property {string[]} extraColors Colors the offer also sits in, besides its primary.
+     * @property {string[]} collections Collections the offer is effectively in.
+     * @property {Object<string, string>} collectionStates Per collection row: feed, added or removed.
      */
 
     /**
@@ -38,6 +41,10 @@
      * @property {string} hex
      * @property {boolean} active
      * @property {boolean} custom
+     * @property {string} kind color or collection.
+     * @property {boolean} fromFeed Whether 1C owns the row.
+     * @property {string[]|null} gradient
+     * @property {number} feedOffersWithoutCard Offers 1C tags that have no card (no image).
      */
 
     /**
@@ -51,6 +58,21 @@
 
     /** Label of the group holding offers without a known family. */
     var UNCLASSIFIED_LABEL = 'Unclassified'
+
+    /** Family kinds the payload carries. */
+    var KIND_COLOR = 'color'
+    var KIND_COLLECTION = 'collection'
+
+    /** Collection state of a hand edit; a feed state means 1C alone decides. */
+    var STATE_FEED = 'feed'
+
+    /**
+     * @param {Card} card
+     * @returns {string[]} Every group the card renders in: primary, extra colors, collections.
+     */
+    function listGroupKeys(card) {
+        return (card.family ? [card.family] : []).concat(card.extraColors, card.collections)
+    }
 
     /**
      * @param {{families: Family[], cards: Card[], lowConfidenceThreshold: number}} payload
@@ -87,7 +109,7 @@
         }
 
         /**
-         * Search covers variation, color name and both hex values, with or without the hash.
+         * Search covers variation, color name, both hex values (with or without the hash) and the extra group names.
          *
          * @param {Card} card
          * @returns {boolean}
@@ -97,7 +119,7 @@
             if (needle === '') {
                 return true
             }
-            return [card.variationName, card.colorName, card.hex, card.autoHex].some(function (text) {
+            return [card.variationName, card.colorName, card.hex, card.autoHex].concat(card.extraColors, card.collections).some(function (text) {
                 return (text || '').toLowerCase().replace(/^#/, '').indexOf(needle) !== -1
             })
         }
@@ -117,11 +139,23 @@
             lowConfidenceThreshold: payload.lowConfidenceThreshold,
             unclassifiedLabel: UNCLASSIFIED_LABEL,
 
-            /** @returns {Family[]} Active families in sort order. */
-            getActiveFamilies: function () {
+            /** @returns {Family[]} Active colors in sort order: the choices for a primary color. */
+            getActiveColors: function () {
                 return payload.families.filter(function (family) {
-                    return family.active
+                    return family.active && family.kind === KIND_COLOR
                 })
+            },
+
+            /** @returns {Family[]} Collections in sort order, drafts included. */
+            getCollections: function () {
+                return payload.families.filter(function (family) {
+                    return family.kind === KIND_COLLECTION
+                })
+            },
+
+            /** @returns {Family[]} Everything a card can be dropped on: active colors, then collections. */
+            getDropFamilies: function () {
+                return this.getActiveColors().concat(this.getCollections())
             },
 
             /**
@@ -148,8 +182,19 @@
             },
 
             /**
+             * A card renders in every group it belongs to.
+             *
+             * @param {number} cardId
+             * @returns {string[]}
+             */
+            getGroupKeys: function (cardId) {
+                return listGroupKeys(cards.get(cardId))
+            },
+
+            /**
              * Groups in family sort order, only those with visible cards. A family
-             * that was switched off still shows while it holds offers.
+             * that was switched off still shows while it holds offers. Unclassified
+             * holds primaries only.
              *
              * @returns {Group[]}
              */
@@ -160,7 +205,7 @@
                         family: family,
                         label: family.family,
                         cards: visible.filter(function (card) {
-                            return card.family === family.family
+                            return listGroupKeys(card).indexOf(family.family) !== -1
                         }).sort(compareCards)
                     }
                 }).filter(function (group) {
@@ -180,14 +225,31 @@
             },
 
             /**
-             * @returns {Map<string, number>} Visible card count per effective family.
+             * @returns {Map<string, number>} Visible card count per group; a card counts in every group it belongs to.
              */
             getRailCounts: function () {
                 var counts = new Map()
                 this.getVisibleCards().forEach(function (card) {
-                    counts.set(card.family, (counts.get(card.family) || 0) + 1)
+                    listGroupKeys(card).forEach(function (groupKey) {
+                        counts.set(groupKey, (counts.get(groupKey) || 0) + 1)
+                    })
                 })
                 return counts
+            },
+
+            /**
+             * Offers a collection reset would change, removed ones included although they show no card in the group.
+             *
+             * @param {string} collectionName
+             * @returns {number[]}
+             */
+            getHandEditedIds: function (collectionName) {
+                return Array.from(cards.values()).filter(function (card) {
+                    var state = card.collectionStates[collectionName]
+                    return state !== undefined && state !== STATE_FEED
+                }).map(function (card) {
+                    return card.id
+                })
             },
 
             /**

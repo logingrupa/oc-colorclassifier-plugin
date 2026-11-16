@@ -8,6 +8,8 @@ use Flash;
 use Logingrupa\ColorClassifier\Classes\ColorEntryOverrideService;
 use Logingrupa\ColorClassifier\Classes\ColorExtractor;
 use Logingrupa\ColorClassifier\Classes\FamilyBoardPayloadBuilder;
+use Logingrupa\ColorClassifier\Classes\FamilyMembershipQuery;
+use Logingrupa\ColorClassifier\Classes\FamilyMembershipService;
 use Logingrupa\ColorClassifier\Classes\ImageHexSampler;
 use Logingrupa\ColorClassifier\Controllers\Concerns\BatchProcessingHandlers;
 use Logingrupa\ColorClassifier\Models\ColorEntry;
@@ -18,9 +20,10 @@ use October\Rain\Exception\ValidationException;
 /**
  * FamilyBoard Backend Controller - offers grouped by effective family.
  *
- * Custom page (no list or form widget fits a draggable board). Every write
- * goes through ColorEntryOverrideService, the same path the Color entries
- * list and form use, and every handler validates its input before use.
+ * Custom page (no list or form widget fits a draggable board). A primary color
+ * change goes through ColorEntryOverrideService, the same path the Color entries
+ * list and form use; extra colors and collections go through
+ * FamilyMembershipService. Every handler validates its input before use.
  *
  * @package Logingrupa\ColorClassifier\Controllers
  */
@@ -53,6 +56,7 @@ class FamilyBoard extends Controller
         $this->addJs($sAssetPath . '/js/family-board-view.js');
         $this->addJs($sAssetPath . '/js/family-board-dropdown.js');
         $this->addJs($sAssetPath . '/js/family-board-drag.js');
+        $this->addJs($sAssetPath . '/js/family-board-chooser.js');
         $this->addJs($sAssetPath . '/js/family-board-drawer.js');
         $this->addJs($sAssetPath . '/js/family-board.js');
     }
@@ -68,7 +72,8 @@ class FamilyBoard extends Controller
 
         $arPayload = (new FamilyBoardPayloadBuilder())->build(
             ColorEntry::withoutImageData()->orderBy('id')->get(),
-            ColorFamily::all()
+            ColorFamily::all(),
+            (new FamilyMembershipQuery())->loadMembershipRows()
         );
 
         $this->vars['payloadJson'] = json_encode($arPayload, self::PAYLOAD_JSON_FLAGS);
@@ -87,6 +92,63 @@ class FamilyBoard extends Controller
         Flash::success('Moved ' . $this->describeOffers(count($arEntries)) . ' to ' . $sFamily . ', locked.');
 
         return $this->mapCards($arEntries);
+    }
+
+    /**
+     * AJAX handler - put offers into an extra color or a collection (a clone, or a cross-kind drop).
+     *
+     * @return array{cards: array<int, array<string, mixed>>}
+     */
+    public function onAddMemberships(): array
+    {
+        $arEntryIds = $this->readEntryIds();
+        $sFamily = $this->readFamilyName('family');
+        (new FamilyMembershipService())->addMemberships($arEntryIds, $sFamily);
+
+        return $this->respondToMembershipChange($arEntryIds, 'Added ' . $this->describeOffers(count($arEntryIds)) . ' to ' . $sFamily . '.');
+    }
+
+    /**
+     * AJAX handler - take offers out of an extra color or a collection.
+     *
+     * @return array{cards: array<int, array<string, mixed>>}
+     */
+    public function onRemoveMemberships(): array
+    {
+        $arEntryIds = $this->readEntryIds();
+        $sFamily = $this->readFamilyName('family');
+        (new FamilyMembershipService())->removeMemberships($arEntryIds, $sFamily);
+
+        return $this->respondToMembershipChange($arEntryIds, 'Removed ' . $this->describeOffers(count($arEntryIds)) . ' from ' . $sFamily . '.');
+    }
+
+    /**
+     * AJAX handler - move offers from one group to another group of the same kind.
+     *
+     * @return array{cards: array<int, array<string, mixed>>}
+     */
+    public function onMoveMemberships(): array
+    {
+        $arEntryIds = $this->readEntryIds();
+        $sFromFamily = $this->readFamilyName('from');
+        $sFamily = $this->readFamilyName('family');
+        (new FamilyMembershipService())->moveMemberships($arEntryIds, $sFromFamily, $sFamily);
+
+        return $this->respondToMembershipChange($arEntryIds, 'Moved ' . $this->describeOffers(count($arEntryIds)) . ' from ' . $sFromFamily . ' to ' . $sFamily . '.');
+    }
+
+    /**
+     * AJAX handler - give the collection tags of offers back to 1C. An empty family means every collection.
+     *
+     * @return array{cards: array<int, array<string, mixed>>}
+     */
+    public function onResetMemberships(): array
+    {
+        $arEntryIds = $this->readEntryIds();
+        $sFamily = trim((string) post('family', ''));
+        (new FamilyMembershipService())->resetToFeed($arEntryIds, $sFamily === '' ? null : $sFamily);
+
+        return $this->respondToMembershipChange($arEntryIds, 'Reset ' . $this->describeOffers(count($arEntryIds)) . ' to 1C.');
     }
 
     /**
@@ -191,9 +253,23 @@ class FamilyBoard extends Controller
      */
     private function mapCards(array $arEntries): array
     {
-        $obBuilder = new FamilyBoardPayloadBuilder();
+        return ['cards' => (new FamilyBoardPayloadBuilder())->mapCards(
+            $arEntries,
+            ColorFamily::all(),
+            (new FamilyMembershipQuery())->loadMembershipRows()
+        )];
+    }
 
-        return ['cards' => array_map(static fn (ColorEntry $obEntry): array => $obBuilder->mapCard($obEntry), $arEntries)];
+    /**
+     * @param array<int, mixed> $arEntryIds Ids the service has already validated.
+     *
+     * @return array{cards: array<int, array<string, mixed>>}
+     */
+    private function respondToMembershipChange(array $arEntryIds, string $sMessage): array
+    {
+        Flash::success($sMessage);
+
+        return $this->mapCards(ColorEntry::withoutImageData()->whereIn('id', array_map('intval', $arEntryIds))->orderBy('id')->get()->all());
     }
 
     /**

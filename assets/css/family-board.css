@@ -736,6 +736,120 @@ body.fb-dragging * {
     color: var(--fb-muted);
 }
 
+/* Extra groups: collections, extra colors, Also in */
+
+.fb-tag--action {
+    border: 0;
+    cursor: pointer;
+}
+
+.fb-tag--action:hover {
+    background: color-mix(in srgb, var(--bs-primary) 26%, transparent);
+}
+
+.fb-also {
+    color: var(--fb-muted);
+    font-size: 11px;
+}
+
+.fb-group-note {
+    margin: -0.25rem 0.125rem 0.5rem;
+}
+
+.fb-card-remove {
+    position: absolute;
+    right: 0.25rem;
+    bottom: 0.125rem;
+    padding: 0 0.25rem;
+    border: 0;
+    background: transparent;
+    color: var(--fb-muted);
+    font-size: 1.125rem;
+    line-height: 1.25;
+    cursor: pointer;
+}
+
+.fb-card-remove:hover {
+    color: var(--bs-danger);
+}
+
+.fb-also-in {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    min-width: 0;
+}
+
+.fb-also-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.25rem 0.125rem 0.5rem;
+    border: 1px solid var(--fb-border);
+    border-radius: 999px;
+    background: var(--bs-tertiary-bg);
+}
+
+.fb-also-chip.is-removed {
+    border-style: dashed;
+    color: var(--fb-muted);
+}
+
+.fb-also-remove {
+    padding: 0 0.25rem;
+    border: 0;
+    background: transparent;
+    color: var(--fb-muted);
+    font-size: 1rem;
+    line-height: 1.25;
+    cursor: pointer;
+}
+
+.fb-also-remove:hover {
+    color: var(--bs-danger);
+}
+
+.fb-also-add {
+    display: flex;
+    flex: 1 1 100%;
+    gap: 0.375rem;
+}
+
+.fb-also-add .form-control {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Move or Clone question after a same-kind drop */
+
+.fb-chooser {
+    position: fixed;
+    z-index: 1045;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--fb-gap);
+    width: 19rem;
+    max-width: calc(100vw - 1rem);
+    padding: 0.75rem;
+    border: 1px solid var(--fb-border);
+    border-radius: 0.625rem;
+    background: var(--bs-body-bg);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+
+.fb-chooser-prompt {
+    flex: 1 1 100%;
+    margin: 0;
+    font-weight: 600;
+}
+
+.fb-chooser .fb-hint {
+    flex: 1 1 100%;
+    margin: 0;
+}
+
 /* Touch devices: bigger targets */
 
 @media (pointer: coarse) {
@@ -744,6 +858,10 @@ body.fb-dragging * {
         height: 2rem;
         top: 0;
         right: 0;
+    }
+
+    .fb-card-remove {
+        padding: 0.25rem 0.5rem;
     }
 
     .fb-chip,
