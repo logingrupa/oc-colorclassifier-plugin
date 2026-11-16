@@ -54,7 +54,7 @@ class ColorEntryOverrideService
         $sAutoFamily = is_array($arTaxonomy) ? ($arTaxonomy['family'] ?? null) : null;
 
         try {
-            $sFamilyOverride = $this->obNormalizer->normalizeFamilyOverride($sFamily, $sAutoFamily, $this->getActiveFamilyNames());
+            $sFamilyOverride = $this->obNormalizer->normalizeFamilyOverride($sFamily, $sAutoFamily, $obEntry->family_override, $this->getActiveFamilyNames());
         } catch (\InvalidArgumentException $obException) {
             throw new ValidationException(['family_override' => $obException->getMessage()]);
         }
@@ -144,7 +144,7 @@ class ColorEntryOverrideService
 
     /**
      * Validate ids, load the rows and save every change in one transaction.
-     * Each save flushes the Color Lab payload cache through ColorEntry::afterSave.
+     * ColorEntry::afterSave flushes the Color Lab payload cache once the transaction commits.
      *
      * @param array<int, int|string> $arEntryIds Row ids.
      * @param \Closure $fnChange Mutates one row.

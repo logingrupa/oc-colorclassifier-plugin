@@ -59,6 +59,19 @@ class ColorLabPayloadCache
     }
 
     /**
+     * Flush once the surrounding transaction commits, or now when none is
+     * open, so a concurrent export cannot re-cache the pre-commit rows.
+     *
+     * @return void
+     */
+    public static function flushAfterCommit(): void
+    {
+        \Db::afterCommit(static function (): void {
+            self::flush();
+        });
+    }
+
+    /**
      * Drop every cached payload. Called from the ColorEntry model events so
      * any change to the table invalidates all derived payloads at once.
      *

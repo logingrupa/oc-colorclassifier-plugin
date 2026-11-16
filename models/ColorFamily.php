@@ -47,7 +47,7 @@ class ColorFamily extends Model
 
     /** @var array<string, mixed> Validation rules. */
     public $rules = [
-        'family'   => ['required', 'max:64', 'unique'],
+        'family'   => ['required', 'max:64', 'regex:/^[A-Za-z][A-Za-z0-9 -]*$/', 'unique'],
         'slug'     => ['required', 'max:64', 'regex:/^[a-z0-9-]+$/', 'unique'],
         'hex'      => ['required', 'regex:/^#[0-9a-f]{6}$/'],
         'names.en' => 'required',
@@ -55,7 +55,8 @@ class ColorFamily extends Model
 
     /** @var array<string, string> Validation messages. */
     public $customMessages = [
-        'slug.regex' => 'The slug may only contain lowercase letters, digits and hyphens.',
+        'family.regex' => 'The family key must start with a letter and use only English letters, digits, spaces and hyphens.',
+        'slug.regex' =>'The slug may only contain lowercase letters, digits and hyphens.',
         'hex.regex'  => 'The hex color must look like #d32f2f.',
     ];
 
@@ -70,7 +71,7 @@ class ColorFamily extends Model
         parent::__construct($arAttributes);
 
         $this->bindEvent('model.setSortableOrder', function () {
-            ColorLabPayloadCache::flush();
+            ColorLabPayloadCache::flushAfterCommit();
         });
     }
 
@@ -141,7 +142,7 @@ class ColorFamily extends Model
      */
     public function afterSave()
     {
-        ColorLabPayloadCache::flush();
+        ColorLabPayloadCache::flushAfterCommit();
     }
 
     /**

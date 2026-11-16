@@ -45,7 +45,7 @@ class ColorLabMapper
                 'hue'       => $arEffective['hue'],
             ],
             'paletteColors'   => $obEntry->palette_colors,
-            'taxonomy'        => array_merge((array) $obEntry->taxonomy, ['family' => $arEffective['family']]),
+            'taxonomy'        => self::mapTaxonomyValues((array) $obEntry->taxonomy, $arEffective),
             'confidenceScore' => (float) $arEffective['confidence'],
             'manual'          => $arEffective['manual'],
             'autoFamily'      => (string) $arEffective['auto_family'],
@@ -58,6 +58,26 @@ class ColorLabMapper
         }
 
         return $arEntryData;
+    }
+
+    /**
+     * Classifier taxonomy with the effective family. An overridden family drops
+     * the classifier's secondary family, which described the old family.
+     *
+     * @param array<string, mixed> $arTaxonomy Stored classifier taxonomy.
+     * @param array{family: string|null, auto_family: string|null} $arEffective Resolved effective values.
+     *
+     * @return array<string, mixed>
+     */
+    public static function mapTaxonomyValues(array $arTaxonomy, array $arEffective): array
+    {
+        $arTaxonomy['family'] = $arEffective['family'];
+
+        if ($arEffective['family'] !== $arEffective['auto_family']) {
+            $arTaxonomy['secondary_family'] = null;
+        }
+
+        return $arTaxonomy;
     }
 
     /**

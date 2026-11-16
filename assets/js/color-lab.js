@@ -371,9 +371,9 @@ function buildColorDotOptionHtml(name, dimension, value) {
     var dotColor = FAMILY_DOT_COLORS[value] || '#999';
     return '<label class="color-lab__filter-option color-lab__filter-option--color-dot"'
         + ' style="background:' + dotColor + ';--color-lab-filter-dot-color:' + dotColor + ';"'
-        + ' title="' + value + '">'
+        + ' title="' + escapeHtmlAttribute(value) + '">'
         + '<input type="checkbox" name="' + name + '"'
-        + ' data-dimension="' + dimension + '" data-value="' + value + '">'
+        + ' data-dimension="' + dimension + '" data-value="' + escapeHtmlAttribute(value) + '">'
         + '</label>';
 }
 
@@ -447,8 +447,8 @@ function buildPillOptionHtml(name, dimension, value) {
 
     return '<label class="color-lab__filter-option' + extraClass + '">'
         + '<input type="checkbox" name="' + name + '"'
-        + ' data-dimension="' + dimension + '" data-value="' + value + '">'
-        + dotHtml + value
+        + ' data-dimension="' + dimension + '" data-value="' + escapeHtmlAttribute(value) + '">'
+        + dotHtml + escapeHtml(value)
         + '</label>';
 }
 
@@ -717,7 +717,7 @@ function renderGridView() {
         htmlParts.push(
             '<div class="color-lab__column-header">'
             + '<span class="color-lab__column-dot" style="background:' + familyDotColor + ';"></span>'
-            + '<span class="color-lab__column-title">' + family + '</span>'
+            + '<span class="color-lab__column-title">' + escapeHtml(family) + '</span>'
             + '<span class="color-lab__column-count">' + familyColorCount + '</span>'
             + '</div>'
         );

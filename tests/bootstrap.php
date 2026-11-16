@@ -37,3 +37,4 @@ require_once $pluginRootDirectory . '/classes/ImageHexSampler.php';
 require_once $pluginRootDirectory . '/classes/FamilyBoardPayloadBuilder.php';
 require_once $pluginRootDirectory . '/classes/EtagRevalidation.php';
 require_once $pluginRootDirectory . '/classes/ColorLabPayloadCache.php';
+require_once $pluginRootDirectory . '/classes/ColorLabMapper.php';

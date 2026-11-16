@@ -17,25 +17,36 @@ class OverrideNormalizerTest extends TestCase
 
     public function test_family_equal_to_auto_is_a_no_op(): void
     {
-        $this->assertNull($this->obNormalizer->normalizeFamilyOverride('Pink', 'Pink', self::ACTIVE_FAMILIES));
+        $this->assertNull($this->obNormalizer->normalizeFamilyOverride('Pink', 'Pink', null, self::ACTIVE_FAMILIES));
     }
 
     public function test_empty_family_is_null(): void
     {
-        $this->assertNull($this->obNormalizer->normalizeFamilyOverride('', 'Pink', self::ACTIVE_FAMILIES));
-        $this->assertNull($this->obNormalizer->normalizeFamilyOverride('   ', 'Pink', self::ACTIVE_FAMILIES));
-        $this->assertNull($this->obNormalizer->normalizeFamilyOverride(null, 'Pink', self::ACTIVE_FAMILIES));
+        $this->assertNull($this->obNormalizer->normalizeFamilyOverride('', 'Pink', null, self::ACTIVE_FAMILIES));
+        $this->assertNull($this->obNormalizer->normalizeFamilyOverride('   ', 'Pink', null, self::ACTIVE_FAMILIES));
+        $this->assertNull($this->obNormalizer->normalizeFamilyOverride(null, 'Pink', null, self::ACTIVE_FAMILIES));
     }
 
     public function test_family_outside_the_active_list_throws(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->obNormalizer->normalizeFamilyOverride('Teal', 'Pink', self::ACTIVE_FAMILIES);
+        $this->obNormalizer->normalizeFamilyOverride('Teal', 'Pink', null, self::ACTIVE_FAMILIES);
     }
 
     public function test_active_family_is_kept(): void
     {
-        $this->assertSame('Rose', $this->obNormalizer->normalizeFamilyOverride(' Rose ', 'Pink', self::ACTIVE_FAMILIES));
+        $this->assertSame('Rose', $this->obNormalizer->normalizeFamilyOverride(' Rose ', 'Pink', null, self::ACTIVE_FAMILIES));
+    }
+
+    public function test_current_override_of_a_retired_family_is_kept(): void
+    {
+        $this->assertSame('Nude Pink', $this->obNormalizer->normalizeFamilyOverride('Nude Pink', 'Pink', 'Nude Pink', self::ACTIVE_FAMILIES));
+    }
+
+    public function test_retired_family_cannot_be_newly_assigned(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->obNormalizer->normalizeFamilyOverride('Nude Pink', 'Pink', 'Rose', self::ACTIVE_FAMILIES);
     }
 
     public function test_hex_is_normalized_to_lowercase_with_hash(): void

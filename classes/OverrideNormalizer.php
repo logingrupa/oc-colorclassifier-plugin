@@ -15,20 +15,28 @@ class OverrideNormalizer
     /**
      * Normalize a requested family override.
      *
+     * Keeping the row's current override is always allowed, so a row whose
+     * family was retired can still be saved; a new assignment must be active.
+     *
      * @param string|null $sRequestedFamily Family key from the form or board.
      * @param string|null $sAutoFamily Classifier family of the row.
+     * @param string|null $sCurrentOverride Family override the row has now.
      * @param array<int, string> $arActiveFamilyNames Family keys an override may name.
      *
      * @return string|null Null when empty or equal to the auto family.
      *
-     * @throws \InvalidArgumentException When the family is not an active family.
+     * @throws \InvalidArgumentException When a newly assigned family is not active.
      */
-    public function normalizeFamilyOverride(?string $sRequestedFamily, ?string $sAutoFamily, array $arActiveFamilyNames): ?string
+    public function normalizeFamilyOverride(?string $sRequestedFamily, ?string $sAutoFamily, ?string $sCurrentOverride, array $arActiveFamilyNames): ?string
     {
         $sFamily = trim((string) $sRequestedFamily);
 
         if ($sFamily === '' || $sFamily === $sAutoFamily) {
             return null;
+        }
+
+        if ($sFamily === $sCurrentOverride) {
+            return $sFamily;
         }
 
         if (!in_array($sFamily, $arActiveFamilyNames, true)) {

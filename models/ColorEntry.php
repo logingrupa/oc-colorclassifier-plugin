@@ -202,7 +202,7 @@ class ColorEntry extends Model
      */
     public function afterSave()
     {
-        ColorLabPayloadCache::flush();
+        ColorLabPayloadCache::flushAfterCommit();
     }
 
     /**
@@ -212,6 +212,6 @@ class ColorEntry extends Model
      */
     public function afterDelete()
     {
-        ColorLabPayloadCache::flush();
+        ColorLabPayloadCache::flushAfterCommit();
     }
 }
