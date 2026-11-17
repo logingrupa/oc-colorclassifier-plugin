@@ -15,7 +15,7 @@ use Logingrupa\ColorClassifier\Classes\ColorNamer;
  * ColorClassifier, and ColorNamer.
  *
  * Tests that require database interaction (ColorEntry::updateOrCreate,
- * BatchProcessor::processNew, BatchProcessor::processAll) are excluded
+ * BatchProcessor::processNewOffers, BatchProcessor::processAll) are excluded
  * here as they require OctoberCMS and a database connection.
  *
  * Covers:
