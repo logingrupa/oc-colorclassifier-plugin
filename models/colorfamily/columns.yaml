@@ -29,6 +29,11 @@ columns:
         type: switch
         sortable: true
 
+    is_hand_disabled:
+        label: Off by hand
+        type: switch
+        sortable: true
+
     sort_order:
         label: Order
         type: number

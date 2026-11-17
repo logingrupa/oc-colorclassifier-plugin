@@ -6,6 +6,7 @@ use Model;
 use October\Rain\Exception\ApplicationException;
 use October\Rain\Exception\ValidationException;
 use Logingrupa\ColorClassifier\Classes\CollectionFeedPlanner;
+use Logingrupa\ColorClassifier\Classes\CollectionHandSwitch;
 use Logingrupa\ColorClassifier\Classes\ColorLabPayloadCache;
 use Logingrupa\ColorClassifier\Classes\FamilyKind;
 use Logingrupa\ColorClassifier\Classes\GradientNormalizer;
@@ -62,6 +63,9 @@ class ColorFamily extends Model
         'is_hand_disabled' => 'boolean',
         'sort_order'       => 'integer',
     ];
+
+    /** @var bool|null Active value the Families form was rendered with, null outside the form. */
+    private ?bool $blRenderedActive = null;
 
     /** @var array<string, mixed> Validation rules. */
     public $rules = [
@@ -158,6 +162,19 @@ class ColorFamily extends Model
     }
 
     /**
+     * The Families form posts the Active value it was rendered with, so a save
+     * from a form opened before a sync run keeps the value the sync wrote.
+     *
+     * @param mixed $mValue Posted "0" or "1".
+     *
+     * @return void
+     */
+    public function setIsActiveRenderedAttribute($mValue): void
+    {
+        $this->blRenderedActive = (bool) $mValue;
+    }
+
+    /**
      * A collection switched off through the model is switched off by hand, so the
      * 1C sync keeps it off. The sync writes its own switches past the model.
      *
@@ -165,8 +182,21 @@ class ColorFamily extends Model
      */
     public function beforeSave()
     {
-        if (FamilyKind::normalize($this->kind) === FamilyKind::COLLECTION && (!$this->exists || $this->isDirty('is_active'))) {
-            $this->is_hand_disabled = !$this->is_active;
+        $arSwitch = CollectionHandSwitch::resolve(
+            FamilyKind::normalize($this->kind),
+            $this->exists ? (bool) $this->getOriginal('is_active') : null,
+            (bool) $this->is_active,
+            $this->blRenderedActive
+        );
+
+        if ($arSwitch === null) {
+            return;
+        }
+
+        $this->is_active = $arSwitch['is_active'];
+
+        if ($arSwitch['is_hand_disabled'] !== null) {
+            $this->is_hand_disabled = $arSwitch['is_hand_disabled'];
         }
     }
 

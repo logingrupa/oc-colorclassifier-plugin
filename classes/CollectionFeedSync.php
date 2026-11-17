@@ -83,7 +83,7 @@ class CollectionFeedSync
         }
 
         $this->applyRenames($obPlan->arFamilyRenames);
-        $this->applyFamilySwitches($obPlan->arFamilySwitches);
+        (new FamilySwitchWriter(DB::connection()))->apply($obPlan->arFamilySwitches, now());
         $this->applyMembershipSets($obPlan->arMembershipSets);
         $this->applyMembershipUnsets($obPlan->arMembershipUnsets);
         $this->applyMembershipDeletes($obPlan->arMembershipDeletes);
@@ -103,26 +103,6 @@ class CollectionFeedSync
             DB::table(self::FAMILY_TABLE)
                 ->where('feed_value_id', $arRename['value_id'])
                 ->update(['feed_value_name' => $arRename['feed_value_name'], 'updated_at' => now()]);
-        }
-    }
-
-    /**
-     * The where clause lets a hand switch made after the read win.
-     *
-     * @param array<int, array{row_id: int, is_active: bool}> $arSwitches
-     */
-    private function applyFamilySwitches(array $arSwitches): void
-    {
-        foreach ($arSwitches as $arSwitch) {
-            $obQuery = DB::table(self::FAMILY_TABLE)->where('id', $arSwitch['row_id']);
-
-            if ($arSwitch['is_active']) {
-                $obQuery->where('is_active', false)->where('is_hand_disabled', false);
-            } else {
-                $obQuery->where('is_active', true);
-            }
-
-            $obQuery->update(['is_active' => $arSwitch['is_active'], 'updated_at' => now()]);
         }
     }
 

@@ -2,6 +2,8 @@
 
 use Logingrupa\ColorClassifier\Classes\CollectionFeedPlan;
 use Logingrupa\ColorClassifier\Classes\CollectionFeedPlanner;
+use Logingrupa\ColorClassifier\Classes\CollectionHandSwitch;
+use Logingrupa\ColorClassifier\Classes\FamilyKind;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -84,7 +86,7 @@ class CollectionFeedPlannerTest extends TestCase
         $iNextFamilyId = (int) max(array_column($arFamilies, 'id')) + 1;
 
         foreach ($obPlan->arFamilyDrafts as $arDraft) {
-            $arFamilies[] = array_merge($arDraft, ['id' => $iNextFamilyId++]);
+            $arFamilies[] = array_merge($arDraft, ['id' => $iNextFamilyId++, 'is_hand_disabled' => false]);
         }
 
         foreach ($obPlan->arFamilyRenames as $arRename) {
@@ -226,7 +228,7 @@ class CollectionFeedPlannerTest extends TestCase
         return [
             [
                 ['id' => 1, 'family' => 'Red', 'slug' => 'red', 'kind' => 'color', 'sort_order' => 1, 'feed_value_id' => null, 'feed_value_name' => null, 'is_active' => true],
-                array_merge(['id' => 2, 'family' => 'DISCO', 'slug' => 'disco', 'kind' => 'collection', 'sort_order' => 2, 'feed_value_id' => 'v-disco', 'feed_value_name' => 'DISCO'], $arDiscoState),
+                array_merge(['id' => 2, 'family' => 'DISCO', 'slug' => 'disco', 'kind' => 'collection', 'sort_order' => 2, 'feed_value_id' => 'v-disco', 'feed_value_name' => 'DISCO', 'is_hand_disabled' => false], $arDiscoState),
             ],
             [
                 ['id' => 1, 'family_id' => 2, 'offer_id' => 'p#a', 'in_feed' => true, 'hand_state' => null, 'shade_code' => 'DISCO 1'],
@@ -236,13 +238,14 @@ class CollectionFeedPlannerTest extends TestCase
     }
 
     /**
-     * @return array<string, mixed> Two offers, both still in the catalog, neither tagged DISCO.
+     * @return array<string, mixed> Both DISCO offers still in the catalog untagged, while 1C still tags an offer NEON.
      */
     private function makeTagsWithoutDisco(): array
     {
         return $this->makeTags([
-            'p#a' => ['shade_code' => 'DISCO 1', 'collections' => []],
-            'p#b' => ['shade_code' => 'DISCO 2', 'collections' => []],
+            'p#a'    => ['shade_code' => 'DISCO 1', 'collections' => []],
+            'p#b'    => ['shade_code' => 'DISCO 2', 'collections' => []],
+            'p#neon' => ['shade_code' => 'NEON 1', 'collections' => [self::NEON]],
         ]);
     }
 
@@ -289,7 +292,7 @@ class CollectionFeedPlannerTest extends TestCase
         $this->assertTrue($this->obPlanner->plan($arTags, $this->makeColorRows(), [], 121)->isAborted());
         $this->assertFalse($this->obPlanner->plan($arTags, $this->makeColorRows(), [], 120)->isAborted());
 
-        $obTruncatedPlan = $this->obPlanner->plan($arTruncatedTags, $arFamilies, $arMemberships, 5);
+        $obTruncatedPlan = $this->obPlanner->plan($arTruncatedTags, $arFamilies, $arMemberships, 7);
 
         $this->assertTrue($obTruncatedPlan->isAborted());
         $this->assertSame(0, $obTruncatedPlan->countWrites());
@@ -306,20 +309,91 @@ class CollectionFeedPlannerTest extends TestCase
         $this->assertSame([['row_id' => 2, 'is_active' => false]], $obPlan->arFamilySwitches);
         $this->assertSame([['row_id' => 1]], $obPlan->arMembershipDeletes);
         $this->assertSame([['row_id' => 2]], $obPlan->arMembershipUnsets);
-        $this->assertSame(['create' => 0, 'rename' => 0, 'set' => 0, 'unset' => 1, 'delete' => 1, 'shade' => 0, 'on' => 0, 'off' => 1], $obPlan->countSummary());
+        $this->assertSame(['create' => 1, 'rename' => 0, 'set' => 1, 'unset' => 1, 'delete' => 1, 'shade' => 0, 'on' => 0, 'off' => 1], $obPlan->countSummary());
 
         [$arAppliedFamilies, $arAppliedMemberships] = $this->applyPlan($obPlan, $arFamilies, $arMemberships);
 
-        $this->assertSame(0, $this->obPlanner->plan($arTags, $arAppliedFamilies, $arAppliedMemberships, 2)->countWrites());
+        $this->assertSame(0, $this->obPlanner->plan($arTags, $arAppliedFamilies, $arAppliedMemberships, 3)->countWrites());
     }
 
-    public function test_collection_switched_on_by_hand_while_1c_does_not_carry_it_is_switched_off_again(): void
+    public function test_collection_switched_back_on_by_hand_while_1c_carries_it_stays_on(): void
     {
-        [$arFamilies] = $this->makeDiscoRows(['is_active' => true, 'is_hand_disabled' => false]);
+        [$arFamilies, $arMemberships] = $this->makeDiscoRows(['is_active' => false, 'is_hand_disabled' => true]);
+        $arHandSwitch = CollectionHandSwitch::resolve(FamilyKind::COLLECTION, false, true, false);
+        $arFamilies[1]['is_active'] = $arHandSwitch['is_active'];
+        $arFamilies[1]['is_hand_disabled'] = $arHandSwitch['is_hand_disabled'] ?? $arFamilies[1]['is_hand_disabled'];
 
-        $obPlan = $this->obPlanner->plan($this->makeTagsWithoutDisco(), $arFamilies, [], null);
+        $obPlan = $this->obPlanner->plan($this->makeTagsWithDisco(), $arFamilies, $arMemberships, null);
 
-        $this->assertSame([['row_id' => 2, 'is_active' => false]], $obPlan->arFamilySwitches);
+        $this->assertFalse($obPlan->isAborted());
+        $this->assertSame([], $obPlan->arFamilySwitches);
+    }
+
+    public function test_catalog_with_no_collection_tag_aborts_while_active_collections_have_1c_members(): void
+    {
+        [$arFamilies, $arMemberships] = $this->makeDiscoRows(['is_active' => true]);
+        $arTags = $this->makeTags([
+            'p#a' => ['shade_code' => 'DISCO 1', 'collections' => []],
+            'p#b' => ['shade_code' => 'DISCO 2', 'collections' => []],
+        ]);
+
+        $obPlan = $this->obPlanner->plan($arTags, $arFamilies, $arMemberships, 2);
+
+        $this->assertTrue($obPlan->isAborted());
+        $this->assertStringContainsString('no catalog offer carries a collection tag while 1 active collections', (string) $obPlan->sAbortReason);
+        $this->assertSame(0, $obPlan->countWrites());
+    }
+
+    public function test_catalog_with_no_collection_tag_goes_through_once_the_collections_are_switched_off_by_hand(): void
+    {
+        [$arFamilies, $arMemberships] = $this->makeDiscoRows(['is_active' => false, 'is_hand_disabled' => true]);
+        $arTags = $this->makeTags([
+            'p#a' => ['shade_code' => 'DISCO 1', 'collections' => []],
+            'p#b' => ['shade_code' => 'DISCO 2', 'collections' => []],
+        ]);
+
+        $obPlan = $this->obPlanner->plan($arTags, $arFamilies, $arMemberships, 2);
+
+        $this->assertFalse($obPlan->isAborted());
+        $this->assertSame([['row_id' => 1]], $obPlan->arMembershipDeletes);
+    }
+
+    public function test_collection_value_recreated_in_1c_under_a_new_id_aborts_instead_of_switching_it_off(): void
+    {
+        [$arFamilies, $arMemberships] = $this->makeDiscoRows(['is_active' => true]);
+        $arTags = $this->makeTags([
+            'p#a' => ['shade_code' => 'DISCO 1', 'collections' => [['value_id' => 'v-disco-new', 'value' => 'DISCO']]],
+            'p#b' => ['shade_code' => 'DISCO 2', 'collections' => [['value_id' => 'v-disco-new', 'value' => 'DISCO']]],
+        ]);
+
+        $obPlan = $this->obPlanner->plan($arTags, $arFamilies, $arMemberships, 2);
+
+        $this->assertTrue($obPlan->isAborted());
+        $this->assertStringContainsString('1C value "DISCO" (v-disco-new) has the key of collection DISCO', (string) $obPlan->sAbortReason);
+        $this->assertSame([], $obPlan->arFamilySwitches);
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function switchColumnProvider(): array
+    {
+        return [
+            'is_active'        => ['is_active'],
+            'is_hand_disabled' => ['is_hand_disabled'],
+        ];
+    }
+
+    #[DataProvider('switchColumnProvider')]
+    public function test_collection_row_without_a_switch_column_fails_fast(string $sColumn): void
+    {
+        [$arFamilies, $arMemberships] = $this->makeDiscoRows(['is_active' => false]);
+        unset($arFamilies[1][$sColumn]);
+
+        $this->expectException(\UnexpectedValueException::class);
+        $this->expectExceptionMessage('Collection row 2 has no ' . $sColumn . ' column.');
+
+        $this->obPlanner->plan($this->makeTagsWithDisco(), $arFamilies, $arMemberships, null);
     }
 
     public function test_collection_the_sync_switched_off_is_switched_on_when_1c_carries_it_again(): void
@@ -445,7 +519,7 @@ class CollectionFeedPlannerTest extends TestCase
     public function test_renamed_value_updates_only_the_feed_name(): void
     {
         $arFamilies = [
-            ['id' => 1, 'family' => 'DISCO', 'slug' => 'disco', 'kind' => 'collection', 'sort_order' => 1, 'feed_value_id' => 'v-disco', 'feed_value_name' => 'Disco old'],
+            ['id' => 1, 'family' => 'DISCO', 'slug' => 'disco', 'kind' => 'collection', 'sort_order' => 1, 'feed_value_id' => 'v-disco', 'feed_value_name' => 'Disco old', 'is_active' => true, 'is_hand_disabled' => false],
         ];
         $arTags = $this->makeTags(['p#a' => ['shade_code' => 'DISCO 1', 'collections' => [self::DISCO]]]);
         $arMemberships = [['id' => 1, 'family_id' => 1, 'offer_id' => 'p#a', 'in_feed' => true, 'hand_state' => null, 'shade_code' => 'DISCO 1']];
@@ -459,7 +533,7 @@ class CollectionFeedPlannerTest extends TestCase
     public function test_untagged_offer_loses_its_feed_flag_and_hand_rows_survive(): void
     {
         $arFamilies = [
-            ['id' => 1, 'family' => 'DISCO', 'slug' => 'disco', 'kind' => 'collection', 'sort_order' => 1, 'feed_value_id' => 'v-disco', 'feed_value_name' => 'DISCO'],
+            ['id' => 1, 'family' => 'DISCO', 'slug' => 'disco', 'kind' => 'collection', 'sort_order' => 1, 'feed_value_id' => 'v-disco', 'feed_value_name' => 'DISCO', 'is_active' => true, 'is_hand_disabled' => false],
         ];
         $arMemberships = [
             ['id' => 1, 'family_id' => 1, 'offer_id' => 'p#kept', 'in_feed' => true, 'hand_state' => null, 'shade_code' => 'DISCO 1'],
@@ -485,7 +559,7 @@ class CollectionFeedPlannerTest extends TestCase
     public function test_hand_removed_row_of_a_tagged_offer_turns_in_feed_on_and_keeps_its_row(): void
     {
         $arFamilies = [
-            ['id' => 1, 'family' => 'DISCO', 'slug' => 'disco', 'kind' => 'collection', 'sort_order' => 1, 'feed_value_id' => 'v-disco', 'feed_value_name' => 'DISCO'],
+            ['id' => 1, 'family' => 'DISCO', 'slug' => 'disco', 'kind' => 'collection', 'sort_order' => 1, 'feed_value_id' => 'v-disco', 'feed_value_name' => 'DISCO', 'is_active' => true, 'is_hand_disabled' => false],
         ];
         $arMemberships = [['id' => 9, 'family_id' => 1, 'offer_id' => 'p#a', 'in_feed' => false, 'hand_state' => 'removed', 'shade_code' => null]];
         $arTags = $this->makeTags(['p#a' => ['shade_code' => 'DISCO 1', 'collections' => [self::DISCO]]]);
@@ -498,7 +572,7 @@ class CollectionFeedPlannerTest extends TestCase
     public function test_shade_codes_refresh_on_every_row_of_an_offer_in_the_catalog(): void
     {
         $arFamilies = array_merge($this->makeColorRows(), [
-            ['id' => 3, 'family' => 'DISCO', 'slug' => 'disco', 'kind' => 'collection', 'sort_order' => 8, 'feed_value_id' => 'v-disco', 'feed_value_name' => 'DISCO'],
+            ['id' => 3, 'family' => 'DISCO', 'slug' => 'disco', 'kind' => 'collection', 'sort_order' => 8, 'feed_value_id' => 'v-disco', 'feed_value_name' => 'DISCO', 'is_active' => true, 'is_hand_disabled' => false],
         ]);
         $arMemberships = [
             ['id' => 1, 'family_id' => 3, 'offer_id' => 'p#a', 'in_feed' => true, 'hand_state' => null, 'shade_code' => 'DISCO 1'],

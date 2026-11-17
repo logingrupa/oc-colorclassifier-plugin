@@ -11,8 +11,9 @@ namespace Logingrupa\ColorClassifier\Classes;
  * A collection is active while at least one catalog offer carries its 1C value,
  * unless it was switched off by hand (is_hand_disabled), which always wins.
  * Beyond is_active the planner only writes the sync-owned columns (in_feed,
- * shade_code, feed_value_name), never hand_state. Catalog guards run first and
- * abort with a reason and no writes.
+ * shade_code, feed_value_name), never hand_state. Catalog guards run first, then
+ * the collection guards (no tag on any offer, a 1C value id that changed); each
+ * aborts with a reason and no writes.
  *
  * Family rows read: id, family, slug, kind, is_active, is_hand_disabled, sort_order, feed_value_id, feed_value_name.
  * Membership rows read: id, family_id, offer_id, in_feed, hand_state, shade_code.
@@ -33,6 +34,10 @@ class CollectionFeedPlanner
     private const SLUG_BASE_MAX_LENGTH = 60;
 
     private const LOCALES = ['en', 'lv', 'ru', 'lt', 'nb-no'];
+
+    private const SKIP_REASON_COLLISION = 'collides with an existing family';
+
+    private const REQUIRED_COLLECTION_KEYS = ['is_active', 'is_hand_disabled'];
 
     /**
      * @param string $sCharacteristicId 1C КодХарактеристики the collection tags come from.
@@ -59,6 +64,14 @@ class CollectionFeedPlanner
         $arFamilyByValueId = $this->indexCollectionFamilies($arFamilyRows);
         $arRowsByValueId = $this->indexCollectionRows($arFamilyByValueId, $arMembershipRows);
         [$arDrafts, $arSkippedValues] = $this->planDrafts($arNames, $arFamilyByValueId, $arFamilyRows);
+        $arSwitches = $this->planSwitches($arFamilyByValueId, $arMembers);
+
+        $sCollectionAbort = $this->findUntaggedCatalogReason($arMembers, $arFamilyByValueId, $arRowsByValueId)
+            ?? $this->findChangedValueIdReason($arFamilyByValueId, $arSkippedValues, $arSwitches);
+
+        if ($sCollectionAbort !== null) {
+            return CollectionFeedPlan::abort($sCollectionAbort);
+        }
 
         return $this->planMemberships(
             $arTags,
@@ -68,8 +81,76 @@ class CollectionFeedPlanner
             $arRowsByValueId,
             $arMembershipRows,
             $arSkippedValues,
-            $this->planSwitches($arFamilyByValueId, $arMembers)
+            $arSwitches
         );
+    }
+
+    /**
+     * One collection leaving 1C switches it off, but no tag on any offer while
+     * active collections still have 1C members points at the feed or the
+     * characteristic id. Switching them off by hand lets a real removal through.
+     *
+     * @param array<string, array<string, string|null>> $arMembers
+     * @param array<string, array<string, mixed>> $arFamilyByValueId
+     * @param array<string, array<string, array<string, mixed>>> $arRowsByValueId
+     */
+    private function findUntaggedCatalogReason(array $arMembers, array $arFamilyByValueId, array $arRowsByValueId): ?string
+    {
+        if ($arMembers !== []) {
+            return null;
+        }
+
+        $iFedActiveCount = 0;
+
+        foreach ($arFamilyByValueId as $sValueId => $arFamilyRow) {
+            $blHasFeedMember = in_array(true, array_map(static fn (array $arRow): bool => (bool) $arRow['in_feed'], $arRowsByValueId[$sValueId] ?? []), true);
+
+            if ((bool) $arFamilyRow['is_active'] && $blHasFeedMember) {
+                $iFedActiveCount++;
+            }
+        }
+
+        if ($iFedActiveCount === 0) {
+            return null;
+        }
+
+        return 'no catalog offer carries a collection tag while ' . $iFedActiveCount . ' active collections have 1C members'
+            . ' (check collection_characteristic_id; if 1C really dropped every collection, switch them off on the Families page)';
+    }
+
+    /**
+     * A new 1C value with the key of a collection this run switches off means 1C
+     * re-created the value under a new id, not that the collection left 1C.
+     *
+     * @param array<string, array<string, mixed>> $arFamilyByValueId
+     * @param array<int, array{value_id: string, name: string, reason: string}> $arSkippedValues
+     * @param array<int, array{row_id: int, is_active: bool}> $arSwitches
+     */
+    private function findChangedValueIdReason(array $arFamilyByValueId, array $arSkippedValues, array $arSwitches): ?string
+    {
+        $arSwitchedOffRowIds = [];
+
+        foreach ($arSwitches as $arSwitch) {
+            if (!$arSwitch['is_active']) {
+                $arSwitchedOffRowIds[$arSwitch['row_id']] = true;
+            }
+        }
+
+        foreach ($arFamilyByValueId as $sValueId => $arFamilyRow) {
+            if (!isset($arSwitchedOffRowIds[(int) $arFamilyRow['id']])) {
+                continue;
+            }
+
+            foreach ($arSkippedValues as $arSkipped) {
+                if ($arSkipped['reason'] === self::SKIP_REASON_COLLISION && strtolower($arSkipped['name']) === strtolower((string) $arFamilyRow['family'])) {
+                    return '1C value "' . $arSkipped['name'] . '" (' . $arSkipped['value_id'] . ') has the key of collection ' . $arFamilyRow['family']
+                        . ', which 1C no longer carries under ' . $sValueId . ': the 1C value id changed'
+                        . ' (relink the collection, or switch it off on the Families page to let the sync run)';
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -123,6 +204,8 @@ class CollectionFeedPlanner
      * @param array<int, array<string, mixed>> $arFamilyRows
      *
      * @return array<string, array<string, mixed>> Collection family rows by feed value id.
+     *
+     * @throws \UnexpectedValueException When a collection row lacks a switch column, which would turn hand switch-offs back on.
      */
     private function indexCollectionFamilies(array $arFamilyRows): array
     {
@@ -131,9 +214,17 @@ class CollectionFeedPlanner
         foreach ($arFamilyRows as $arFamilyRow) {
             $sValueId = (string) ($arFamilyRow['feed_value_id'] ?? '');
 
-            if (FamilyKind::normalize($arFamilyRow['kind'] ?? null) === FamilyKind::COLLECTION && $sValueId !== '') {
-                $arFamilyByValueId[$sValueId] = $arFamilyRow;
+            if (FamilyKind::normalize($arFamilyRow['kind'] ?? null) !== FamilyKind::COLLECTION || $sValueId === '') {
+                continue;
             }
+
+            foreach (self::REQUIRED_COLLECTION_KEYS as $sKey) {
+                if (!array_key_exists($sKey, $arFamilyRow)) {
+                    throw new \UnexpectedValueException('Collection row ' . $arFamilyRow['id'] . ' has no ' . $sKey . ' column.');
+                }
+            }
+
+            $arFamilyByValueId[$sValueId] = $arFamilyRow;
         }
 
         return $arFamilyByValueId;
@@ -177,9 +268,9 @@ class CollectionFeedPlanner
         $arSwitches = [];
 
         foreach ($arFamilyByValueId as $sValueId => $arFamilyRow) {
-            $blWanted = !empty($arMembers[$sValueId]) && !(bool) ($arFamilyRow['is_hand_disabled'] ?? false);
+            $blWanted = !empty($arMembers[$sValueId]) && !(bool) $arFamilyRow['is_hand_disabled'];
 
-            if ($blWanted !== (bool) ($arFamilyRow['is_active'] ?? true)) {
+            if ($blWanted !== (bool) $arFamilyRow['is_active']) {
                 $arSwitches[] = ['row_id' => (int) $arFamilyRow['id'], 'is_active' => $blWanted];
             }
         }
@@ -211,7 +302,7 @@ class CollectionFeedPlanner
             if (preg_match(self::KEY_PATTERN, $sName) !== 1 || strlen($sName) > self::KEY_MAX_LENGTH) {
                 $sSkipReason = 'cannot be a family key';
             } elseif (isset($arTakenKeys[strtolower($sName)])) {
-                $sSkipReason = 'collides with an existing family';
+                $sSkipReason = self::SKIP_REASON_COLLISION;
             }
 
             if ($sSkipReason !== null) {

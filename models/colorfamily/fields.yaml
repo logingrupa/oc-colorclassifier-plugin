@@ -32,6 +32,24 @@ fields:
         default: true
         comment: 'Switch off to retire a family. Families are never deleted. A collection follows 1C: the sync switches it off when 1C stops carrying it and on again when it returns, unless you switched it off here.'
 
+    is_active_rendered:
+        type: partial
+        path: field_is_active_rendered
+        context: update
+        cssClass: d-none
+
+    is_hand_disabled:
+        label: Off by hand
+        type: switch
+        span: right
+        context: update
+        disabled: true
+        comment: On while you keep this collection switched off here, so the 1C sync leaves it off. Switch Active on to clear it.
+        trigger:
+            action: show
+            field: kind
+            condition: value[collection]
+
     gradient_stops:
         label: Gradient
         type: repeater
