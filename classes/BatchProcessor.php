@@ -73,16 +73,19 @@ class BatchProcessor
      * @param int $iLimit Most offers to process, 1 or more.
      *
      * @return array{processed: int, failed: int, left: int, total: int, failed_offers: array<int, array{offer_id: string, name: string}>}
+     *
+     * @throws \RuntimeException When the catalog has no offers with images, which is how a failed catalog load shows.
      */
     public function processNewOffers(int $iLimit): array
     {
+        $arOffers = $this->offerDataProvider->getOffersWithImages();
+
+        if ($arOffers === []) {
+            throw new \RuntimeException('The catalog has no offers with images, so it did not load. The PHP error log has the cause.');
+        }
+
         $arFailedOfferIdMap = CCache::get(self::CACHE_TAGS, self::FAILED_NEW_OFFER_IDS_CACHE_KEY) ?? [];
-        $arSelection        = NewOfferQueue::select(
-            $this->offerDataProvider->getOffersWithImages(),
-            $this->fetchExistingOfferIds(),
-            $arFailedOfferIdMap,
-            $iLimit
-        );
+        $arSelection        = NewOfferQueue::select($arOffers, $this->fetchExistingOfferIds(), $arFailedOfferIdMap, $iLimit);
 
         $arSucceededOfferIds = [];
         $arFailedOffers      = [];
@@ -96,17 +99,14 @@ class BatchProcessor
             $arFailedOffers[] = $arOffer;
         }
 
-        // An empty batch, which a catalog that failed to load also gives, keeps the memory as it is.
-        if ($arSelection['batch'] !== []) {
-            $arNextFailedOfferIdMap = NewOfferQueue::nextFailedOfferIds(
-                $arFailedOfferIdMap,
-                $arSelection['candidate_offer_ids'],
-                $arSucceededOfferIds,
-                array_column($arFailedOffers, 'offer_id')
-            );
+        $arNextFailedOfferIdMap = NewOfferQueue::nextFailedOfferIds(
+            $arFailedOfferIdMap,
+            $arSelection['candidate_offer_ids'],
+            $arSucceededOfferIds,
+            array_column($arFailedOffers, 'offer_id')
+        );
 
-            CCache::forever(self::CACHE_TAGS, self::FAILED_NEW_OFFER_IDS_CACHE_KEY, $arNextFailedOfferIdMap);
-        }
+        CCache::forever(self::CACHE_TAGS, self::FAILED_NEW_OFFER_IDS_CACHE_KEY, $arNextFailedOfferIdMap);
 
         return [
             'processed'     => count($arSucceededOfferIds),

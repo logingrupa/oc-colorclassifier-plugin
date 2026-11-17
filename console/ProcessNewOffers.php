@@ -11,6 +11,7 @@ use Logingrupa\ColorClassifier\Models\Settings;
  *
  * Scheduled hourly. Does nothing while the Automation setting is off. Prints one
  * summary line plus one line per offer whose image failed; failed images exit 0.
+ * A catalog that does not load throws, so the run exits non-zero.
  */
 class ProcessNewOffers extends Command
 {
