@@ -5,7 +5,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * QUEUE-01..13: the scheduled job takes catalog offers without a color entry,
+ * QUEUE-01..14: the scheduled job takes catalog offers without a color entry,
  * once each, never-tried offers before earlier failures in catalog order, at
  * most the limit per run, and its failure memory keeps only failed offers that
  * are still waiting.
@@ -182,5 +182,15 @@ class NewOfferQueueTest extends TestCase
         $arNext = NewOfferQueue::nextFailedOfferIds(self::offerIdMap(['a']), ['a', 'b', 'c'], ['c'], ['a', 'b']);
 
         $this->assertFailedOfferIds(['a', 'b'], $arNext);
+    }
+
+    public function test_an_offer_a_run_died_on_goes_behind_the_never_tried_offers_next_run(): void
+    {
+        $arStoredBeforeOfferB = NewOfferQueue::nextFailedOfferIds([], ['a', 'b', 'c'], ['a'], ['b']);
+
+        $arSelection = NewOfferQueue::select(self::offers(['a', 'b', 'c', 'd']), self::offerIdMap(['a']), $arStoredBeforeOfferB, 10);
+
+        $this->assertFailedOfferIds(['b'], $arStoredBeforeOfferB);
+        $this->assertSame(['c', 'd', 'b'], self::batchOfferIds($arSelection));
     }
 }
