@@ -20,6 +20,7 @@
  *  11. Collections: FamilyKind, GradientNormalizer, MembershipStateNormalizer, FamilyMembershipIndex,
  *      CollectionTagExtractor, CollectionFeedPlan, CollectionFeedPlanner, CollectionHandSwitch - no CMS dependencies
  *  12. FamilySwitchWriter - takes an Illuminate database connection
+ *  13. NewOfferQueue - no dependencies
  */
 
 $pluginRootDirectory = dirname(__DIR__);
@@ -43,6 +44,7 @@ require_once $pluginRootDirectory . '/classes/CollectionFeedPlan.php';
 require_once $pluginRootDirectory . '/classes/CollectionFeedPlanner.php';
 require_once $pluginRootDirectory . '/classes/CollectionHandSwitch.php';
 require_once $pluginRootDirectory . '/classes/FamilySwitchWriter.php';
+require_once $pluginRootDirectory . '/classes/NewOfferQueue.php';
 require_once $pluginRootDirectory . '/classes/SheetExportBuilder.php';
 require_once $pluginRootDirectory . '/classes/FamilyExportBuilder.php';
 require_once $pluginRootDirectory . '/classes/ImageHexSampler.php';
