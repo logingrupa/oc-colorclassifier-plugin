@@ -13,7 +13,7 @@ namespace Logingrupa\ColorClassifier\Classes;
  * hand_state, so a collection switched off by hand stays off. Guards run first
  * and abort with a reason and no writes.
  *
- * Family rows read: id, family, slug, kind, sort_order, feed_value_id, feed_value_name.
+ * Family rows read: id, family, slug, kind, is_active, sort_order, feed_value_id, feed_value_name.
  * Membership rows read: id, family_id, offer_id, in_feed, hand_state, shade_code.
  *
  * @package Logingrupa\ColorClassifier\Classes
@@ -182,6 +182,11 @@ class CollectionFeedPlanner
     private function findEmptiedCollection(array $arFamilyByValueId, array $arRowsByValueId, array $arMembers): ?string
     {
         foreach ($arFamilyByValueId as $sValueId => $arFamilyRow) {
+            // a switched-off collection reaches no shop, so losing its last member blocks nothing
+            if (!($arFamilyRow['is_active'] ?? true)) {
+                continue;
+            }
+
             $iFeedMemberCount = count(array_filter(
                 $arRowsByValueId[$sValueId] ?? [],
                 static fn (array $arRow): bool => (bool) $arRow['in_feed']

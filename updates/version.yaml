@@ -33,4 +33,4 @@
     - add_kind_and_feed_link_to_color_families.php
     - create_family_memberships_table.php
 1.7.1:
-    - "The 1C collection sync creates a new collection active, with the grey swatch and the 1C name, so it reaches the shops at their next color sync. The sync never writes Active on an existing collection, so a collection switched off on the Families page stays off and keeps its 1C members. The Family board labels every inactive family inactive"
+    - "The 1C collection sync creates a new collection active, with the grey swatch and the 1C name, so it reaches the shops at their next color sync. The sync never writes Active on an existing collection, so a collection switched off on the Families page stays off and keeps its 1C members, and 1C taking its last member away no longer stops the hourly sync. The Family board labels every inactive family inactive"

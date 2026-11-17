@@ -182,11 +182,8 @@ class CollectionFeedPlannerTest extends TestCase
         $this->assertSame(['v-disco' => 33, 'v-neon' => 3], array_count_values(array_column($obPlan->arMembershipSets, 'value_id')));
 
         [$arAppliedFamilies, $arAppliedMemberships] = $this->applyPlan($obPlan, $arFamilies, []);
-        $arSwitchedOffRows = array_filter($arAppliedFamilies, static fn (array $arFamily): bool => ($arFamily['feed_value_id'] ?? null) === 'v-disco');
         $arSwitchedOffMemberships = array_filter($arAppliedMemberships, static fn (array $arMembership): bool => $arMembership['family_id'] === 3 && $arMembership['in_feed'] === true);
 
-        $this->assertCount(1, $arSwitchedOffRows);
-        $this->assertFalse(reset($arSwitchedOffRows)['is_active']);
         $this->assertCount(33, $arSwitchedOffMemberships);
         $this->assertSame(0, $this->obPlanner->plan($arTags, $arAppliedFamilies, $arAppliedMemberships, 60, false)->countWrites());
     }
@@ -252,6 +249,23 @@ class CollectionFeedPlannerTest extends TestCase
         $this->assertStringContainsString('DISCO', (string) $obAborted->sAbortReason);
         $this->assertFalse($obAllowed->isAborted());
         $this->assertSame(1, $obAllowed->countSummary()['delete']);
+    }
+
+    public function test_switched_off_collection_dropping_to_zero_does_not_block_the_sync(): void
+    {
+        $arFamilies = [
+            ['id' => 1, 'family' => 'Red', 'slug' => 'red', 'kind' => 'color', 'sort_order' => 1, 'feed_value_id' => null, 'feed_value_name' => null, 'is_active' => true],
+            ['id' => 2, 'family' => 'DISCO', 'slug' => 'disco', 'kind' => 'collection', 'sort_order' => 2, 'feed_value_id' => 'v-disco', 'feed_value_name' => 'DISCO', 'is_active' => false],
+        ];
+        $arMemberships = [
+            ['id' => 1, 'family_id' => 2, 'offer_id' => 'p#a', 'in_feed' => true, 'hand_state' => null, 'shade_code' => 'DISCO 1'],
+        ];
+        $arTags = $this->makeTags(['p#a' => ['shade_code' => 'DISCO 1', 'collections' => []], 'p#b' => ['shade_code' => 'NEON 1', 'collections' => [self::NEON]]]);
+
+        $obPlan = $this->obPlanner->plan($arTags, $arFamilies, $arMemberships, null, false);
+
+        $this->assertFalse($obPlan->isAborted());
+        $this->assertSame(['create' => 1, 'rename' => 0, 'set' => 1, 'unset' => 0, 'delete' => 1, 'shade' => 0], $obPlan->countSummary());
     }
 
     /**
