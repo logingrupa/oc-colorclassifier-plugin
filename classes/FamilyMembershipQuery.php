@@ -25,7 +25,7 @@ class FamilyMembershipQuery
     {
         return $this->toArrayList(
             DB::table(self::FAMILY_TABLE)
-                ->select(['id', 'family', 'slug', 'kind', 'is_active', 'sort_order', 'feed_value_id', 'feed_value_name'])
+                ->select(['id', 'family', 'slug', 'kind', 'is_active', 'is_hand_disabled', 'sort_order', 'feed_value_id', 'feed_value_name'])
                 ->orderBy('sort_order')
                 ->orderBy('id')
                 ->get()

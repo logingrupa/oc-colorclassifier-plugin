@@ -23,6 +23,7 @@ final class CollectionFeedPlan
      * @param array<int, array{row_id: int}> $arMembershipDeletes Rows no 1C tag and no hand state hold.
      * @param array<int, array{row_id: int, shade_code: string|null}> $arShadeUpdates
      * @param array<int, array{value_id: string, name: string, reason: string}> $arSkippedValues 1C values that got no family and no membership.
+     * @param array<int, array{row_id: int, is_active: bool}> $arFamilySwitches Collection rows whose is_active follows 1C.
      */
     public function __construct(
         public readonly ?string $sAbortReason = null,
@@ -33,6 +34,7 @@ final class CollectionFeedPlan
         public readonly array $arMembershipDeletes = [],
         public readonly array $arShadeUpdates = [],
         public readonly array $arSkippedValues = [],
+        public readonly array $arFamilySwitches = [],
     ) {
     }
 
@@ -50,10 +52,12 @@ final class CollectionFeedPlan
     }
 
     /**
-     * @return array{create: int, rename: int, set: int, unset: int, delete: int, shade: int}
+     * @return array{create: int, rename: int, set: int, unset: int, delete: int, shade: int, on: int, off: int}
      */
     public function countSummary(): array
     {
+        $iSwitchOnCount = count(array_filter($this->arFamilySwitches, static fn (array $arSwitch): bool => $arSwitch['is_active']));
+
         return [
             'create' => count($this->arFamilyDrafts),
             'rename' => count($this->arFamilyRenames),
@@ -61,6 +65,8 @@ final class CollectionFeedPlan
             'unset'  => count($this->arMembershipUnsets),
             'delete' => count($this->arMembershipDeletes),
             'shade'  => count($this->arShadeUpdates),
+            'on'     => $iSwitchOnCount,
+            'off'    => count($this->arFamilySwitches) - $iSwitchOnCount,
         ];
     }
 
@@ -78,7 +84,7 @@ final class CollectionFeedPlan
     {
         $arCounts = $this->countSummary();
         $sSummary = sprintf(
-            '%s: create %d, rename %d, set %d, unset %d, delete %d, shade %d, writes %d',
+            '%s: create %d, rename %d, set %d, unset %d, delete %d, shade %d, on %d, off %d, writes %d',
             $sVerb,
             $arCounts['create'],
             $arCounts['rename'],
@@ -86,6 +92,8 @@ final class CollectionFeedPlan
             $arCounts['unset'],
             $arCounts['delete'],
             $arCounts['shade'],
+            $arCounts['on'],
+            $arCounts['off'],
             $this->countWrites()
         );
 

@@ -13,7 +13,7 @@ use Logingrupa\ColorClassifier\Classes\CollectionFeedSync;
 class SyncCollections extends Command
 {
     /** @var string signature */
-    protected $signature = 'colorclassifier:sync-collections {--dry-run : Plan only, write nothing} {--allow-empty : Allow a collection to lose its last 1C member}';
+    protected $signature = 'colorclassifier:sync-collections {--dry-run : Plan only, write nothing}';
 
     /** @var string description */
     protected $description = 'Mirror the 1C collection tags into collection families and memberships.';
@@ -24,7 +24,7 @@ class SyncCollections extends Command
     public function handle(): int
     {
         $blDryRun = (bool) $this->option('dry-run');
-        $obPlan = (new CollectionFeedSync())->run($blDryRun, (bool) $this->option('allow-empty'));
+        $obPlan = (new CollectionFeedSync())->run($blDryRun);
 
         if ($obPlan->isAborted()) {
             $this->line('Aborted: ' . $obPlan->sAbortReason);

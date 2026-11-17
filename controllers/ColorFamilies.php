@@ -60,7 +60,7 @@ class ColorFamilies extends Controller
     public function onSyncCollections(): array
     {
         try {
-            $obPlan = (new CollectionFeedSync())->run(false, false);
+            $obPlan = (new CollectionFeedSync())->run(false);
         } catch (QueryException $obException) {
             report($obException);
 

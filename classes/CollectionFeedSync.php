@@ -12,10 +12,11 @@ use System\Models\Parameter;
  * The command and the Families page button share this one service. It reads the
  * tags from the warm parser cache, asks CollectionFeedPlanner for the plan and,
  * unless it is a dry run, applies the plan in one transaction. It writes only
- * the sync-owned columns (in_feed, shade_code, feed_value_name); hand_state is
- * never touched. The rows are read before the transaction, so a delete or an
- * unset only matches a row whose hand_state still equals the planned one, and
- * an insert yields to a row a person added since.
+ * the sync-owned columns (in_feed, shade_code, feed_value_name) and is_active of
+ * a collection; hand_state and is_hand_disabled are never touched. The rows are
+ * read before the transaction, so a delete or an unset only matches a row whose
+ * hand_state still equals the planned one, a switch yields to a hand switch made
+ * since, and an insert yields to a row a person added since.
  *
  * @package Logingrupa\ColorClassifier\Classes
  */
@@ -42,19 +43,17 @@ class CollectionFeedSync
 
     /**
      * @param bool $blDryRun Plan only, write nothing.
-     * @param bool $blAllowEmpty Allow a collection to lose its last 1C member.
      *
      * @return CollectionFeedPlan The plan that was applied, or the aborted plan with its reason.
      */
-    public function run(bool $blDryRun, bool $blAllowEmpty): CollectionFeedPlan
+    public function run(bool $blDryRun): CollectionFeedPlan
     {
         $arTags = $this->obOfferDataProvider->getCollectionTags();
         $obPlan = (new CollectionFeedPlanner($this->obOfferDataProvider->getCollectionCharacteristicId()))->plan(
             $arTags,
             $this->obMembershipQuery->loadFamilyRows(),
             $this->obMembershipQuery->loadMembershipRows(),
-            $this->readLastOfferCount(),
-            $blAllowEmpty
+            $this->readLastOfferCount()
         );
 
         if ($blDryRun || $obPlan->isAborted()) {
@@ -84,6 +83,7 @@ class CollectionFeedSync
         }
 
         $this->applyRenames($obPlan->arFamilyRenames);
+        $this->applyFamilySwitches($obPlan->arFamilySwitches);
         $this->applyMembershipSets($obPlan->arMembershipSets);
         $this->applyMembershipUnsets($obPlan->arMembershipUnsets);
         $this->applyMembershipDeletes($obPlan->arMembershipDeletes);
@@ -103,6 +103,26 @@ class CollectionFeedSync
             DB::table(self::FAMILY_TABLE)
                 ->where('feed_value_id', $arRename['value_id'])
                 ->update(['feed_value_name' => $arRename['feed_value_name'], 'updated_at' => now()]);
+        }
+    }
+
+    /**
+     * The where clause lets a hand switch made after the read win.
+     *
+     * @param array<int, array{row_id: int, is_active: bool}> $arSwitches
+     */
+    private function applyFamilySwitches(array $arSwitches): void
+    {
+        foreach ($arSwitches as $arSwitch) {
+            $obQuery = DB::table(self::FAMILY_TABLE)->where('id', $arSwitch['row_id']);
+
+            if ($arSwitch['is_active']) {
+                $obQuery->where('is_active', false)->where('is_hand_disabled', false);
+            } else {
+                $obQuery->where('is_active', true);
+            }
+
+            $obQuery->update(['is_active' => $arSwitch['is_active'], 'updated_at' => now()]);
         }
     }
 

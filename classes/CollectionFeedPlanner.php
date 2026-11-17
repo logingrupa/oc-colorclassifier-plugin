@@ -8,12 +8,13 @@ namespace Logingrupa\ColorClassifier\Classes;
  * CollectionFeedPlanner - pure planner that mirrors 1C collection tags into families and memberships.
  *
  * Rows are keyed by feed_value_id. A new 1C value becomes an active collection.
- * The planner only creates rows for value ids without one and only writes the
- * sync-owned columns (in_feed, shade_code, feed_value_name), never is_active or
- * hand_state, so a collection switched off by hand stays off. Guards run first
- * and abort with a reason and no writes.
+ * A collection is active while at least one catalog offer carries its 1C value,
+ * unless it was switched off by hand (is_hand_disabled), which always wins.
+ * Beyond is_active the planner only writes the sync-owned columns (in_feed,
+ * shade_code, feed_value_name), never hand_state. Catalog guards run first and
+ * abort with a reason and no writes.
  *
- * Family rows read: id, family, slug, kind, is_active, sort_order, feed_value_id, feed_value_name.
+ * Family rows read: id, family, slug, kind, is_active, is_hand_disabled, sort_order, feed_value_id, feed_value_name.
  * Membership rows read: id, family_id, offer_id, in_feed, hand_state, shade_code.
  *
  * @package Logingrupa\ColorClassifier\Classes
@@ -45,9 +46,8 @@ class CollectionFeedPlanner
      * @param array<int, array<string, mixed>> $arFamilyRows Every color_families row, both kinds.
      * @param array<int, array<string, mixed>> $arMembershipRows Every membership row.
      * @param int|null $iLastOfferCount Offer count of the last applied run.
-     * @param bool $blAllowEmpty Allow a collection to lose its last 1C member.
      */
-    public function plan(array $arTags, array $arFamilyRows, array $arMembershipRows, ?int $iLastOfferCount, bool $blAllowEmpty): CollectionFeedPlan
+    public function plan(array $arTags, array $arFamilyRows, array $arMembershipRows, ?int $iLastOfferCount): CollectionFeedPlan
     {
         $sCatalogAbort = $this->findCatalogAbortReason($arTags, $iLastOfferCount);
 
@@ -58,15 +58,6 @@ class CollectionFeedPlanner
         [$arNames, $arMembers] = $this->collectFeedMembers($arTags);
         $arFamilyByValueId = $this->indexCollectionFamilies($arFamilyRows);
         $arRowsByValueId = $this->indexCollectionRows($arFamilyByValueId, $arMembershipRows);
-
-        if (!$blAllowEmpty) {
-            $sEmptiedAbort = $this->findEmptiedCollection($arFamilyByValueId, $arRowsByValueId, $arMembers);
-
-            if ($sEmptiedAbort !== null) {
-                return CollectionFeedPlan::abort($sEmptiedAbort);
-            }
-        }
-
         [$arDrafts, $arSkippedValues] = $this->planDrafts($arNames, $arFamilyByValueId, $arFamilyRows);
 
         return $this->planMemberships(
@@ -76,7 +67,8 @@ class CollectionFeedPlanner
             array_diff_key($arMembers, array_column($arSkippedValues, null, 'value_id')),
             $arRowsByValueId,
             $arMembershipRows,
-            $arSkippedValues
+            $arSkippedValues,
+            $this->planSwitches($arFamilyByValueId, $arMembers)
         );
     }
 
@@ -176,28 +168,23 @@ class CollectionFeedPlanner
 
     /**
      * @param array<string, array<string, mixed>> $arFamilyByValueId
-     * @param array<string, array<string, array<string, mixed>>> $arRowsByValueId
      * @param array<string, array<string, string|null>> $arMembers
+     *
+     * @return array<int, array{row_id: int, is_active: bool}> Collection rows whose is_active differs from what 1C and the hand switch want.
      */
-    private function findEmptiedCollection(array $arFamilyByValueId, array $arRowsByValueId, array $arMembers): ?string
+    private function planSwitches(array $arFamilyByValueId, array $arMembers): array
     {
+        $arSwitches = [];
+
         foreach ($arFamilyByValueId as $sValueId => $arFamilyRow) {
-            // a switched-off collection reaches no shop, so losing its last member blocks nothing
-            if (!($arFamilyRow['is_active'] ?? true)) {
-                continue;
-            }
+            $blWanted = !empty($arMembers[$sValueId]) && !(bool) ($arFamilyRow['is_hand_disabled'] ?? false);
 
-            $iFeedMemberCount = count(array_filter(
-                $arRowsByValueId[$sValueId] ?? [],
-                static fn (array $arRow): bool => (bool) $arRow['in_feed']
-            ));
-
-            if ($iFeedMemberCount > 0 && empty($arMembers[$sValueId])) {
-                return 'collection "' . $arFamilyRow['family'] . '" would drop from ' . $iFeedMemberCount . ' feed members to none (use --allow-empty)';
+            if ($blWanted !== (bool) ($arFamilyRow['is_active'] ?? true)) {
+                $arSwitches[] = ['row_id' => (int) $arFamilyRow['id'], 'is_active' => $blWanted];
             }
         }
 
-        return null;
+        return $arSwitches;
     }
 
     /**
@@ -303,8 +290,9 @@ class CollectionFeedPlanner
      * @param array<string, array<string, array<string, mixed>>> $arRowsByValueId
      * @param array<int, array<string, mixed>> $arMembershipRows
      * @param array<int, array{value_id: string, name: string, reason: string}> $arSkippedValues
+     * @param array<int, array{row_id: int, is_active: bool}> $arSwitches
      */
-    private function planMemberships(array $arTags, array $arDrafts, array $arRenames, array $arMembers, array $arRowsByValueId, array $arMembershipRows, array $arSkippedValues): CollectionFeedPlan
+    private function planMemberships(array $arTags, array $arDrafts, array $arRenames, array $arMembers, array $arRowsByValueId, array $arMembershipRows, array $arSkippedValues, array $arSwitches): CollectionFeedPlan
     {
         $arSets = [];
         $arUnsets = [];
@@ -351,7 +339,8 @@ class CollectionFeedPlanner
             $arUnsets,
             $arDeletes,
             $this->planShadeUpdates($arTags, $arMembershipRows, $arHandledRowIds),
-            $arSkippedValues
+            $arSkippedValues,
+            $arSwitches
         );
     }
 
