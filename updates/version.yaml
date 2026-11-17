@@ -42,3 +42,6 @@
 1.9.0:
     - "A family gradient has a type (linear, radial or conic), an angle in whole degrees and 2 to 8 stops, edited on the Families page with a preview of the shop dot at real size. families.json sends the gradient as type, angle and stops, so nc shops need their matching release to draw it. Existing gradients stay linear at 90 degrees"
     - add_gradient_type_and_angle_to_color_families.php
+1.9.1:
+    - "The 1C collections get their own gradients, picked from their offer photos: a mirror ball for DISCO, a cat eye band for Magnetic DISCO, a nebula for GALAXY, a holo swirl for HOLO, a candy pinwheel for LOLIPOP, a rainbow for RAINBOW, pastels for SANDY, satin folds for SATIN, an ember glow for SHIMMER, stained glass for VITRAGE, northern lights for AURORA and neon for NEON. Ships after 1.9.0 is live, because the code before 1.9.0 cannot export more than 3 stops"
+    - seed_collection_gradients.php
