@@ -9,8 +9,8 @@ namespace Logingrupa\ColorClassifier\Classes;
  *
  * Family rows read: id, family, kind, sort_order. Membership rows read: family_id,
  * offer_id (the full 1C composite id), in_feed, hand_state. Unlike the export
- * index it keeps inactive families, so a collection draft can be filled and
- * checked on the board before the owner switches it on.
+ * index it keeps inactive families, so a collection switched off for the shops
+ * can still be checked and edited on the board.
  *
  * @package Logingrupa\ColorClassifier\Classes
  */

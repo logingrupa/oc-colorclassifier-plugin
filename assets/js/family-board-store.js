@@ -146,7 +146,7 @@
                 })
             },
 
-            /** @returns {Family[]} Collections in sort order, drafts included. */
+            /** @returns {Family[]} Collections in sort order, inactive ones included. */
             getCollections: function () {
                 return payload.families.filter(function (family) {
                     return family.kind === KIND_COLLECTION

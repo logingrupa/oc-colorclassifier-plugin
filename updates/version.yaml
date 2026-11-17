@@ -32,3 +32,5 @@
     - "Collections from the 1C Kolekcija characteristic live in the same family list as the colors (kind column, 1C link, optional 2-3 stop gradient), and one offer can sit in several families through a memberships table. families.json adds kind and gradient and leaves out inactive collections, offers.json adds families (primary first) and shade_code. The Family board shows an offer in every group it belongs to, asks Move or Clone when you drop it on a group of the same kind, adds it without asking when you drop a color on a collection or the reverse, and lets you remove a membership or reset a collection to 1C"
     - add_kind_and_feed_link_to_color_families.php
     - create_family_memberships_table.php
+1.7.1:
+    - "The 1C collection sync creates a new collection active, with the grey swatch and the 1C name, so it reaches the shops at their next color sync. The sync never writes Active on an existing collection, so a collection switched off on the Families page stays off and keeps its 1C members. The Family board labels every inactive family inactive"

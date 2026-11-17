@@ -15,8 +15,8 @@ namespace Logingrupa\ColorClassifier\Classes;
  * sort_order, active, kind (color or collection) and gradient (null or 2-3
  * hex stops). Inactive color families stay in the export with active false,
  * because consumers delete shop rows whose slug disappears. Inactive
- * collection drafts are left out: a draft is not shown until the owner
- * activates it.
+ * collections are left out, so a collection switched off on the Families
+ * page leaves the shops.
  *
  * Export ORDER is a contract: consumers render family pills in payload key
  * order, which is the Families page sort order (sort_order, then id).

@@ -68,7 +68,7 @@
         if (family.active) {
             return ''
         }
-        return '<span class="fb-tag fb-tag--muted">' + (family.kind === 'collection' ? 'draft' : 'inactive') + '</span>'
+        return '<span class="fb-tag fb-tag--muted">inactive</span>'
     }
 
     /**
@@ -204,7 +204,7 @@
     function renderFamilyOptions(families, selectedFamily) {
         return families.map(function (family) {
             return '<option value="' + escapeHtml(family.family) + '"' + (family.family === selectedFamily ? ' selected' : '') + '>'
-                + escapeHtml(family.family) + (family.active ? '' : ' (draft)') + '</option>'
+                + escapeHtml(family.family) + (family.active ? '' : ' (inactive)') + '</option>'
         }).join('')
     }
 
