@@ -15,6 +15,9 @@ use System\Classes\PluginBase;
  */
 class Plugin extends PluginBase
 {
+    /** @var int Minutes before an overlap lock expires, under the hourly interval so a killed scheduler cannot block the next run. */
+    private const SCHEDULE_LOCK_MINUTES = 55;
+
     /**
      * Register view namespace and any boot-time logic.
      *
@@ -48,8 +51,8 @@ class Plugin extends PluginBase
      */
     public function registerSchedule($schedule): void
     {
-        $schedule->command('colorclassifier:process-new-offers')->hourlyAt(10)->withoutOverlapping();
-        $schedule->command('colorclassifier:sync-collections')->hourlyAt(20)->withoutOverlapping();
+        $schedule->command('colorclassifier:process-new-offers')->hourlyAt(10)->withoutOverlapping(self::SCHEDULE_LOCK_MINUTES);
+        $schedule->command('colorclassifier:sync-collections')->hourlyAt(20)->withoutOverlapping(self::SCHEDULE_LOCK_MINUTES);
     }
 
     /**
