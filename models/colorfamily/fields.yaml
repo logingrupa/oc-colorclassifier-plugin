@@ -30,7 +30,7 @@ fields:
         type: switch
         span: right
         default: true
-        comment: Switch off to retire a family. Families are never deleted.
+        comment: 'Switch off to retire a family. Families are never deleted. A collection follows 1C: the sync switches it off when 1C stops carrying it and on again when it returns, unless you switched it off here.'
 
     gradient_stops:
         label: Gradient

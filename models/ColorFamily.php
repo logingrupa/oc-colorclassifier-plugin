@@ -58,8 +58,9 @@ class ColorFamily extends Model
 
     /** @var array<string, string> Attributes cast to native types. */
     protected $casts = [
-        'is_active'  => 'boolean',
-        'sort_order' => 'integer',
+        'is_active'        => 'boolean',
+        'is_hand_disabled' => 'boolean',
+        'sort_order'       => 'integer',
     ];
 
     /** @var array<string, mixed> Validation rules. */
@@ -153,6 +154,19 @@ class ColorFamily extends Model
             $this->gradient = (new GradientNormalizer())->normalize($this->gradient);
         } catch (\InvalidArgumentException $obException) {
             throw new ValidationException(['gradient' => $obException->getMessage()]);
+        }
+    }
+
+    /**
+     * A collection switched off through the model is switched off by hand, so the
+     * 1C sync keeps it off. The sync writes its own switches past the model.
+     *
+     * @return void
+     */
+    public function beforeSave()
+    {
+        if (FamilyKind::normalize($this->kind) === FamilyKind::COLLECTION && (!$this->exists || $this->isDirty('is_active'))) {
+            $this->is_hand_disabled = !$this->is_active;
         }
     }
 
