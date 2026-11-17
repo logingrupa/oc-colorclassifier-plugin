@@ -16,7 +16,7 @@ final class CollectionFeedPlan
 {
     /**
      * @param string|null $sAbortReason Set when the sync must write nothing.
-     * @param array<int, array<string, mixed>> $arFamilyDrafts Collection rows to create, inactive.
+     * @param array<int, array<string, mixed>> $arFamilyDrafts Collection rows to create, active.
      * @param array<int, array{value_id: string, feed_value_name: string}> $arFamilyRenames
      * @param array<int, array{value_id: string, offer_id: string, shade_code: string|null, row_id: int|null}> $arMembershipSets Rows that turn in_feed on.
      * @param array<int, array{row_id: int}> $arMembershipUnsets Rows with a hand state that turn in_feed off.

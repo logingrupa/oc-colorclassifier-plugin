@@ -121,7 +121,7 @@ class CollectionFeedPlannerTest extends TestCase
         return [$arFamilies, array_values($arRowsById)];
     }
 
-    public function test_snapshot_plans_two_inactive_drafts_and_every_feed_membership(): void
+    public function test_snapshot_plans_two_active_collections_and_every_feed_membership(): void
     {
         $obPlan = $this->obPlanner->plan($this->makeSnapshotTags(), $this->makeColorRows(), [], null, false);
 
@@ -137,7 +137,8 @@ class CollectionFeedPlannerTest extends TestCase
         $this->assertSame('disco', $arDisco['slug']);
         $this->assertSame('collection', $arDisco['kind']);
         $this->assertSame('#9e9e9e', $arDisco['hex']);
-        $this->assertFalse($arDisco['is_active']);
+        $this->assertTrue($arDisco['is_active']);
+        $this->assertTrue($arNeon['is_active']);
         $this->assertSame(8, $arDisco['sort_order']);
         $this->assertSame(9, $arNeon['sort_order']);
         $this->assertSame(['en' => 'DISCO', 'lv' => 'DISCO', 'ru' => 'DISCO', 'lt' => 'DISCO', 'nb-no' => 'DISCO'], $arDisco['names']);
@@ -162,6 +163,32 @@ class CollectionFeedPlannerTest extends TestCase
 
         $this->assertFalse($obSecondPlan->isAborted());
         $this->assertSame(0, $obSecondPlan->countWrites());
+    }
+
+    public function test_switched_off_collection_gets_no_new_row_stays_off_and_keeps_syncing_memberships(): void
+    {
+        $arFamilies = array_merge($this->makeColorRows(), [
+            ['id' => 3, 'family' => 'DISCO', 'slug' => 'disco', 'kind' => 'collection', 'sort_order' => 8, 'feed_value_id' => 'v-disco', 'feed_value_name' => 'DISCO', 'is_active' => false],
+        ]);
+        $arTags = $this->makeSnapshotTags();
+
+        $obPlan = $this->obPlanner->plan($arTags, $arFamilies, [], null, false);
+
+        $this->assertFalse($obPlan->isAborted());
+        $this->assertCount(1, $obPlan->arFamilyDrafts);
+        $this->assertSame('v-neon', $obPlan->arFamilyDrafts[0]['feed_value_id']);
+        $this->assertTrue($obPlan->arFamilyDrafts[0]['is_active']);
+        $this->assertSame([], $obPlan->arFamilyRenames);
+        $this->assertSame(['v-disco' => 33, 'v-neon' => 3], array_count_values(array_column($obPlan->arMembershipSets, 'value_id')));
+
+        [$arAppliedFamilies, $arAppliedMemberships] = $this->applyPlan($obPlan, $arFamilies, []);
+        $arSwitchedOffRows = array_filter($arAppliedFamilies, static fn (array $arFamily): bool => ($arFamily['feed_value_id'] ?? null) === 'v-disco');
+        $arSwitchedOffMemberships = array_filter($arAppliedMemberships, static fn (array $arMembership): bool => $arMembership['family_id'] === 3 && $arMembership['in_feed'] === true);
+
+        $this->assertCount(1, $arSwitchedOffRows);
+        $this->assertFalse(reset($arSwitchedOffRows)['is_active']);
+        $this->assertCount(33, $arSwitchedOffMemberships);
+        $this->assertSame(0, $this->obPlanner->plan($arTags, $arAppliedFamilies, $arAppliedMemberships, 60, false)->countWrites());
     }
 
     public function test_tagged_offer_without_a_shade_code_stays_in_the_feed_on_every_run(): void

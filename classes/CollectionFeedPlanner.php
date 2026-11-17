@@ -7,10 +7,11 @@ namespace Logingrupa\ColorClassifier\Classes;
 /**
  * CollectionFeedPlanner - pure planner that mirrors 1C collection tags into families and memberships.
  *
- * Rows are keyed by feed_value_id. A new 1C value becomes an inactive collection
- * draft. The planner only writes the sync-owned columns (in_feed, shade_code,
- * feed_value_name), never hand_state. Guards run first and abort with a reason
- * and no writes.
+ * Rows are keyed by feed_value_id. A new 1C value becomes an active collection.
+ * The planner only creates rows for value ids without one and only writes the
+ * sync-owned columns (in_feed, shade_code, feed_value_name), never is_active or
+ * hand_state, so a collection switched off by hand stays off. Guards run first
+ * and abort with a reason and no writes.
  *
  * Family rows read: id, family, slug, kind, sort_order, feed_value_id, feed_value_name.
  * Membership rows read: id, family_id, offer_id, in_feed, hand_state, shade_code.
@@ -245,7 +246,7 @@ class CollectionFeedPlanner
             'hex'                    => self::DRAFT_HEX,
             'names'                  => array_fill_keys(self::LOCALES, $sName),
             'synonyms'               => array_fill_keys(self::LOCALES, []),
-            'is_active'              => false,
+            'is_active'              => true,
             'sort_order'             => $iSortOrder,
             'feed_characteristic_id' => $this->sCharacteristicId,
             'feed_value_id'          => $sValueId,
