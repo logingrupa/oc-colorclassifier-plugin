@@ -55,8 +55,8 @@ fields:
         type: repeater
         span: left
         prompt: Add gradient stop
-        maxItems: 3
-        comment: Optional, 2 or 3 stops drawn left to right on the shop pill. The color above is the fallback.
+        maxItems: 8
+        comment: Optional, 2 to 8 stops, evenly spaced, drawn on the shop dot as set below. The color above is the fallback. A conic sweep is seamless when the last stop repeats the first.
         form:
             fields:
                 stop:
@@ -71,7 +71,29 @@ fields:
         type: partial
         path: field_gradient_preview
         span: right
-        dependsOn: gradient_stops
+        dependsOn: [gradient_stops, gradient_type, gradient_angle]
+
+    gradient_type:
+        label: Gradient type
+        type: dropdown
+        span: left
+        options:
+            linear: Linear - straight bands at the angle
+            radial: Radial - rings from the center out
+            conic: Conic - a sweep around the center
+
+    gradient_angle:
+        label: Gradient angle
+        type: number
+        span: right
+        min: 0
+        max: 359
+        step: 1
+        comment: Whole degrees. Linear 90 runs left to right and 180 top to bottom. Conic starts its sweep here.
+        trigger:
+            action: hide
+            field: gradient_type
+            condition: value[radial]
 
     kind:
         label: Kind

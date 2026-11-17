@@ -138,11 +138,12 @@ class FamilyExportBuilderTest extends TestCase
         $arRows[] = (object) [
             'id' => 24, 'family' => 'DISCO', 'slug' => 'disco', 'hex' => '#9e9e9e', 'names' => ['en' => 'DISCO'],
             'synonyms' => [], 'sort_order' => 3, 'is_active' => true, 'kind' => 'collection',
-            'gradient' => ['#FF00AA', '#00e5ff'],
+            'gradient' => ['#FF00AA', '#00e5ff', '#FFD400'], 'gradient_type' => 'conic', 'gradient_angle' => 20,
         ];
         $arRows[] = (object) [
             'id' => 25, 'family' => 'NEON', 'slug' => 'neon', 'hex' => '#9e9e9e', 'names' => ['en' => 'NEON'],
             'synonyms' => [], 'sort_order' => 4, 'is_active' => false, 'kind' => 'collection', 'gradient' => null,
+            'gradient_type' => 'linear', 'gradient_angle' => 90,
         ];
 
         return $arRows;
@@ -153,7 +154,7 @@ class FamilyExportBuilderTest extends TestCase
         $arPayload = (new FamilyExportBuilder())->build($this->makeRowsWithCollections());
 
         $this->assertSame('collection', $arPayload['families']['disco']['kind']);
-        $this->assertSame(['#ff00aa', '#00e5ff'], $arPayload['families']['disco']['gradient']);
+        $this->assertSame(['type' => 'conic', 'angle' => 20, 'stops' => ['#ff00aa', '#00e5ff', '#ffd400']], $arPayload['families']['disco']['gradient']);
         $this->assertSame('#9e9e9e', $arPayload['families']['disco']['hex']);
         $arSlugList = array_keys($arPayload['families']);
         $sSlugWithSameSortOrder = $this->makeSeedRows()[2]->slug;
@@ -176,6 +177,15 @@ class FamilyExportBuilderTest extends TestCase
     {
         $arRows = $this->makeRowsWithCollections();
         $arRows[23]->gradient = ['#ff00aa'];
+
+        $this->expectException(\InvalidArgumentException::class);
+        (new FamilyExportBuilder())->build($arRows);
+    }
+
+    public function test_bad_stored_gradient_type_throws(): void
+    {
+        $arRows = $this->makeRowsWithCollections();
+        $arRows[23]->gradient_type = 'spiral';
 
         $this->expectException(\InvalidArgumentException::class);
         (new FamilyExportBuilder())->build($arRows);

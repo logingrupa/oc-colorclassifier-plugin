@@ -38,7 +38,9 @@ class ColorFamily extends Model
 
     /** @var array<string, mixed> Defaults for a new row, so the Create form always makes a color. */
     public $attributes = [
-        'kind' => FamilyKind::COLOR,
+        'kind'           => FamilyKind::COLOR,
+        'gradient_type'  => 'linear',
+        'gradient_angle' => 90,
     ];
 
     /** @var array<int, string> Attributes that are mass assignable. */
@@ -51,6 +53,8 @@ class ColorFamily extends Model
         'feed_value_name',
         'hex',
         'gradient',
+        'gradient_type',
+        'gradient_angle',
         'names',
         'synonyms',
         'sort_order',
@@ -62,6 +66,7 @@ class ColorFamily extends Model
         'is_active'        => 'boolean',
         'is_hand_disabled' => 'boolean',
         'sort_order'       => 'integer',
+        'gradient_angle'   => 'integer',
     ];
 
     /** @var bool|null Active value the Families form was rendered with, null outside the form. */
@@ -69,12 +74,14 @@ class ColorFamily extends Model
 
     /** @var array<string, mixed> Validation rules. */
     public $rules = [
-        'family'        => ['required', 'max:' . CollectionFeedPlanner::KEY_MAX_LENGTH, 'regex:' . CollectionFeedPlanner::KEY_PATTERN, 'unique'],
-        'slug'          => ['required', 'max:64', 'regex:/^[a-z0-9-]+$/', 'unique'],
-        'kind'          => ['required', 'in:color,collection'],
-        'feed_value_id' => ['nullable', 'max:36', 'unique', 'required_if:kind,collection', 'prohibited_if:kind,color'],
-        'hex'           => ['required', 'regex:/^#[0-9a-f]{6}$/'],
-        'names.en'      => 'required',
+        'family'         => ['required', 'max:' . CollectionFeedPlanner::KEY_MAX_LENGTH, 'regex:' . CollectionFeedPlanner::KEY_PATTERN, 'unique'],
+        'slug'           => ['required', 'max:64', 'regex:/^[a-z0-9-]+$/', 'unique'],
+        'kind'           => ['required', 'in:color,collection'],
+        'feed_value_id'  => ['nullable', 'max:36', 'unique', 'required_if:kind,collection', 'prohibited_if:kind,color'],
+        'hex'            => ['required', 'regex:/^#[0-9a-f]{6}$/'],
+        'gradient_type'  => ['required', 'in:linear,radial,conic'],
+        'gradient_angle' => ['required', 'integer', 'between:0,359'],
+        'names.en'       => 'required',
     ];
 
     /** @var array<string, string> Validation messages. */
@@ -146,7 +153,7 @@ class ColorFamily extends Model
     /**
      * @return void
      *
-     * @throws ValidationException When the gradient is not 2 or 3 hex stops.
+     * @throws ValidationException When the gradient breaks the GradientNormalizer rules.
      */
     public function beforeValidate()
     {
@@ -155,10 +162,12 @@ class ColorFamily extends Model
         $this->hex = strtolower(trim((string) $this->hex));
 
         try {
-            $this->gradient = (new GradientNormalizer())->normalize($this->gradient);
+            $arGradient = (new GradientNormalizer())->normalize($this->gradient, $this->gradient_type, $this->gradient_angle);
         } catch (\InvalidArgumentException $obException) {
             throw new ValidationException(['gradient' => $obException->getMessage()]);
         }
+
+        $this->gradient = $arGradient['stops'] ?? null;
     }
 
     /**

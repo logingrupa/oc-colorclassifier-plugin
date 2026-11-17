@@ -1,8 +1,8 @@
 /**
  * family-board-view.js - renders the Family board from store state.
  *
- * Payload strings reach the DOM only through escapeHtml, and a hex reaches a
- * style attribute only after isHexColor.
+ * Payload strings reach the DOM only through escapeHtml, a hex reaches a
+ * style attribute only after isHexColor and a swatch only after isSafeBackground.
  *
  * @module ColorClassifierFamilyBoard.View
  */
@@ -47,17 +47,22 @@
     }
 
     /**
-     * A collection with a gradient draws it, every other family draws its hex.
+     * @param {*} value
+     * @returns {boolean} Whether a server-built CSS background only holds hex stops, numbers, words and gradient punctuation.
+     */
+    function isSafeBackground(value) {
+        return typeof value === 'string' && /^[a-z0-9#(),. -]+$/i.test(value)
+    }
+
+    /**
+     * Every family draws its server-built swatch: its gradient, or its hex.
      *
      * @param {import('./family-board-store.js').Family|null|undefined} family
      * @returns {string} A background style attribute, empty when nothing valid can be drawn.
      */
     function swatchStyle(family) {
-        var gradient = family ? family.gradient : null
-        if (Array.isArray(gradient) && gradient.length >= 2 && gradient.length <= 3 && gradient.every(isHexColor)) {
-            return ' style="background:linear-gradient(90deg,' + gradient.join(',') + ')"'
-        }
-        return backgroundStyle(family ? family.hex : '')
+        var swatch = family ? family.swatch : ''
+        return isSafeBackground(swatch) ? ' style="background:' + swatch + '"' : ''
     }
 
     /**

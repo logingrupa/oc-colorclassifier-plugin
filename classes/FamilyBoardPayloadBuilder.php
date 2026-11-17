@@ -130,7 +130,7 @@ class FamilyBoardPayloadBuilder
                 'custom'                => $sKind === FamilyKind::COLOR && !in_array((string) $obFamily->family, Taxonomy::$colorFamilies, true),
                 'kind'                  => $sKind,
                 'fromFeed'              => $sFeedValueId !== '',
-                'gradient'              => is_array($obFamily->gradient ?? null) ? array_values($obFamily->gradient) : null,
+                'swatch'                => (new FamilySwatch())->background((string) $obFamily->hex, $obFamily->gradient ?? null, $obFamily->gradient_type ?? null, $obFamily->gradient_angle ?? null),
                 'feedOffersWithoutCard' => $sKind === FamilyKind::COLLECTION
                     ? $obMembershipMap->countFeedOffersWithoutCard((string) $obFamily->family, $arPresentOfferIds)
                     : 0,

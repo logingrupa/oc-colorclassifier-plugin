@@ -12,7 +12,8 @@ namespace Logingrupa\ColorClassifier\Classes;
  *
  * Exported shape per family (keyed by slug): name (the family key used by
  * offers.json), localized display names, per-locale synonym lists, hex,
- * sort_order, active, kind (color or collection) and gradient (null or 2-3
+ * sort_order, active, kind (color or collection) and gradient (null or
+ * {type, angle, stops}: linear, radial or conic, whole degrees 0-359, 2 to 8
  * hex stops). Inactive color families stay in the export with active false,
  * because consumers delete shop rows whose slug disappears. Inactive
  * collections are left out, so a collection switched off on the Families
@@ -29,15 +30,15 @@ class FamilyExportBuilder
      * Build the families export payload.
      *
      * The version stamp is derived from the exported payload itself, so it
-     * changes exactly when a name, synonym, hex, order or active flag changes
+     * changes exactly when a name, synonym, hex, gradient, order or active flag changes
      * and ETag revalidation stays a 304 otherwise.
      *
      * @param iterable<int, object|array<string, mixed>> $arFamilyRows color_families rows (models, objects or arrays).
      *
-     * @return array{version: string, count: int, families: array<string, array{name: string, names: array<string, string>, synonyms: array<string, array<int, string>>, hex: string, sort_order: int, active: bool, kind: string, gradient: array<int, string>|null}>}
+     * @return array{version: string, count: int, families: array<string, array{name: string, names: array<string, string>, synonyms: array<string, array<int, string>>, hex: string, sort_order: int, active: bool, kind: string, gradient: array{type: string, angle: int, stops: array<int, string>}|null}>}
      *
      * @throws \RuntimeException When a family has a missing slug or hex, or a slug appears twice.
-     * @throws \InvalidArgumentException When a stored gradient is not 2 or 3 hex stops.
+     * @throws \InvalidArgumentException When a stored gradient breaks the GradientNormalizer rules.
      */
     public function build(iterable $arFamilyRows): array
     {
@@ -69,7 +70,7 @@ class FamilyExportBuilder
                 'sort_order' => (int) $arRow['sort_order'],
                 'active'     => (bool) $arRow['is_active'],
                 'kind'       => $arRow['kind'],
-                'gradient'   => $obGradientNormalizer->normalize($arRow['gradient']),
+                'gradient'   => $obGradientNormalizer->normalize($arRow['gradient'], $arRow['gradient_type'], $arRow['gradient_angle']),
             ];
         }
 
@@ -103,6 +104,8 @@ class FamilyExportBuilder
                 'is_active'  => $this->readField($mFamilyRow, 'is_active'),
                 'kind'       => FamilyKind::normalize($this->readField($mFamilyRow, 'kind')),
                 'gradient'   => $this->readField($mFamilyRow, 'gradient'),
+                'gradient_type'  => $this->readField($mFamilyRow, 'gradient_type'),
+                'gradient_angle' => $this->readField($mFamilyRow, 'gradient_angle'),
             ];
         }
 

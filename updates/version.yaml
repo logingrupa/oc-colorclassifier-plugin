@@ -39,3 +39,6 @@
     - add_hand_disabled_to_color_families.php
 1.8.0:
     - "Catalog offers that have an image and no color entry get their color every hour at 10 minutes past, at most 100 per run, so a new 1C shade or collection member reaches the shops without Process New. An offer whose image failed is tried again on later runs after the new ones. A switch on the new Automation settings tab turns the job off, and Process New now sees offers added since its last run"
+1.9.0:
+    - "A family gradient has a type (linear, radial or conic), an angle in whole degrees and 2 to 8 stops, edited on the Families page with a preview of the shop dot at real size. families.json sends the gradient as type, angle and stops, so nc shops need their matching release to draw it. Existing gradients stay linear at 90 degrees"
+    - add_gradient_type_and_angle_to_color_families.php

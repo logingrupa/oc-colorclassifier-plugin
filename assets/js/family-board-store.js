@@ -43,7 +43,7 @@
      * @property {boolean} custom
      * @property {string} kind color or collection.
      * @property {boolean} fromFeed Whether 1C owns the row.
-     * @property {string[]|null} gradient
+     * @property {string} swatch CSS background: the gradient, or the hex.
      * @property {number} feedOffersWithoutCard Offers 1C tags that have no card (no image).
      */
 

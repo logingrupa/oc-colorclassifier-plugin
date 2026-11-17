@@ -5,45 +5,89 @@ declare(strict_types=1);
 namespace Logingrupa\ColorClassifier\Classes;
 
 /**
- * GradientNormalizer - pure rules for the optional 2 or 3 stop family gradient.
+ * GradientNormalizer - pure rules for the optional family gradient: 2 to 8
+ * color stops, a type and an angle in whole degrees.
  *
  * @package Logingrupa\ColorClassifier\Classes
  */
 class GradientNormalizer
 {
+    /** @var array<int, string> Gradient types, as stored and exported. */
+    public const TYPES = ['linear', 'radial', 'conic'];
+
     private const MIN_STOP_COUNT = 2;
 
-    private const MAX_STOP_COUNT = 3;
+    private const MAX_STOP_COUNT = 8;
+
+    private const MAX_ANGLE = 359;
 
     private const STOP_PATTERN = '/^#[0-9a-fA-F]{6}$/';
 
+    private const ANGLE_PATTERN = '/^\d{1,3}$/';
+
     /**
-     * @param mixed $mGradient Null, an empty list or a list of #rrggbb strings.
+     * @param mixed $mStops Null, an empty list or a list of #rrggbb strings.
+     * @param mixed $mType linear, radial or conic.
+     * @param mixed $mAngle Whole degrees 0-359 as an int or a digit string. Radial ignores it.
      *
-     * @return array<int, string>|null Lowercase stops, null when no gradient is set.
+     * @return array{type: string, angle: int, stops: array<int, string>}|null Lowercase stops, null when no stops are set.
      *
-     * @throws \InvalidArgumentException When the value is not a list of 2 or 3 strict hex stops.
+     * @throws \InvalidArgumentException When stops are set and the stops, type or angle break the rules.
      */
-    public function normalize(mixed $mGradient): ?array
+    public function normalize(mixed $mStops, mixed $mType, mixed $mAngle): ?array
     {
-        if ($mGradient === null || $mGradient === []) {
+        if ($mStops === null || $mStops === []) {
             return null;
         }
 
-        if (!is_array($mGradient) || !array_is_list($mGradient)) {
+        return [
+            'type'  => $this->normalizeType($mType),
+            'angle' => $this->normalizeAngle($mAngle),
+            'stops' => $this->normalizeStops($mStops),
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function normalizeStops(mixed $mStops): array
+    {
+        if (!is_array($mStops) || !array_is_list($mStops)) {
             throw new \InvalidArgumentException('A gradient is a list of color stops');
         }
 
-        if (count($mGradient) < self::MIN_STOP_COUNT || count($mGradient) > self::MAX_STOP_COUNT) {
-            throw new \InvalidArgumentException('A gradient needs 2 or 3 color stops, got ' . count($mGradient));
+        if (count($mStops) < self::MIN_STOP_COUNT || count($mStops) > self::MAX_STOP_COUNT) {
+            throw new \InvalidArgumentException('A gradient needs 2 to 8 color stops, got ' . count($mStops));
         }
 
-        foreach ($mGradient as $mStop) {
+        foreach ($mStops as $mStop) {
             if (!is_string($mStop) || preg_match(self::STOP_PATTERN, $mStop) !== 1) {
                 throw new \InvalidArgumentException('Every gradient stop must look like #d32f2f');
             }
         }
 
-        return array_map('strtolower', $mGradient);
+        return array_map('strtolower', $mStops);
+    }
+
+    private function normalizeType(mixed $mType): string
+    {
+        if (!is_string($mType) || !in_array($mType, self::TYPES, true)) {
+            throw new \InvalidArgumentException('A gradient type is linear, radial or conic');
+        }
+
+        return $mType;
+    }
+
+    private function normalizeAngle(mixed $mAngle): int
+    {
+        if (is_string($mAngle) && preg_match(self::ANGLE_PATTERN, $mAngle) === 1) {
+            $mAngle = (int) $mAngle;
+        }
+
+        if (!is_int($mAngle) || $mAngle < 0 || $mAngle > self::MAX_ANGLE) {
+            throw new \InvalidArgumentException('A gradient angle is a whole number of degrees from 0 to 359');
+        }
+
+        return $mAngle;
     }
 }

@@ -17,7 +17,7 @@
  *   8. EffectiveColorResolver - depends on ColorConverter
  *   9. OverrideNormalizer, SheetExportBuilder, FamilyExportBuilder - no dependencies
  *  10. ImageHexSampler (ColorConverter), FamilyBoardPayloadBuilder (resolver, SheetExportBuilder, Taxonomy)
- *  11. Collections: FamilyKind, GradientNormalizer, MembershipStateNormalizer, FamilyMembershipIndex,
+ *  11. Collections: FamilyKind, GradientNormalizer, FamilySwatch, MembershipStateNormalizer, FamilyMembershipIndex,
  *      CollectionTagExtractor, CollectionFeedPlan, CollectionFeedPlanner, CollectionHandSwitch - no CMS dependencies
  *  12. FamilySwitchWriter - takes an Illuminate database connection
  *  13. NewOfferQueue - no dependencies
@@ -38,6 +38,7 @@ require_once $pluginRootDirectory . '/classes/ColorClassifier.php';
 require_once $pluginRootDirectory . '/classes/NailoLabTransforms.php';
 require_once $pluginRootDirectory . '/classes/FamilyKind.php';
 require_once $pluginRootDirectory . '/classes/GradientNormalizer.php';
+require_once $pluginRootDirectory . '/classes/FamilySwatch.php';
 require_once $pluginRootDirectory . '/classes/MembershipStateNormalizer.php';
 require_once $pluginRootDirectory . '/classes/FamilyMembershipIndex.php';
 require_once $pluginRootDirectory . '/classes/CollectionTagExtractor.php';

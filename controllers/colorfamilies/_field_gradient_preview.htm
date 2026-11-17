@@ -1,13 +1,17 @@
 <?php
-    $arStops = array_values(array_filter(
-        (array) $model->gradient,
-        static fn ($mStop): bool => is_string($mStop) && preg_match('/^#[0-9a-fA-F]{6}$/', $mStop) === 1
-    ));
-    $sBackground = count($arStops) >= 2
-        ? 'linear-gradient(90deg, ' . implode(', ', $arStops) . ')'
-        : (string) $model->hex;
+    $sBackground = (new \Logingrupa\ColorClassifier\Classes\FamilySwatch())->background(
+        (string) $model->hex,
+        $model->gradient,
+        $model->gradient_type,
+        $model->gradient_angle
+    );
+    $sSwatchStyle = 'flex: 0 0 auto; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12); background: ' . $sBackground . ';';
 ?>
 <div class="form-group">
     <label class="form-label">Preview</label>
-    <div data-gradient-preview style="height: 32px; border-radius: 16px; border: 1px solid rgba(0, 0, 0, .15); background: <?= e($sBackground) ?>;"></div>
+    <div data-gradient-preview style="display: flex; align-items: center; gap: 12px;">
+        <div style="flex: 1 1 auto; height: 32px; border-radius: 16px; border: 1px solid rgba(0, 0, 0, .15); background: <?= e($sBackground) ?>;"></div>
+        <div title="Large swatch" style="width: 48px; height: 48px; <?= e($sSwatchStyle) ?>"></div>
+        <div title="Shop chip dot, real size" style="width: 12px; height: 12px; <?= e($sSwatchStyle) ?>"></div>
+    </div>
 </div>

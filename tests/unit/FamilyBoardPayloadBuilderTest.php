@@ -68,7 +68,7 @@ class FamilyBoardPayloadBuilderTest extends TestCase
                 'custom'                => false,
                 'kind'                  => 'color',
                 'fromFeed'              => false,
-                'gradient'              => null,
+                'swatch'                => '#d32f2f',
                 'feedOffersWithoutCard' => 0,
             ],
             $arPayload['families'][0]
@@ -111,6 +111,8 @@ class FamilyBoardPayloadBuilderTest extends TestCase
             'kind'          => 'collection',
             'feed_value_id' => 'value-' . $iId,
             'gradient'      => ['#ff00aa', '#00e5ff'],
+            'gradient_type' => 'radial',
+            'gradient_angle' => 90,
         ]);
     }
 
@@ -119,7 +121,7 @@ class FamilyBoardPayloadBuilderTest extends TestCase
         return ['family_id' => $iFamilyId, 'offer_id' => $sOfferId, 'in_feed' => $blInFeed ? 1 : 0, 'hand_state' => $sHandState];
     }
 
-    public function test_collection_rows_carry_kind_feed_flag_gradient_and_the_count_of_tagged_offers_without_a_card(): void
+    public function test_collection_rows_carry_kind_feed_flag_swatch_and_the_count_of_tagged_offers_without_a_card(): void
     {
         $arPayload = $this->obBuilder->build(
             [$this->makeEntry()],
@@ -134,7 +136,7 @@ class FamilyBoardPayloadBuilderTest extends TestCase
         );
 
         $this->assertSame(
-            ['family' => 'DISCO', 'slug' => 'disco', 'hex' => '#d32f2f', 'active' => false, 'custom' => false, 'kind' => 'collection', 'fromFeed' => true, 'gradient' => ['#ff00aa', '#00e5ff'], 'feedOffersWithoutCard' => 2],
+            ['family' => 'DISCO', 'slug' => 'disco', 'hex' => '#d32f2f', 'active' => false, 'custom' => false, 'kind' => 'collection', 'fromFeed' => true, 'swatch' => 'radial-gradient(circle, #ff00aa, #00e5ff)', 'feedOffersWithoutCard' => 2],
             $arPayload['families'][1]
         );
         $this->assertSame(0, $arPayload['families'][0]['feedOffersWithoutCard']);
