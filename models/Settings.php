@@ -62,5 +62,21 @@ class Settings extends SettingModel
         $this->vivid_saturation_threshold  = 65.0;
         $this->medium_saturation_threshold = 40.0;
         $this->soft_saturation_threshold   = 20.0;
+
+        // Scheduled color assignment for new offers
+        $this->auto_process_new_offers = true;
+    }
+
+    /**
+     * A settings record without the automation switch value reads it as on, so
+     * the form shows the switch the way the scheduled job reads it.
+     *
+     * @return void
+     */
+    public function afterFetch(): void
+    {
+        if ($this->auto_process_new_offers === null) {
+            $this->auto_process_new_offers = true;
+        }
     }
 }

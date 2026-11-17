@@ -141,3 +141,11 @@ tabs:
             type: number
             span: right
             comment: Saturation at or above this value (below medium) is classified as Soft; below is Muted
+
+        # ─── Tab: Automation ─────────────────────────────────────────────────
+
+        auto_process_new_offers:
+            tab: Automation
+            label: Assign colors to new offers automatically
+            type: switch
+            comment: Runs every hour at :10. Takes catalog offers that have an image and no color yet, at most 100 per run, and never touches an existing entry.

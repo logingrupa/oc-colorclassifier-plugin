@@ -19,16 +19,15 @@ trait BatchProcessingHandlers
      * AJAX handler - prepare a chunked batch run and return the total offer count.
      *
      * Called once before the frontend begins looping onProcessBatch requests.
-     * Caches the offer list so subsequent chunks read from cache, not the XML feed.
+     * Stores a fresh offer list so subsequent chunks read from cache, not the XML feed.
      *
      * @return array{total: int}
      */
     public function onStartBatch(): array
     {
-        $sMode          = post('mode', 'all');
         $batchProcessor = new BatchProcessor();
 
-        return $batchProcessor->prepareBatch($sMode);
+        return $batchProcessor->prepareBatch();
     }
 
     /**
@@ -54,9 +53,9 @@ trait BatchProcessingHandlers
     /**
      * AJAX handler - open the batch processing popup.
      *
-     * Prepares the offer list (clearing cache when mode is 'all') and
-     * returns the popup partial with the total offer count and the number
-     * of locked offers Process All will skip.
+     * Stores a fresh offer list, so Process New sees offers added since the
+     * last run, and returns the popup partial with the total offer count and
+     * the number of locked offers Process All will skip.
      *
      * @return string Rendered popup partial HTML.
      */
@@ -64,7 +63,7 @@ trait BatchProcessingHandlers
     {
         $sMode          = post('mode', 'all');
         $batchProcessor = new BatchProcessor();
-        $arResult       = $batchProcessor->prepareBatch($sMode);
+        $arResult       = $batchProcessor->prepareBatch();
 
         return $this->makePartial('$/logingrupa/colorclassifier/partials/_batch_popup.htm', [
             'mode'         => $sMode,

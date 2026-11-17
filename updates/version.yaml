@@ -37,3 +37,5 @@
 1.7.2:
     - "A collection follows the 1C file: the hourly sync switches it off when no offer carries it any more and on again when 1C carries it again. A collection switched off on the Families page stays off. A collection dropping to zero no longer stops the sync, and --allow-empty is gone. An empty, truncated or old-shape catalog still writes nothing, and so does a catalog with no collection tag while active collections have 1C members, or a 1C value re-created under a new id. The Families list and form show Off by hand, and saving a form opened before a sync run keeps the Active value the sync wrote unless you moved the switch"
     - add_hand_disabled_to_color_families.php
+1.8.0:
+    - "Catalog offers that have an image and no color entry get their color every hour at 10 minutes past, at most 100 per run, so a new 1C shade or collection member reaches the shops without Process New. An offer whose image failed is tried again on later runs after the new ones. A switch on the new Automation settings tab turns the job off, and Process New now sees offers added since its last run"

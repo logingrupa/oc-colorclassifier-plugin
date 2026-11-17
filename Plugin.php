@@ -28,18 +28,19 @@ class Plugin extends PluginBase
     }
 
     /**
-     * Registers the 1C collection sync command.
+     * Registers the 1C collection sync and the new offer color commands.
      *
      * @return void
      */
     public function register(): void
     {
         $this->registerConsoleCommand('colorclassifier.sync_collections', \Logingrupa\ColorClassifier\Console\SyncCollections::class);
+        $this->registerConsoleCommand('colorclassifier.process_new_offers', \Logingrupa\ColorClassifier\Console\ProcessNewOffers::class);
     }
 
     /**
-     * Keeps the collection families in step with 1C, 20 minutes past the hour so the
-     * catalog warmed at :00 is the one it reads.
+     * Gives new offers their color 10 minutes past the hour and keeps the collection
+     * families in step with 1C 20 minutes past, so both read the catalog warmed at :00.
      *
      * @param \Illuminate\Console\Scheduling\Schedule $schedule
      *
@@ -47,6 +48,7 @@ class Plugin extends PluginBase
      */
     public function registerSchedule($schedule): void
     {
+        $schedule->command('colorclassifier:process-new-offers')->hourlyAt(10)->withoutOverlapping();
         $schedule->command('colorclassifier:sync-collections')->hourlyAt(20)->withoutOverlapping();
     }
 

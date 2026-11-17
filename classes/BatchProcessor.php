@@ -23,6 +23,9 @@ class BatchProcessor
     /** @var string CCache key for the raw offer list. */
     private const OFFER_LIST_CACHE_KEY = 'offer_list';
 
+    /** @var string CCache key for the offer id map whose image failed in processNewOffers(). */
+    private const FAILED_NEW_OFFER_IDS_CACHE_KEY = 'failed_new_offer_ids';
+
     /** @var int Chunk size for querying existing offer IDs to avoid memory issues. */
     private const EXISTING_OFFERS_CHUNK_SIZE = 500;
 
@@ -61,36 +64,72 @@ class BatchProcessor
     }
 
     /**
-     * Process only new offers — skip any offer already in the database.
+     * Give a color entry to at most $iLimit catalog offers that have an image and no entry yet.
      *
-     * Fetches the existing offer IDs from the database in chunks to avoid
-     * memory issues, then skips any offer that is already processed.
+     * Reads a fresh offer list, never the stored one. NewOfferQueue puts offers whose
+     * image failed on an earlier run after the never-tried ones, and the failure
+     * memory is written back after the run. An offer with an entry is never touched.
      *
-     * @return array{processed: int, skipped: int, failed: int, total: int}
+     * @param int $iLimit Most offers to process, 1 or more.
+     *
+     * @return array{processed: int, failed: int, left: int, total: int, failed_offers: array<int, array{offer_id: string, name: string}>}
      */
-    public function processNew(): array
+    public function processNewOffers(int $iLimit): array
     {
-        $offersWithImages   = $this->fetchAndCacheOfferList();
-        $existingOfferIds   = $this->fetchExistingOfferIds();
+        $arFailedOfferIdMap = CCache::get(self::CACHE_TAGS, self::FAILED_NEW_OFFER_IDS_CACHE_KEY) ?? [];
+        $arSelection        = NewOfferQueue::select(
+            $this->offerDataProvider->getOffersWithImages(),
+            $this->fetchExistingOfferIds(),
+            $arFailedOfferIdMap,
+            $iLimit
+        );
 
-        return $this->processBatch($offersWithImages, $existingOfferIds);
+        $arSucceededOfferIds = [];
+        $arFailedOffers      = [];
+
+        foreach ($arSelection['batch'] as $arOffer) {
+            if ($this->processOffer($arOffer)) {
+                $arSucceededOfferIds[] = $arOffer['offer_id'];
+                continue;
+            }
+
+            $arFailedOffers[] = $arOffer;
+        }
+
+        // An empty batch, which a catalog that failed to load also gives, keeps the memory as it is.
+        if ($arSelection['batch'] !== []) {
+            $arNextFailedOfferIdMap = NewOfferQueue::nextFailedOfferIds(
+                $arFailedOfferIdMap,
+                $arSelection['candidate_offer_ids'],
+                $arSucceededOfferIds,
+                array_column($arFailedOffers, 'offer_id')
+            );
+
+            CCache::forever(self::CACHE_TAGS, self::FAILED_NEW_OFFER_IDS_CACHE_KEY, $arNextFailedOfferIdMap);
+        }
+
+        return [
+            'processed'     => count($arSucceededOfferIds),
+            'failed'        => count($arFailedOffers),
+            'left'          => $arSelection['left'],
+            'total'         => $arSelection['total'],
+            'failed_offers' => array_map(static fn (array $arOffer): array => [
+                'offer_id' => $arOffer['offer_id'],
+                'name'     => trim($arOffer['product_name'] . ' ' . $arOffer['variation_name']),
+            ], $arFailedOffers),
+        ];
     }
 
     /**
-     * Prepare a batch run by caching the offer list and returning the total count.
+     * Prepare a batch run by storing a fresh offer list and returning the total count.
      *
-     * Clears the cache when mode is 'all' to ensure fresh data.
-     * The cached list is then consumed by processChunk() in subsequent requests.
-     *
-     * @param string $sMode 'all' to re-process everything, 'new' to skip existing.
+     * The stored list is then consumed by processChunk() in subsequent requests.
      *
      * @return array{total: int}
      */
-    public function prepareBatch(string $sMode): array
+    public function prepareBatch(): array
     {
-        if ($sMode === 'all') {
-            CCache::clear(self::CACHE_TAGS, self::OFFER_LIST_CACHE_KEY);
-        }
+        CCache::clear(self::CACHE_TAGS, self::OFFER_LIST_CACHE_KEY);
 
         $arOffersWithImages = $this->fetchAndCacheOfferList();
 
@@ -204,14 +243,11 @@ class BatchProcessor
                 continue;
             }
 
-            $imageResult = ColorExtractor::processImage($offer['image_url']);
-
-            if ($imageResult === null) {
+            if (!$this->processOffer($offer)) {
                 $failedCount++;
                 continue;
             }
 
-            $this->storeColorEntry($offer, $imageResult);
             $processedCount++;
         }
 
@@ -221,6 +257,26 @@ class BatchProcessor
             'failed'    => $failedCount,
             'total'     => $totalCount,
         ];
+    }
+
+    /**
+     * Analyze one offer's image and upsert its ColorEntry.
+     *
+     * @param array{offer_id: string, product_name: string, variation_name: string, image_url: string} $offer Offer metadata.
+     *
+     * @return bool True when the entry was stored, false when the image could not be processed.
+     */
+    private function processOffer(array $offer): bool
+    {
+        $imageResult = ColorExtractor::processImage($offer['image_url']);
+
+        if ($imageResult === null) {
+            return false;
+        }
+
+        $this->storeColorEntry($offer, $imageResult);
+
+        return true;
     }
 
     /**
