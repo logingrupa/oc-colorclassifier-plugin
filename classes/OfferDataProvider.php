@@ -50,10 +50,7 @@ class OfferDataProvider
      */
     public function getCollectionTags(): array
     {
-        return (new CollectionTagExtractor())->extract(
-            $this->loadCatalog(),
-            static fn (string $sOfferId): bool => NailoLabTransforms::isExcludedOffer($sOfferId)
-        );
+        return (new CollectionTagExtractor())->extract($this->loadCatalog());
     }
 
     /**
@@ -135,15 +132,11 @@ class OfferDataProvider
         $offersWithImages = [];
 
         foreach ($catalog as $product) {
-            $sProductName  = NailoLabTransforms::applyNameReplacements($product['name'] ?? '');
+            $sProductName  = $product['name'] ?? '';
             $sProductSlug  = $product['slug'] ?? NailoLabTransforms::buildProductSlug($sProductName);
             $productOffers = $product['offers'] ?? [];
 
             foreach ($productOffers as $offer) {
-                if (NailoLabTransforms::isExcludedOffer($offer['id'] ?? '')) {
-                    continue;
-                }
-
                 $offerImageUrl = $offer['image_url'] ?? '';
 
                 if (empty($offerImageUrl)) {

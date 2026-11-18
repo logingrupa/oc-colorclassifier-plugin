@@ -45,3 +45,5 @@
 1.9.1:
     - "The 1C collections get their own gradients, picked from their offer photos: a mirror ball for DISCO, a cat eye band for Magnetic DISCO, a nebula for GALAXY, a holo swirl for HOLO, a candy pinwheel for LOLIPOP, a rainbow for RAINBOW, pastels for SANDY, satin folds for SATIN, an ember glow for SHIMMER, stained glass for VITRAGE, northern lights for AURORA and neon for NEON. Ships after 1.9.0 is live, because the code before 1.9.0 cannot export more than 3 stops"
     - seed_collection_gradients.php
+1.10.0:
+    - "Color entries can follow the NAILO_English catalog. php artisan colorclassifier:refresh-offer-links rewrites product name, variation name, detail URL and image URL of existing entries by offer id and leaves the colors alone. The hardcoded NailoLab name replacements and offer exclusions are gone, because the catalog now carries NAILO_English names and offers only"

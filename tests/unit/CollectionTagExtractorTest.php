@@ -21,7 +21,6 @@ class CollectionTagExtractorTest extends TestCase
                     ['id' => 'p1#a', 'image_url' => 'a.jpg', 'collections' => [self::DISCO], 'shade_code' => 'DISCO 30'],
                     ['id' => 'p1#b', 'image_url' => '', 'collections' => [self::DISCO], 'shade_code' => 'DISCO 31'],
                     ['id' => 'p1#c', 'image_url' => 'c.jpg', 'collections' => [], 'shade_code' => null],
-                    ['id' => 'p1#excluded', 'image_url' => 'x.jpg', 'collections' => [self::DISCO], 'shade_code' => 'DISCO 99'],
                 ],
             ],
             ['offers' => []],
@@ -30,10 +29,7 @@ class CollectionTagExtractorTest extends TestCase
 
     public function test_offers_are_keyed_by_full_id_and_image_less_offers_stay(): void
     {
-        $arTags = (new CollectionTagExtractor())->extract(
-            $this->makeCatalog(),
-            static fn (string $sOfferId): bool => $sOfferId === 'p1#excluded'
-        );
+        $arTags = (new CollectionTagExtractor())->extract($this->makeCatalog());
 
         $this->assertTrue($arTags['has_collection_key']);
         $this->assertSame(3, $arTags['offer_count']);
@@ -56,7 +52,7 @@ class CollectionTagExtractorTest extends TestCase
             ],
         ]];
 
-        $arOffers = (new CollectionTagExtractor())->extract($arCatalog, static fn (): bool => false)['offers'];
+        $arOffers = (new CollectionTagExtractor())->extract($arCatalog)['offers'];
 
         $this->assertSame($sFits, $arOffers['p1#fits']['shade_code']);
         $this->assertNull($arOffers['p1#long']['shade_code']);
@@ -68,7 +64,7 @@ class CollectionTagExtractorTest extends TestCase
     {
         $arCatalog = [['offers' => [['id' => 'p1#a', 'image_url' => 'a.jpg', 'variant_title' => 'X']]]];
 
-        $arTags = (new CollectionTagExtractor())->extract($arCatalog, static fn (): bool => false);
+        $arTags = (new CollectionTagExtractor())->extract($arCatalog);
 
         $this->assertFalse($arTags['has_collection_key']);
         $this->assertSame(1, $arTags['offer_count']);
@@ -77,7 +73,7 @@ class CollectionTagExtractorTest extends TestCase
 
     public function test_empty_catalog_has_no_offers_and_no_key(): void
     {
-        $arTags = (new CollectionTagExtractor())->extract([], static fn (): bool => false);
+        $arTags = (new CollectionTagExtractor())->extract([]);
 
         $this->assertSame(['has_collection_key' => false, 'offer_count' => 0, 'offers' => []], $arTags);
     }

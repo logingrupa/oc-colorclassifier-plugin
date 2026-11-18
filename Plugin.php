@@ -31,7 +31,7 @@ class Plugin extends PluginBase
     }
 
     /**
-     * Registers the 1C collection sync and the new offer color commands.
+     * Registers the 1C collection sync, the new offer color and the offer link refresh commands.
      *
      * @return void
      */
@@ -39,6 +39,7 @@ class Plugin extends PluginBase
     {
         $this->registerConsoleCommand('colorclassifier.sync_collections', \Logingrupa\ColorClassifier\Console\SyncCollections::class);
         $this->registerConsoleCommand('colorclassifier.process_new_offers', \Logingrupa\ColorClassifier\Console\ProcessNewOffers::class);
+        $this->registerConsoleCommand('colorclassifier.refresh_offer_links', \Logingrupa\ColorClassifier\Console\RefreshOfferLinks::class);
     }
 
     /**
