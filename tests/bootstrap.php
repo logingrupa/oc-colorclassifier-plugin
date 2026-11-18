@@ -22,6 +22,7 @@
  *  12. FamilySwitchWriter - takes an Illuminate database connection
  *  13. NewOfferQueue, OfferLinkRefreshPlanner - no dependencies
  *  14. OfferDataProvider (NailoLabTransforms), BatchProcessor (OfferDataProvider, NewOfferQueue)
+ *  15. ColorLabOfferDirectory (OfferDataProvider), ColorLabMapper (ColorLabOfferDirectory)
  */
 
 $pluginRootDirectory = dirname(__DIR__);
@@ -57,4 +58,5 @@ require_once $pluginRootDirectory . '/classes/FamilyBoardMembershipMap.php';
 require_once $pluginRootDirectory . '/classes/FamilyBoardPayloadBuilder.php';
 require_once $pluginRootDirectory . '/classes/EtagRevalidation.php';
 require_once $pluginRootDirectory . '/classes/ColorLabPayloadCache.php';
+require_once $pluginRootDirectory . '/classes/ColorLabOfferDirectory.php';
 require_once $pluginRootDirectory . '/classes/ColorLabMapper.php';

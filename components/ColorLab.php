@@ -4,6 +4,7 @@ namespace Logingrupa\ColorClassifier\Components;
 
 use Cms\Classes\ComponentBase;
 use Logingrupa\ColorClassifier\Classes\ColorLabMapper;
+use Logingrupa\ColorClassifier\Classes\ColorLabOfferDirectory;
 use Logingrupa\ColorClassifier\Models\ColorEntry;
 use Logingrupa\ColorClassifier\Models\ColorFamily;
 
@@ -71,7 +72,7 @@ class ColorLab extends ComponentBase
     /**
      * Runs when the component is rendered on a page.
      *
-     * Loads all color entries from the database, transforms them into
+     * Loads the color entries of listed offers from the database, transforms them into
      * a JSON-serializable format, and injects component CSS/JS assets.
      *
      * @return void
@@ -124,19 +125,14 @@ class ColorLab extends ComponentBase
     }
 
     /**
-     * Transforms all ColorEntry records into a JSON-serializable array.
+     * Transforms the ColorEntry records of offers the catalog lists into a
+     * JSON-serializable array.
      *
      * @return array<int, array<string, mixed>>
      */
     private function buildColorEntriesArray(): array
     {
-        $arColorData = [];
-
-        foreach (ColorEntry::all() as $obEntry) {
-            $arColorData[] = ColorLabMapper::mapEntry($obEntry, true);
-        }
-
-        return $arColorData;
+        return ColorLabMapper::mapPublicEntries(ColorEntry::all(), ColorLabOfferDirectory::load(), true);
     }
 
     /**

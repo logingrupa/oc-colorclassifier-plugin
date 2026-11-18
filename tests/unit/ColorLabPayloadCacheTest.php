@@ -29,6 +29,28 @@ class ColorLabPayloadCacheTest extends TestCase
         $this->assertSame(['build' => 2], $arSecondPayload);
     }
 
+    public function testStoredCopyIsCurrentOnlyForTheVersionItWasBuiltFor(): void
+    {
+        $arStoredCopy = ['version' => 'directory-a', 'payload' => ['entryCount' => 3]];
+
+        $this->assertTrue(ColorLabPayloadCache::isStoredForVersion($arStoredCopy, 'directory-a'));
+        $this->assertFalse(
+            ColorLabPayloadCache::isStoredForVersion($arStoredCopy, 'directory-b'),
+            'A payload built from another catalog directory must be rebuilt.'
+        );
+    }
+
+    public function testStoredCopyWithoutAVersionMatchesTheEmptyVersion(): void
+    {
+        $this->assertTrue(ColorLabPayloadCache::isStoredForVersion(['version' => '', 'payload' => []], ''));
+    }
+
+    public function testMissingOrForeignCopyNeverCounts(): void
+    {
+        $this->assertFalse(ColorLabPayloadCache::isStoredForVersion(null, ''));
+        $this->assertFalse(ColorLabPayloadCache::isStoredForVersion(['entriesJson' => '[]', 'entryCount' => 0], ''), 'A copy stored before versioning must be rebuilt.');
+    }
+
     public function testFlushIsANoOpWithoutCacheFacade(): void
     {
         ColorLabPayloadCache::flush();

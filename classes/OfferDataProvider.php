@@ -70,9 +70,33 @@ class OfferDataProvider
     }
 
     /**
+     * Return the offers the shop lists now, keyed by offer id, with the names it
+     * shows for each. Read from the parser's cached directory, so a public
+     * request never loads the full catalog.
+     *
+     * @return array<string, array{product_name: string, offer_name: string, variant_title: string}> Empty when the catalog cannot be read.
+     */
+    public function getOfferDirectory(): array
+    {
+        return $this->readFromParser('getOfferDirectory');
+    }
+
+    /**
      * @return array<int, array<string, mixed>> Products from getCatalog(), empty when the parser or config is missing or fails.
      */
     private function loadCatalog(): array
+    {
+        return $this->readFromParser('getCatalog');
+    }
+
+    /**
+     * Call a read method of the theme parser.
+     *
+     * @param string $sParserMethod getCatalog or getOfferDirectory.
+     *
+     * @return array<int|string, mixed> Empty when the parser or config is missing or fails.
+     */
+    private function readFromParser(string $sParserMethod): array
     {
         $parserClassFilePath = base_path(self::PARSER_CLASS_PATH);
 
@@ -94,7 +118,7 @@ class OfferDataProvider
         $parserClass = self::PARSER_FULLY_QUALIFIED_CLASS;
 
         try {
-            return (new $parserClass($productConfig))->getCatalog();
+            return (new $parserClass($productConfig))->{$sParserMethod}();
         } catch (\Throwable $exception) {
             error_log('[ColorClassifier] CommerceMlParser error: ' . $exception->getMessage());
             return [];

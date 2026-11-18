@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Logingrupa\ColorClassifier\Classes\ColorLabMapper;
+use Logingrupa\ColorClassifier\Classes\ColorLabOfferDirectory;
 use Logingrupa\ColorClassifier\Classes\ColorLabPayloadCache;
 use Logingrupa\ColorClassifier\Classes\EtagRevalidation;
 use Logingrupa\ColorClassifier\Classes\FamilyExportBuilder;
@@ -18,11 +19,10 @@ use Logingrupa\ColorClassifier\Models\ColorFamily;
  * for theme integration via [colorLab].
  */
 Route::get('/tools/color-lab', function () {
-    $arPagePayload = ColorLabPayloadCache::remember(ColorLabPayloadCache::KEY_PAGE_ENTRIES, function () {
-        $arColorData = [];
-        foreach (ColorEntry::all() as $obEntry) {
-            $arColorData[] = ColorLabMapper::mapEntry($obEntry, true);
-        }
+    $obOfferDirectory = ColorLabOfferDirectory::load();
+
+    $arPagePayload = ColorLabPayloadCache::remember(ColorLabPayloadCache::KEY_PAGE_ENTRIES, function () use ($obOfferDirectory) {
+        $arColorData = ColorLabMapper::mapPublicEntries(ColorEntry::all(), $obOfferDirectory, true);
 
         // Stored pre-encoded so a cache hit never hydrates 700+ models
         // carrying base64 blobs just to json_encode them again.
@@ -30,7 +30,7 @@ Route::get('/tools/color-lab', function () {
             'entriesJson' => (string) json_encode($arColorData),
             'entryCount'  => count($arColorData),
         ];
-    });
+    }, $obOfferDirectory->version());
 
     $obPageView = view('logingrupa.colorclassifier::color-lab', [
         'colorLabEntriesJson'  => $arPagePayload['entriesJson'],
@@ -48,18 +48,15 @@ Route::get('/tools/color-lab', function () {
  * API route - returns color data as JSON for external consumers.
  */
 Route::get('/api/color-lab/data', function () {
-    $arDataPayload = ColorLabPayloadCache::remember(ColorLabPayloadCache::KEY_DATA, function () {
-        $arColorData = [];
-        foreach (ColorEntry::withoutImageData()->get() as $obEntry) {
-            $arColorData[] = ColorLabMapper::mapEntry($obEntry);
-        }
+    $obOfferDirectory = ColorLabOfferDirectory::load();
 
+    $arDataPayload = ColorLabPayloadCache::remember(ColorLabPayloadCache::KEY_DATA, function () use ($obOfferDirectory) {
         return [
             'last_updated_at' => (string) ColorEntry::max('updated_at'),
-            'entries'         => $arColorData,
+            'entries'         => ColorLabMapper::mapPublicEntries(ColorEntry::withoutImageData()->get(), $obOfferDirectory),
             'taxonomy'        => ColorLabMapper::mapTaxonomy(ColorFamily::listFamilyNamesInOrder()),
         ];
-    });
+    }, $obOfferDirectory->version());
 
     return response()->json($arDataPayload);
 })->middleware('web');

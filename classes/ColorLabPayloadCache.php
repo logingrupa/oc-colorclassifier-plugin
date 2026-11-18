@@ -40,22 +40,47 @@ class ColorLabPayloadCache
     /**
      * Serve a payload from cache, building and storing it on a miss.
      *
+     * The stored copy carries the version it was built for. A payload built
+     * from another catalog directory (a different version) counts as a miss, so
+     * a catalog rebuild never leaves an old payload on screen.
+     *
      * @param string $sPayloadKey One of the KEY_* constants.
      * @param \Closure $fnBuildPayload Builds the payload on a cache miss.
+     * @param string $sVersion Stamp of the outside data the payload derives from, empty when it has none.
      *
      * @return mixed
      */
-    public static function remember(string $sPayloadKey, \Closure $fnBuildPayload): mixed
+    public static function remember(string $sPayloadKey, \Closure $fnBuildPayload, string $sVersion = ''): mixed
     {
         if (!self::isCacheFacadeAvailable()) {
             return $fnBuildPayload();
         }
 
-        return \Cache::remember(
-            self::CACHE_KEY_PREFIX . $sPayloadKey,
-            self::CACHE_TTL_SECONDS,
-            $fnBuildPayload
-        );
+        $sCacheKey      = self::CACHE_KEY_PREFIX . $sPayloadKey;
+        $mStoredPayload = \Cache::get($sCacheKey);
+
+        if (self::isStoredForVersion($mStoredPayload, $sVersion)) {
+            return $mStoredPayload['payload'];
+        }
+
+        $mPayload = $fnBuildPayload();
+
+        \Cache::put($sCacheKey, ['version' => $sVersion, 'payload' => $mPayload], self::CACHE_TTL_SECONDS);
+
+        return $mPayload;
+    }
+
+    /**
+     * @param mixed  $mStoredPayload What the cache returned for a payload key.
+     * @param string $sVersion       Version the caller wants.
+     *
+     * @return bool True when the stored copy was built for exactly that version.
+     */
+    public static function isStoredForVersion(mixed $mStoredPayload, string $sVersion): bool
+    {
+        return is_array($mStoredPayload)
+            && array_key_exists('payload', $mStoredPayload)
+            && ($mStoredPayload['version'] ?? null) === $sVersion;
     }
 
     /**

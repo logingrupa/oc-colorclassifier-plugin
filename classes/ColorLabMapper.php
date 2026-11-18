@@ -61,6 +61,46 @@ class ColorLabMapper
     }
 
     /**
+     * Map the entries the public Color Lab shows: only offers the catalog lists,
+     * under the names the catalog shows now.
+     *
+     * @param iterable<ColorEntry>   $obEntries                 Stored entries.
+     * @param ColorLabOfferDirectory $obOfferDirectory          Current catalog offers.
+     * @param bool                   $blIncludeCroppedImageData Append croppedImageData (page view only).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function mapPublicEntries(
+        iterable $obEntries,
+        ColorLabOfferDirectory $obOfferDirectory,
+        bool $blIncludeCroppedImageData = false
+    ): array {
+        $arMappedEntries = [];
+
+        foreach ($obOfferDirectory->filterListed($obEntries) as $obEntry) {
+            $arMappedEntries[] = self::applyCurrentLabels(
+                self::mapEntry($obEntry, $blIncludeCroppedImageData),
+                $obOfferDirectory->resolveLabels((string) $obEntry->offer_id)
+            );
+        }
+
+        return $arMappedEntries;
+    }
+
+    /**
+     * Replace the stored product and variation names of a mapped entry.
+     *
+     * @param array<string, mixed>                                     $arMappedEntry Shape of mapEntry().
+     * @param array{productName: string, variationName: string}|null $arCurrentLabels Null keeps the stored names.
+     *
+     * @return array<string, mixed>
+     */
+    public static function applyCurrentLabels(array $arMappedEntry, ?array $arCurrentLabels): array
+    {
+        return $arCurrentLabels === null ? $arMappedEntry : array_merge($arMappedEntry, $arCurrentLabels);
+    }
+
+    /**
      * Classifier taxonomy with the effective family. An overridden family drops
      * the classifier's secondary family, which described the old family.
      *
