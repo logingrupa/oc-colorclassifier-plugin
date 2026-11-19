@@ -3,28 +3,16 @@
 namespace Logingrupa\ColorClassifier\Classes;
 
 /**
- * NailoLabTransforms — NailoLab slug and detail URL helpers.
+ * NailoLabTransforms — NailoLab variant slug and detail URL helpers.
  *
  * A pure-static utility class that holds:
- *   - Slug generation helpers (product and variant slugs)
+ *   - Variant slug generation helper
  *   - Detail URL builder
  *
  * @package Logingrupa\ColorClassifier\Classes
  */
 class NailoLabTransforms
 {
-    /**
-     * Build a URL-safe lowercase hyphenated slug from a product name.
-     *
-     * @param string $sProductName Product name as the catalog carries it.
-     *
-     * @return string Lowercase hyphenated slug suitable for use in a URL path segment.
-     */
-    public static function buildProductSlug(string $sProductName): string
-    {
-        return self::slugify($sProductName);
-    }
-
     /**
      * Build a URL-safe lowercase hyphenated slug from a variant/variation name.
      *
@@ -43,7 +31,7 @@ class NailoLabTransforms
      * The URL opens the product detail page with the color sheet pre-opened
      * for the specified variant, following the pattern used by the theme JS.
      *
-     * @param string $sProductSlug URL-safe product slug from buildProductSlug().
+     * @param string $sProductSlug URL-safe product slug of the shop's product page.
      * @param string $sVariantSlug URL-safe variant slug from buildVariantSlug().
      *
      * @return string Full detail page URL with color-sheet fragment anchor.

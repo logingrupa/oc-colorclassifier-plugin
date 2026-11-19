@@ -11,30 +11,6 @@ use Logingrupa\ColorClassifier\Classes\NailoLabTransforms;
 class NailoLabTransformsTest extends TestCase
 {
     // -------------------------------------------------------------------------
-    // buildProductSlug
-    // -------------------------------------------------------------------------
-
-    /**
-     * buildProductSlug produces lowercase hyphenated slug from a product name.
-     */
-    public function test_buildProductSlug_produces_lowercase_hyphenated_slug(): void
-    {
-        $slug = NailoLabTransforms::buildProductSlug('NailoLab Gel Polish UV/LED');
-
-        $this->assertSame('nailolab-gel-polish-uv-led', $slug);
-    }
-
-    /**
-     * buildProductSlug handles names with multiple spaces.
-     */
-    public function test_buildProductSlug_collapses_multiple_spaces(): void
-    {
-        $slug = NailoLabTransforms::buildProductSlug('Fusion Glow  Sculpture BASE');
-
-        $this->assertSame('fusion-glow-sculpture-base', $slug);
-    }
-
-    // -------------------------------------------------------------------------
     // buildVariantSlug
     // -------------------------------------------------------------------------
 

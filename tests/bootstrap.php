@@ -21,7 +21,7 @@
  *      CollectionTagExtractor, CollectionFeedPlan, CollectionFeedPlanner, CollectionHandSwitch - no CMS dependencies
  *  12. FamilySwitchWriter - takes an Illuminate database connection
  *  13. NewOfferQueue, OfferLinkRefreshPlanner - no dependencies
- *  14. OfferDataProvider (NailoLabTransforms), BatchProcessor (OfferDataProvider, NewOfferQueue)
+ *  14. OfferRowBuilder (NailoLabTransforms), OfferDataProvider (OfferRowBuilder, CollectionTagExtractor), BatchProcessor (OfferDataProvider, NewOfferQueue)
  *  15. ColorLabOfferDirectory (OfferDataProvider), ColorLabMapper (ColorLabOfferDirectory)
  */
 
@@ -49,6 +49,7 @@ require_once $pluginRootDirectory . '/classes/CollectionHandSwitch.php';
 require_once $pluginRootDirectory . '/classes/FamilySwitchWriter.php';
 require_once $pluginRootDirectory . '/classes/NewOfferQueue.php';
 require_once $pluginRootDirectory . '/classes/OfferLinkRefreshPlanner.php';
+require_once $pluginRootDirectory . '/classes/OfferRowBuilder.php';
 require_once $pluginRootDirectory . '/classes/OfferDataProvider.php';
 require_once $pluginRootDirectory . '/classes/BatchProcessor.php';
 require_once $pluginRootDirectory . '/classes/SheetExportBuilder.php';

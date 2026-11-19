@@ -18,11 +18,11 @@ class ColorLabOfferDirectory
     /** @var string Version while no directory is readable, distinct from every directory hash. */
     private const UNFILTERED_VERSION = 'unfiltered';
 
-    /** @var array<string, array{product_name: string, offer_name: string, variant_title: string}> */
+    /** @var array<string, array{product_name: string, product_slug: string, offer_name: string, variant_title: string}> */
     private array $arOfferDirectory;
 
     /**
-     * @param array<string, array{product_name: string, offer_name: string, variant_title: string}> $arOfferDirectory
+     * @param array<string, array{product_name: string, product_slug: string, offer_name: string, variant_title: string}> $arOfferDirectory
      *        Empty when the catalog cannot be read.
      */
     public function __construct(array $arOfferDirectory)

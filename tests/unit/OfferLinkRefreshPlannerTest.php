@@ -27,8 +27,7 @@ class OfferLinkRefreshPlannerTest extends TestCase
      */
     private static function catalogOffer(string $sOfferId, string $sSuffix): array
     {
-        return ['offer_id' => $sOfferId, 'product_slug' => 'product-' . $sSuffix, 'variant_slug' => 'shade-' . $sSuffix]
-            + self::link($sSuffix);
+        return ['offer_id' => $sOfferId] + self::link($sSuffix);
     }
 
     public function test_changed_fields_are_reported_and_equal_fields_are_not(): void
