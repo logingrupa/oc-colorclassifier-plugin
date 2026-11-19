@@ -45,6 +45,15 @@ tabs:
             span: right
             comment: HTTP request timeout when downloading product images (1–60)
 
+        max_image_megapixels:
+            tab: Color Extraction
+            label: Max Image Size (megapixels)
+            type: number
+            min: 1
+            max: 40
+            span: left
+            comment: Images larger than this fail without being opened, so one huge photo cannot use up the memory (1-40)
+
         # ─── Tab: Classification Thresholds ──────────────────────────────────
 
         _achromatic_section:
@@ -148,4 +157,4 @@ tabs:
             tab: Automation
             label: Assign colors to new offers automatically
             type: switch
-            comment: Runs every hour at :10. Takes catalog offers that have an image and no color yet, at most 100 per run, and never touches an existing entry.
+            comment: Runs every hour at :10. Takes offers from the base, top and primer, builder gel and gel polish groups that have an image and no color yet, at most 100 per run. An offer whose image failed twice is left to Process New. Never touches an existing entry.

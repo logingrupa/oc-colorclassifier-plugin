@@ -33,6 +33,9 @@ class ColorExtractor
     /** @var int Fallback download timeout when Settings model is unavailable. */
     private const FALLBACK_DOWNLOAD_TIMEOUT_SECONDS = 10;
 
+    /** @var int Fallback pixel cap in megapixels when Settings model is unavailable. */
+    private const FALLBACK_MAX_IMAGE_MEGAPIXELS = 6;
+
     /**
      * Retrieve a setting value from the Settings model with a safe fallback.
      *
@@ -58,11 +61,12 @@ class ColorExtractor
      * Download an image from a URL and return a GD image resource.
      *
      * Uses file_get_contents with a stream context to enforce timeout
-     * and set a browser-like User-Agent for CDN compatibility.
+     * and set a browser-like User-Agent for CDN compatibility. An image above
+     * the Max Image Size setting is not decoded.
      *
      * @param string $imageUrl Public URL of the image to download.
      *
-     * @return \GdImage|false GD image resource, or false on failure.
+     * @return \GdImage|false GD image resource, or false on failure or an oversized image.
      */
     public static function downloadImage(string $imageUrl): \GdImage|false
     {
@@ -81,9 +85,49 @@ class ColorExtractor
             return false;
         }
 
-        $gdImage = @imagecreatefromstring($imageData);
+        return self::decodeImage($imageData, self::maxImagePixels());
+    }
+
+    /**
+     * Decode image bytes into a GD image unless the image has more pixels than the cap.
+     *
+     * The size is read from the file header, so an oversized image is refused before
+     * GD allocates memory for its pixels.
+     *
+     * @param string $sImageData Raw image bytes.
+     * @param int    $iMaxPixels Most width x height pixels to decode.
+     *
+     * @return \GdImage|false GD image, or false when the bytes are not an image or exceed the cap.
+     */
+    public static function decodeImage(string $sImageData, int $iMaxPixels): \GdImage|false
+    {
+        $arImageSize = @getimagesizefromstring($sImageData);
+
+        if ($arImageSize === false || $arImageSize[0] < 1 || $arImageSize[1] < 1) {
+            return false;
+        }
+
+        if ($arImageSize[0] * $arImageSize[1] > $iMaxPixels) {
+            return false;
+        }
+
+        $gdImage = @imagecreatefromstring($sImageData);
 
         return $gdImage ?: false;
+    }
+
+    /**
+     * @return int Most pixels an image may have, from the Max Image Size setting clamped to 1-40 megapixels.
+     */
+    private static function maxImagePixels(): int
+    {
+        $flMegapixels = (float) self::getSettingValue('max_image_megapixels', self::FALLBACK_MAX_IMAGE_MEGAPIXELS);
+
+        if ($flMegapixels <= 0) {
+            $flMegapixels = self::FALLBACK_MAX_IMAGE_MEGAPIXELS;
+        }
+
+        return (int) round(min(max($flMegapixels, 1), 40) * 1000000);
     }
 
     /**

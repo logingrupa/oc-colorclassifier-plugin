@@ -4,14 +4,17 @@ namespace Logingrupa\ColorClassifier\Console;
 
 use Illuminate\Console\Command;
 use Logingrupa\ColorClassifier\Classes\BatchProcessor;
+use Logingrupa\ColorClassifier\Classes\NewOfferQueue;
+use Logingrupa\ColorClassifier\Classes\ScheduledJobMemoryLimit;
 use Logingrupa\ColorClassifier\Models\Settings;
 
 /**
- * ProcessNewOffers gives a color entry to catalog offers that have an image and no entry yet.
+ * ProcessNewOffers gives a color entry to offers in the color scope that have an image and no entry yet.
  *
- * Scheduled hourly. Does nothing while the Automation setting is off. Prints one
- * summary line plus one line per offer whose image failed; failed images exit 0.
- * A catalog that does not load throws, so the run exits non-zero.
+ * Scheduled hourly, with its own memory limit (ScheduledJobMemoryLimit). Does
+ * nothing while the Automation setting is off. Prints one summary line plus one
+ * line per offer whose image failed and one per offer it no longer retries; failed
+ * images exit 0. A catalog that does not load throws, so the run exits non-zero.
  */
 class ProcessNewOffers extends Command
 {
@@ -19,13 +22,15 @@ class ProcessNewOffers extends Command
     protected $signature = 'colorclassifier:process-new-offers {--limit=100 : Most offers to process in one run}';
 
     /** @var string description */
-    protected $description = 'Assign colors to catalog offers that have an image and no color entry yet.';
+    protected $description = 'Assign colors to offers in the color scope groups that have an image and no color entry yet.';
 
     /**
      * @return int
      */
     public function handle(): int
     {
+        ScheduledJobMemoryLimit::apply();
+
         if (!Settings::get('auto_process_new_offers', true)) {
             $this->line('Off: "Assign colors to new offers automatically" is switched off in the Color Classifier settings.');
 
@@ -52,6 +57,15 @@ class ProcessNewOffers extends Command
 
         foreach ($arResult['failed_offers'] as $arFailedOffer) {
             $this->line('Failed: ' . $arFailedOffer['offer_id'] . ' ' . $arFailedOffer['name']);
+        }
+
+        foreach ($arResult['retired_offers'] as $arRetiredOffer) {
+            $this->line(sprintf(
+                'Not retried, failed %d times: %s %s',
+                NewOfferQueue::MAX_FAILED_ATTEMPTS,
+                $arRetiredOffer['offer_id'],
+                $arRetiredOffer['name']
+            ));
         }
 
         return self::SUCCESS;

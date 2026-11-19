@@ -23,8 +23,8 @@ class BatchProcessor
     /** @var string CCache key for the raw offer list. */
     private const OFFER_LIST_CACHE_KEY = 'offer_list';
 
-    /** @var string CCache key for the offer id map whose image failed in processNewOffers(). */
-    private const FAILED_NEW_OFFER_IDS_CACHE_KEY = 'failed_new_offer_ids';
+    /** @var string CCache key for the map of offer id to failed runs of processNewOffers(). */
+    private const FAILED_NEW_OFFER_ATTEMPTS_CACHE_KEY = 'failed_new_offer_ids';
 
     /** @var int Chunk size for querying existing offer IDs to avoid memory issues. */
     private const EXISTING_OFFERS_CHUNK_SIZE = 500;
@@ -69,11 +69,14 @@ class BatchProcessor
      * Reads a fresh offer list, never the stored one. NewOfferQueue puts offers whose
      * image failed on an earlier run after the never-tried ones. The failure memory
      * counts each offer as failed until its entry is saved, so an offer that kills
-     * the run goes behind them too. An offer with an entry is never touched.
+     * the run goes behind them too. An offer whose image failed
+     * NewOfferQueue::MAX_FAILED_ATTEMPTS times is not retried by this job (Process
+     * New in the backend still tries it) and is reported as retired. An offer with
+     * an entry is never touched.
      *
      * @param int $iLimit Most offers to process, 1 or more.
      *
-     * @return array{processed: int, failed: int, left: int, total: int, failed_offers: array<int, array{offer_id: string, name: string}>}
+     * @return array{processed: int, failed: int, left: int, total: int, failed_offers: array<int, array{offer_id: string, name: string}>, retired_offers: array<int, array{offer_id: string, name: string}>}
      *
      * @throws \RuntimeException When the catalog has no offers with images, which is how a failed catalog load shows.
      */
@@ -87,8 +90,8 @@ class BatchProcessor
 
         $arOffers = $this->keepColorScope($arOffers);
 
-        $arFailedOfferIdMap  = CCache::get(self::CACHE_TAGS, self::FAILED_NEW_OFFER_IDS_CACHE_KEY) ?? [];
-        $arSelection         = NewOfferQueue::select($arOffers, $this->fetchExistingOfferIds(), $arFailedOfferIdMap, $iLimit);
+        $arFailedAttempts    = CCache::get(self::CACHE_TAGS, self::FAILED_NEW_OFFER_ATTEMPTS_CACHE_KEY) ?? [];
+        $arSelection         = NewOfferQueue::select($arOffers, $this->fetchExistingOfferIds(), $arFailedAttempts, $iLimit);
         $arCandidateOfferIds = $arSelection['candidate_offer_ids'];
 
         $arSucceededOfferIds = [];
@@ -96,8 +99,8 @@ class BatchProcessor
 
         foreach ($arSelection['batch'] as $arOffer) {
             // A PHP fatal or an exception skips every later write, so the offer is stored as failed before the work.
-            $this->storeFailedOfferIds(
-                $arFailedOfferIdMap,
+            $this->storeFailedAttempts(
+                $arFailedAttempts,
                 $arCandidateOfferIds,
                 $arSucceededOfferIds,
                 [...array_column($arFailedOffers, 'offer_id'), $arOffer['offer_id']]
@@ -111,35 +114,46 @@ class BatchProcessor
             $arFailedOffers[] = $arOffer;
         }
 
-        $this->storeFailedOfferIds($arFailedOfferIdMap, $arCandidateOfferIds, $arSucceededOfferIds, array_column($arFailedOffers, 'offer_id'));
+        $this->storeFailedAttempts($arFailedAttempts, $arCandidateOfferIds, $arSucceededOfferIds, array_column($arFailedOffers, 'offer_id'));
 
         return [
-            'processed'     => count($arSucceededOfferIds),
-            'failed'        => count($arFailedOffers),
-            'left'          => $arSelection['left'],
-            'total'         => $arSelection['total'],
-            'failed_offers' => array_map(static fn (array $arOffer): array => [
-                'offer_id' => $arOffer['offer_id'],
-                'name'     => trim($arOffer['product_name'] . ' ' . $arOffer['variation_name']),
-            ], $arFailedOffers),
+            'processed'      => count($arSucceededOfferIds),
+            'failed'         => count($arFailedOffers),
+            'left'           => $arSelection['left'],
+            'total'          => $arSelection['total'],
+            'failed_offers'  => self::describeOffers($arFailedOffers),
+            'retired_offers' => self::describeOffers($arSelection['retired_offers']),
         ];
+    }
+
+    /**
+     * @param array<int, array{offer_id: string, product_name: string, variation_name: string}> $arOffers
+     *
+     * @return array<int, array{offer_id: string, name: string}>
+     */
+    private static function describeOffers(array $arOffers): array
+    {
+        return array_map(static fn (array $arOffer): array => [
+            'offer_id' => $arOffer['offer_id'],
+            'name'     => trim($arOffer['product_name'] . ' ' . $arOffer['variation_name']),
+        ], $arOffers);
     }
 
     /**
      * Store the failure memory NewOfferQueue gives for the offers handled so far in this run.
      *
-     * @param array<string, true> $arFailedOfferIdMap  Failure memory before the run.
-     * @param array<int, string>  $arCandidateOfferIds Every candidate of the run, processed or not.
-     * @param array<int, string>  $arSucceededOfferIds Offers that got a color entry so far.
-     * @param array<int, string>  $arFailedNowOfferIds Offers that count as failed so far.
+     * @param array<string, int|true> $arFailedAttempts  Failure memory before the run.
+     * @param array<int, string>      $arCandidateOfferIds Every candidate of the run, processed or not.
+     * @param array<int, string>      $arSucceededOfferIds Offers that got a color entry so far.
+     * @param array<int, string>      $arFailedNowOfferIds Offers that count as failed so far.
      *
      * @return void
      */
-    private function storeFailedOfferIds(array $arFailedOfferIdMap, array $arCandidateOfferIds, array $arSucceededOfferIds, array $arFailedNowOfferIds): void
+    private function storeFailedAttempts(array $arFailedAttempts, array $arCandidateOfferIds, array $arSucceededOfferIds, array $arFailedNowOfferIds): void
     {
-        $arNextFailedOfferIdMap = NewOfferQueue::nextFailedOfferIds($arFailedOfferIdMap, $arCandidateOfferIds, $arSucceededOfferIds, $arFailedNowOfferIds);
+        $arNextFailedAttempts = NewOfferQueue::nextFailedAttempts($arFailedAttempts, $arCandidateOfferIds, $arSucceededOfferIds, $arFailedNowOfferIds);
 
-        CCache::forever(self::CACHE_TAGS, self::FAILED_NEW_OFFER_IDS_CACHE_KEY, $arNextFailedOfferIdMap);
+        CCache::forever(self::CACHE_TAGS, self::FAILED_NEW_OFFER_ATTEMPTS_CACHE_KEY, $arNextFailedAttempts);
     }
 
     /**

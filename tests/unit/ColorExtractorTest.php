@@ -12,6 +12,7 @@ use Logingrupa\ColorClassifier\Classes\ColorExtractor;
  *   CC-25 — extractDominantColor from solid red returns near [255, 0, 0]
  *   CC-26 — extractColorPalette returns exactly 5 hex strings
  *   CC-27 — processImage returns null for invalid/unreachable URL
+ *   CC-28..31 — decodeImage refuses an image above the pixel cap before decoding it
  *
  * Test fixtures are created using imagecreatetruecolor and imagefilledrectangle
  * to produce solid-color synthetic images without file I/O.
@@ -136,5 +137,65 @@ class ColorExtractorTest extends TestCase
         $imageResult = ColorExtractor::processImage('not-a-valid-url-at-all');
 
         $this->assertNull($imageResult);
+    }
+
+    /**
+     * @return string PNG bytes of a solid truecolor image.
+     */
+    private function createPngBytes(int $iWidth, int $iHeight): string
+    {
+        $obImage = $this->createSolidColorImage($iWidth, $iHeight, 10, 20, 30);
+
+        ob_start();
+        imagepng($obImage);
+        $sPngBytes = (string) ob_get_clean();
+        imagedestroy($obImage);
+
+        return $sPngBytes;
+    }
+
+    /**
+     * CC-28: an image above the pixel cap is refused before GD allocates its pixels.
+     */
+    public function test_decodeImage_refuses_an_image_above_the_cap_without_decoding_it(): void
+    {
+        $sPngBytes = $this->createPngBytes(1000, 1000);
+
+        $iMemoryBefore = memory_get_usage();
+        memory_reset_peak_usage();
+        $mDecoded = ColorExtractor::decodeImage($sPngBytes, 500000);
+        $iPeakGrowth = memory_get_peak_usage() - $iMemoryBefore;
+
+        $this->assertFalse($mDecoded);
+        $this->assertLessThan(1048576, $iPeakGrowth);
+    }
+
+    /**
+     * CC-29: the same image under a higher cap decodes.
+     */
+    public function test_decodeImage_decodes_an_image_under_the_cap(): void
+    {
+        $obDecoded = ColorExtractor::decodeImage($this->createPngBytes(1000, 1000), 2000000);
+
+        $this->assertInstanceOf(\GdImage::class, $obDecoded);
+        $this->assertSame(1000, imagesx($obDecoded));
+        $this->assertSame(1000, imagesy($obDecoded));
+    }
+
+    /**
+     * CC-30: bytes that are not an image give false.
+     */
+    public function test_decodeImage_returns_false_for_unreadable_bytes(): void
+    {
+        $this->assertFalse(ColorExtractor::decodeImage('not an image', 2000000));
+    }
+
+    /**
+     * CC-31: an image of exactly the cap decodes, one more row does not.
+     */
+    public function test_decodeImage_cap_boundary(): void
+    {
+        $this->assertInstanceOf(\GdImage::class, ColorExtractor::decodeImage($this->createPngBytes(100, 100), 10000));
+        $this->assertFalse(ColorExtractor::decodeImage($this->createPngBytes(100, 101), 10000));
     }
 }

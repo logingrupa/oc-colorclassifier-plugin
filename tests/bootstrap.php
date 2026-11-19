@@ -20,7 +20,7 @@
  *  11. Collections: FamilyKind, GradientNormalizer, FamilySwatch, MembershipStateNormalizer, FamilyMembershipIndex,
  *      CollectionTagExtractor, CollectionFeedPlan, CollectionFeedPlanner, CollectionHandSwitch - no CMS dependencies
  *  12. FamilySwitchWriter - takes an Illuminate database connection
- *  13. NewOfferQueue, OfferLinkRefreshPlanner - no dependencies
+ *  13. NewOfferQueue, ScheduledJobMemoryLimit, OfferLinkRefreshPlanner - no dependencies
  *  14. ColorScope - no dependencies; OfferRowBuilder (NailoLabTransforms), OfferDataProvider (OfferRowBuilder, CollectionTagExtractor), BatchProcessor (OfferDataProvider, NewOfferQueue)
  *  15. ColorLabOfferDirectory (OfferDataProvider), ColorLabMapper (ColorLabOfferDirectory)
  */
@@ -48,6 +48,7 @@ require_once $pluginRootDirectory . '/classes/CollectionFeedPlanner.php';
 require_once $pluginRootDirectory . '/classes/CollectionHandSwitch.php';
 require_once $pluginRootDirectory . '/classes/FamilySwitchWriter.php';
 require_once $pluginRootDirectory . '/classes/NewOfferQueue.php';
+require_once $pluginRootDirectory . '/classes/ScheduledJobMemoryLimit.php';
 require_once $pluginRootDirectory . '/classes/OfferLinkRefreshPlanner.php';
 require_once $pluginRootDirectory . '/classes/ColorScope.php';
 require_once $pluginRootDirectory . '/classes/OfferRowBuilder.php';

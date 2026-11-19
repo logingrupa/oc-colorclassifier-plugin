@@ -45,6 +45,7 @@ class Settings extends SettingModel
         $this->palette_size                  = 5;
         $this->palette_thumbnail_size_pixels = 15;
         $this->download_timeout_seconds      = 10;
+        $this->max_image_megapixels          = 6;
 
         // ColorClassifier achromatic detection thresholds
         $this->achromatic_saturation_threshold = 5.0;

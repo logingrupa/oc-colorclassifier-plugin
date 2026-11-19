@@ -4,11 +4,13 @@ namespace Logingrupa\ColorClassifier\Console;
 
 use Illuminate\Console\Command;
 use Logingrupa\ColorClassifier\Classes\CollectionFeedSync;
+use Logingrupa\ColorClassifier\Classes\ScheduledJobMemoryLimit;
 
 /**
  * SyncCollections mirrors the 1C Kolekcija tags into collection families and memberships.
  *
- * Scheduled hourly. Prints one summary line, or the abort reason with exit code 1.
+ * Scheduled hourly, with its own memory limit (ScheduledJobMemoryLimit). Prints
+ * one summary line, or the abort reason with exit code 1.
  */
 class SyncCollections extends Command
 {
@@ -23,6 +25,8 @@ class SyncCollections extends Command
      */
     public function handle(): int
     {
+        ScheduledJobMemoryLimit::apply();
+
         $blDryRun = (bool) $this->option('dry-run');
         $obPlan = (new CollectionFeedSync())->run($blDryRun);
 
