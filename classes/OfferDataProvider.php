@@ -30,9 +30,11 @@ class OfferDataProvider
      *
      * Offers the shop lists carry the shop's names and a detail URL on the shop's
      * product slug; the others keep their 1C names and have no detail URL. While
-     * the shop directory cannot be read, every row keeps its 1C names.
+     * the shop directory cannot be read, every row keeps its 1C names. The rows
+     * are not limited to the color scope; the paths that create entries narrow
+     * them with ColorScope.
      *
-     * @return array<int, array{offer_id: string, product_name: string, variation_name: string, image_url: string, detail_url: string}> Empty when the full catalog cannot be read.
+     * @return array<int, array{offer_id: string, product_name: string, variation_name: string, image_url: string, detail_url: string, category_path_ids: array<int, string>}> Empty when the full catalog cannot be read.
      */
     public function getOffersWithImages(): array
     {
@@ -74,6 +76,28 @@ class OfferDataProvider
         }
 
         return $sCharacteristicId;
+    }
+
+    /**
+     * @return array<int, string> The 1C group ids whose offers get new color entries.
+     *
+     * @throws \RuntimeException When the product config does not list them.
+     */
+    public function getColorScopeGroupIds(): array
+    {
+        $arGroupIds = $this->loadProductConfig()['color_scope_group_ids'] ?? null;
+
+        if (!is_array($arGroupIds) || $arGroupIds === []) {
+            throw new \RuntimeException('product-config.php has no color_scope_group_ids');
+        }
+
+        foreach ($arGroupIds as $sGroupId) {
+            if (!is_string($sGroupId) || $sGroupId === '') {
+                throw new \RuntimeException('product-config.php has an invalid value in color_scope_group_ids');
+            }
+        }
+
+        return array_values($arGroupIds);
     }
 
     /**

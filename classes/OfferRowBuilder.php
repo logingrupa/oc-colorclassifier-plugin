@@ -10,7 +10,8 @@ namespace Logingrupa\ColorClassifier\Classes;
  * Every offer with an image gets a row. An offer the shop lists (it is in the
  * offer directory) carries the shop's product name, swatch label and a detail
  * URL on the shop's product slug. Any other offer keeps its 1C names and gets
- * no detail URL, because no shop page exists for it.
+ * no detail URL, because no shop page exists for it. Every row carries the 1C
+ * group path of its product, which ColorScope reads.
  *
  * @package Logingrupa\ColorClassifier\Classes
  */
@@ -21,7 +22,7 @@ class OfferRowBuilder
      * @param array<string, array{product_name: string, product_slug: string, offer_name: string, variant_title: string}> $arOfferDirectory
      *        Offers the shop lists, keyed by offer id.
      *
-     * @return array<int, array{offer_id: string, product_name: string, variation_name: string, image_url: string, detail_url: string}>
+     * @return array<int, array{offer_id: string, product_name: string, variation_name: string, image_url: string, detail_url: string, category_path_ids: array<int, string>}>
      */
     public function build(array $arFullCatalog, array $arOfferDirectory): array
     {
@@ -37,7 +38,8 @@ class OfferRowBuilder
 
                 $sOfferId = (string) ($arOffer['id'] ?? '');
                 $arRows[] = ['offer_id' => $sOfferId, 'image_url' => $sImageUrl]
-                    + $this->resolveLabelsAndUrl($arProduct, $arOffer, $arOfferDirectory[$sOfferId] ?? null);
+                    + $this->resolveLabelsAndUrl($arProduct, $arOffer, $arOfferDirectory[$sOfferId] ?? null)
+                    + ['category_path_ids' => array_values((array) ($arProduct['category_path_ids'] ?? []))];
             }
         }
 

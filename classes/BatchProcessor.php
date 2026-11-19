@@ -45,8 +45,8 @@ class BatchProcessor
     }
 
     /**
-     * Process all offers — re-process even those already in the database,
-     * except locked rows, which count as skipped.
+     * Process the offers in the color scope — re-process even those already in
+     * the database, except locked rows, which count as skipped.
      *
      * Clears the offer list cache before fetching to ensure fresh data.
      * Each offer runs through the full pipeline and its ColorEntry is
@@ -64,7 +64,7 @@ class BatchProcessor
     }
 
     /**
-     * Give a color entry to at most $iLimit catalog offers that have an image and no entry yet.
+     * Give a color entry to at most $iLimit offers in the color scope that have an image and no entry yet.
      *
      * Reads a fresh offer list, never the stored one. NewOfferQueue puts offers whose
      * image failed on an earlier run after the never-tried ones. The failure memory
@@ -84,6 +84,8 @@ class BatchProcessor
         if ($arOffers === []) {
             throw new \RuntimeException('The catalog has no offers with images, so it did not load. The PHP error log has the cause.');
         }
+
+        $arOffers = $this->keepColorScope($arOffers);
 
         $arFailedOfferIdMap  = CCache::get(self::CACHE_TAGS, self::FAILED_NEW_OFFER_IDS_CACHE_KEY) ?? [];
         $arSelection         = NewOfferQueue::select($arOffers, $this->fetchExistingOfferIds(), $arFailedOfferIdMap, $iLimit);
@@ -141,7 +143,8 @@ class BatchProcessor
     }
 
     /**
-     * Prepare a batch run by storing a fresh offer list and returning the total count.
+     * Prepare a batch run by storing a fresh list of the offers in the color scope
+     * and returning the total count.
      *
      * The stored list is then consumed by processChunk() in subsequent requests.
      *
@@ -194,11 +197,21 @@ class BatchProcessor
             return $cachedOfferList;
         }
 
-        $offersWithImages = $this->offerDataProvider->getOffersWithImages();
+        $offersWithImages = $this->keepColorScope($this->offerDataProvider->getOffersWithImages());
 
         CCache::forever(self::CACHE_TAGS, self::OFFER_LIST_CACHE_KEY, $offersWithImages);
 
         return $offersWithImages;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $arOffers Rows from OfferDataProvider::getOffersWithImages().
+     *
+     * @return array<int, array<string, mixed>> The rows in the color scope.
+     */
+    private function keepColorScope(array $arOffers): array
+    {
+        return ColorScope::keepInScope($arOffers, $this->offerDataProvider->getColorScopeGroupIds());
     }
 
     /**
