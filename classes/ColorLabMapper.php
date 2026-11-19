@@ -20,20 +20,18 @@ class ColorLabMapper
      *
      * Hex, OKLCH, family and confidence are the effective values (manual
      * overrides applied); manual and autoFamily tell the consumer when and
-     * what the classifier originally said. The page view additionally needs
-     * the cropped image data; the JSON API endpoint omits it to keep the
-     * payload small.
+     * what the classifier originally said. The cropped image blob is never
+     * part of the shape, so callers select the columns without it.
      *
      * @param ColorEntry $obEntry Entry to map.
-     * @param bool $blIncludeCroppedImageData Append croppedImageData (page view only).
      *
      * @return array<string, mixed>
      */
-    public static function mapEntry(ColorEntry $obEntry, bool $blIncludeCroppedImageData = false): array
+    public static function mapEntry(ColorEntry $obEntry): array
     {
         $arEffective = EffectiveColorResolver::resolve($obEntry);
 
-        $arEntryData = [
+        return [
             'id'              => $obEntry->id,
             'productName'     => $obEntry->product_name,
             'variationName'   => $obEntry->variation_name,
@@ -52,34 +50,24 @@ class ColorLabMapper
             'imageUrl'        => $obEntry->image_url,
             'detailUrl'       => $obEntry->detail_url,
         ];
-
-        if ($blIncludeCroppedImageData) {
-            $arEntryData['croppedImageData'] = $obEntry->cropped_image_data;
-        }
-
-        return $arEntryData;
     }
 
     /**
      * Map the entries the public Color Lab shows: only offers the catalog lists,
-     * under the names the catalog shows now.
+     * under the names and link the catalog gives them now.
      *
-     * @param iterable<ColorEntry>   $obEntries                 Stored entries.
-     * @param ColorLabOfferDirectory $obOfferDirectory          Current catalog offers.
-     * @param bool                   $blIncludeCroppedImageData Append croppedImageData (page view only).
+     * @param iterable<ColorEntry>   $obEntries        Stored entries.
+     * @param ColorLabOfferDirectory $obOfferDirectory Current catalog offers.
      *
      * @return array<int, array<string, mixed>>
      */
-    public static function mapPublicEntries(
-        iterable $obEntries,
-        ColorLabOfferDirectory $obOfferDirectory,
-        bool $blIncludeCroppedImageData = false
-    ): array {
+    public static function mapPublicEntries(iterable $obEntries, ColorLabOfferDirectory $obOfferDirectory): array
+    {
         $arMappedEntries = [];
 
         foreach ($obOfferDirectory->filterListed($obEntries) as $obEntry) {
             $arMappedEntries[] = self::applyCurrentLabels(
-                self::mapEntry($obEntry, $blIncludeCroppedImageData),
+                self::mapEntry($obEntry),
                 $obOfferDirectory->resolveLabels((string) $obEntry->offer_id)
             );
         }
@@ -88,10 +76,10 @@ class ColorLabMapper
     }
 
     /**
-     * Replace the stored product and variation names of a mapped entry.
+     * Replace the stored product name, variation name and detail URL of a mapped entry.
      *
-     * @param array<string, mixed>                                     $arMappedEntry Shape of mapEntry().
-     * @param array{productName: string, variationName: string}|null $arCurrentLabels Null keeps the stored names.
+     * @param array<string, mixed>                                                      $arMappedEntry   Shape of mapEntry().
+     * @param array{productName: string, variationName: string, detailUrl: string}|null $arCurrentLabels Null keeps the stored values.
      *
      * @return array<string, mixed>
      */

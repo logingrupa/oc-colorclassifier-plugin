@@ -29,20 +29,21 @@ class OfferDataProvider
      * Return a flat list of every offer of the full 1C catalog that has an image URL.
      *
      * Offers the shop lists carry the shop's names and a detail URL on the shop's
-     * product slug; the others keep their 1C names and have no detail URL.
+     * product slug; the others keep their 1C names and have no detail URL. While
+     * the shop directory cannot be read, every row keeps its 1C names.
      *
-     * @return array<int, array{offer_id: string, product_name: string, variation_name: string, image_url: string, detail_url: string}> Empty when either catalog cannot be read.
+     * @return array<int, array{offer_id: string, product_name: string, variation_name: string, image_url: string, detail_url: string}> Empty when the full catalog cannot be read.
      */
     public function getOffersWithImages(): array
     {
-        $arOfferDirectory = $this->getOfferDirectory();
+        $arFullCatalog = $this->loadFullCatalog();
 
-        if ($arOfferDirectory === []) {
-            error_log('[ColorClassifier] The shop offer directory is empty, so no offer rows were built.');
+        if ($arFullCatalog === []) {
+            error_log('[ColorClassifier] The full catalog is empty, so no offer rows were built.');
             return [];
         }
 
-        return (new OfferRowBuilder())->build($this->loadFullCatalog(), $arOfferDirectory);
+        return (new OfferRowBuilder())->build($arFullCatalog, $this->getOfferDirectory());
     }
 
     /**
@@ -90,7 +91,7 @@ class OfferDataProvider
     /**
      * @return array<int, array<string, mixed>> Products of the full catalog, empty when the parser or config is missing or fails.
      */
-    private function loadFullCatalog(): array
+    protected function loadFullCatalog(): array
     {
         return $this->readFromParser('getCatalog', true);
     }

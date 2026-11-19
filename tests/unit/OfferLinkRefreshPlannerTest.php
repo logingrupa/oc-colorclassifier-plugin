@@ -68,6 +68,34 @@ class OfferLinkRefreshPlannerTest extends TestCase
         $this->assertSame(1, $arPlan['absent']);
     }
 
+    public function test_changed_image_of_an_unlocked_row_is_listed_for_reprocessing(): void
+    {
+        $arStored = [
+            'p#a' => ['is_locked' => false, 'image_url' => 'https://example.test/old-a.png'] + self::link('a'),
+            'p#b' => ['is_locked' => true, 'image_url' => 'https://example.test/old-b.png'] + self::link('b'),
+            'p#c' => ['is_locked' => false, 'product_name' => 'Old name'] + self::link('c'),
+            'p#d' => ['is_locked' => false] + self::link('d'),
+        ];
+        $arCatalog = [
+            self::catalogOffer('p#a', 'a'),
+            self::catalogOffer('p#b', 'b'),
+            self::catalogOffer('p#c', 'c'),
+            self::catalogOffer('p#d', 'd'),
+        ];
+
+        $arPlan = (new OfferLinkRefreshPlanner())->plan($arStored, $arCatalog);
+
+        $this->assertSame(['p#a'], $arPlan['reprocess'], 'A locked row and a row with the same image are not reprocessed.');
+        $this->assertSame(['p#a', 'p#b', 'p#c'], array_keys($arPlan['changes']), 'The link fields still refresh on every changed row.');
+    }
+
+    public function test_nothing_is_listed_for_reprocessing_when_no_image_changed(): void
+    {
+        $arPlan = (new OfferLinkRefreshPlanner())->plan(['p#a' => ['is_locked' => false] + self::link('a')], [self::catalogOffer('p#a', 'a')]);
+
+        $this->assertSame([], $arPlan['reprocess']);
+    }
+
     public function test_color_fields_never_appear_in_a_change(): void
     {
         $arStored = ['p#a' => ['hex_color' => '#ff0000', 'taxonomy' => 'Red', 'family_override' => 'Pink', 'product_name' => 'Old'] + self::link('a')];

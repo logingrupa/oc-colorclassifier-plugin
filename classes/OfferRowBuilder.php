@@ -64,10 +64,7 @@ class OfferRowBuilder
         return [
             'product_name'   => $arListedOffer['product_name'],
             'variation_name' => $arListedOffer['variant_title'],
-            'detail_url'     => NailoLabTransforms::buildDetailUrl(
-                $arListedOffer['product_slug'],
-                NailoLabTransforms::buildVariantSlug($arListedOffer['variant_title'])
-            ),
+            'detail_url'     => NailoLabTransforms::buildListedOfferDetailUrl($arListedOffer),
         ];
     }
 }

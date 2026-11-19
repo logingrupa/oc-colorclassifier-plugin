@@ -12,7 +12,9 @@ use Logingrupa\ColorClassifier\Models\ColorEntry;
  *
  * Matches by offer_id and touches only product_name, variation_name, detail_url and
  * image_url. Colors, overrides, locks and memberships stay as they are. An empty
- * catalog fails the command, so a feed outage never reads as "nothing to refresh".
+ * catalog or an empty shop offer directory fails the command, so a feed outage never
+ * reads as "nothing to refresh" and never writes 1C names over shop names. Entries
+ * whose image changed and are not locked are listed, not reprocessed.
  */
 class RefreshOfferLinks extends Command
 {
@@ -27,7 +29,15 @@ class RefreshOfferLinks extends Command
      */
     public function handle(): int
     {
-        $arCatalogOffers = (new OfferDataProvider())->getOffersWithImages();
+        $obOfferDataProvider = new OfferDataProvider();
+
+        if ($obOfferDataProvider->getOfferDirectory() === []) {
+            $this->error('The shop offer directory is empty. Nothing was changed, because the rows would fall back to the 1C names.');
+
+            return self::FAILURE;
+        }
+
+        $arCatalogOffers = $obOfferDataProvider->getOffersWithImages();
 
         if ($arCatalogOffers === []) {
             $this->error('The catalog returned no offers. Nothing was changed.');
@@ -35,12 +45,13 @@ class RefreshOfferLinks extends Command
             return self::FAILURE;
         }
 
+        $arStoredFields = array_merge(OfferLinkRefreshPlanner::LINK_FIELDS, ['is_locked']);
         $obEntries = ColorEntry::query()
-            ->select(array_merge(['id', 'offer_id'], OfferLinkRefreshPlanner::LINK_FIELDS))
+            ->select(array_merge(['id', 'offer_id'], $arStoredFields))
             ->get()
             ->keyBy('offer_id');
 
-        $arStoredLinkFields = $obEntries->map(fn (ColorEntry $obEntry): array => $obEntry->only(OfferLinkRefreshPlanner::LINK_FIELDS))->all();
+        $arStoredLinkFields = $obEntries->map(fn (ColorEntry $obEntry): array => $obEntry->only($arStoredFields))->all();
         $arPlan = (new OfferLinkRefreshPlanner())->plan($arStoredLinkFields, $arCatalogOffers);
 
         $blDryRun = (bool) $this->option('dry-run');
@@ -58,7 +69,27 @@ class RefreshOfferLinks extends Command
             $arPlan['unchanged'],
             $arPlan['absent']
         ));
+        $this->reportEntriesToReprocess($arPlan['reprocess'], $obEntries);
 
         return self::SUCCESS;
+    }
+
+    /**
+     * @param array<int, string>                                  $arOfferIds Offers whose image changed on an unlocked entry.
+     * @param \Illuminate\Support\Collection<string, ColorEntry> $obEntries  Stored entries keyed by offer_id.
+     *
+     * @return void
+     */
+    private function reportEntriesToReprocess(array $arOfferIds, $obEntries): void
+    {
+        if ($arOfferIds === []) {
+            return;
+        }
+
+        $this->warn(sprintf('Image changed on %d unlocked entries; their colors still describe the old picture. Reprocess them:', count($arOfferIds)));
+
+        foreach ($arOfferIds as $sOfferId) {
+            $this->line(sprintf('  %s  %s / %s', $sOfferId, $obEntries[$sOfferId]->product_name, $obEntries[$sOfferId]->variation_name));
+        }
     }
 }

@@ -4,8 +4,7 @@ namespace Logingrupa\ColorClassifier\Components;
 
 use Cms\Classes\ComponentBase;
 use Logingrupa\ColorClassifier\Classes\ColorLabMapper;
-use Logingrupa\ColorClassifier\Classes\ColorLabOfferDirectory;
-use Logingrupa\ColorClassifier\Models\ColorEntry;
+use Logingrupa\ColorClassifier\Classes\ColorLabPublicPayload;
 use Logingrupa\ColorClassifier\Models\ColorFamily;
 
 /**
@@ -90,9 +89,11 @@ class ColorLab extends ComponentBase
      */
     public function onLoadColorData(): array
     {
+        $arDataPayload = (new ColorLabPublicPayload())->data();
+
         return [
-            'entries'  => $this->buildColorEntriesArray(),
-            'taxonomy' => $this->buildTaxonomyArray(),
+            'entries'  => $arDataPayload['entries'],
+            'taxonomy' => $arDataPayload['taxonomy'],
         ];
     }
 
@@ -103,10 +104,10 @@ class ColorLab extends ComponentBase
      */
     private function loadColorData(): void
     {
-        $arColorData = $this->buildColorEntriesArray();
+        $arPagePayload = (new ColorLabPublicPayload())->pageEntries();
 
-        $this->page['colorLabEntriesJson']  = json_encode($arColorData);
-        $this->page['colorLabEntryCount']   = count($arColorData);
+        $this->page['colorLabEntriesJson']  = $arPagePayload['entriesJson'];
+        $this->page['colorLabEntryCount']   = $arPagePayload['entryCount'];
         $this->page['colorLabTaxonomyJson'] = json_encode($this->buildTaxonomyArray());
         $this->page['colorLabPageTitle']    = $this->property('pageTitle');
         $this->page['colorLabPlotlyCdn']    = $this->property('plotlyCdn');
@@ -122,17 +123,6 @@ class ColorLab extends ComponentBase
     {
         $this->addCss('/plugins/logingrupa/colorclassifier/assets/css/color-lab.css');
         $this->addJs('/plugins/logingrupa/colorclassifier/assets/js/color-lab.js');
-    }
-
-    /**
-     * Transforms the ColorEntry records of offers the catalog lists into a
-     * JSON-serializable array.
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    private function buildColorEntriesArray(): array
-    {
-        return ColorLabMapper::mapPublicEntries(ColorEntry::all(), ColorLabOfferDirectory::load(), true);
     }
 
     /**

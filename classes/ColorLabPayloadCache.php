@@ -15,8 +15,11 @@ namespace Logingrupa\ColorClassifier\Classes;
  */
 class ColorLabPayloadCache
 {
-    /** @var string Namespace prefix for every payload cache key. */
-    private const CACHE_KEY_PREFIX = 'colorclassifier_payload_';
+    /** @var string Namespace prefix for every payload cache key. The v2 copies are wrapped with their version, so releases that store a bare payload must not share these keys. */
+    private const CACHE_KEY_PREFIX = 'colorclassifier_payload_v2_';
+
+    /** @var string Prefix of the bare payload keys of earlier releases; flush() still drops them. */
+    private const LEGACY_CACHE_KEY_PREFIX = 'colorclassifier_payload_';
 
     /** @var int Payload TTL; invalidation on ColorEntry change is the primary freshness mechanism. */
     private const CACHE_TTL_SECONDS = 3600;
@@ -42,15 +45,18 @@ class ColorLabPayloadCache
      *
      * The stored copy carries the version it was built for. A payload built
      * from another catalog directory (a different version) counts as a miss, so
-     * a catalog rebuild never leaves an old payload on screen.
+     * a catalog rebuild never leaves an old payload on screen. When the outside
+     * data cannot be read, a copy built for any version beats a rebuild from
+     * nothing.
      *
      * @param string $sPayloadKey One of the KEY_* constants.
      * @param \Closure $fnBuildPayload Builds the payload on a cache miss.
      * @param string $sVersion Stamp of the outside data the payload derives from, empty when it has none.
+     * @param bool $blServeAnyStoredVersion True while the outside data is unreadable.
      *
      * @return mixed
      */
-    public static function remember(string $sPayloadKey, \Closure $fnBuildPayload, string $sVersion = ''): mixed
+    public static function remember(string $sPayloadKey, \Closure $fnBuildPayload, string $sVersion = '', bool $blServeAnyStoredVersion = false): mixed
     {
         if (!self::isCacheFacadeAvailable()) {
             return $fnBuildPayload();
@@ -59,7 +65,7 @@ class ColorLabPayloadCache
         $sCacheKey      = self::CACHE_KEY_PREFIX . $sPayloadKey;
         $mStoredPayload = \Cache::get($sCacheKey);
 
-        if (self::isStoredForVersion($mStoredPayload, $sVersion)) {
+        if (self::isStoredForVersion($mStoredPayload, $sVersion) || ($blServeAnyStoredVersion && self::isStoredCopy($mStoredPayload))) {
             return $mStoredPayload['payload'];
         }
 
@@ -78,9 +84,19 @@ class ColorLabPayloadCache
      */
     public static function isStoredForVersion(mixed $mStoredPayload, string $sVersion): bool
     {
+        return self::isStoredCopy($mStoredPayload) && $mStoredPayload['version'] === $sVersion;
+    }
+
+    /**
+     * @param mixed $mStoredPayload What the cache returned for a payload key.
+     *
+     * @return bool True when it is a copy this class stored: a payload with its version.
+     */
+    private static function isStoredCopy(mixed $mStoredPayload): bool
+    {
         return is_array($mStoredPayload)
             && array_key_exists('payload', $mStoredPayload)
-            && ($mStoredPayload['version'] ?? null) === $sVersion;
+            && is_string($mStoredPayload['version'] ?? null);
     }
 
     /**
@@ -110,6 +126,7 @@ class ColorLabPayloadCache
 
         foreach (self::ALL_PAYLOAD_KEYS as $sPayloadKey) {
             \Cache::forget(self::CACHE_KEY_PREFIX . $sPayloadKey);
+            \Cache::forget(self::LEGACY_CACHE_KEY_PREFIX . $sPayloadKey);
         }
     }
 

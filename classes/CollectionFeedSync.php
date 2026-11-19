@@ -22,8 +22,8 @@ use System\Models\Parameter;
  */
 class CollectionFeedSync
 {
-    /** System Parameter holding the offer count of the last applied run. */
-    public const LAST_OFFER_COUNT_PARAMETER = 'logingrupa.colorclassifier::collection_sync.offer_count';
+    /** System Parameter holding the full-catalog offer count of the last applied run. Releases that count the NAILO catalog use collection_sync.offer_count, so the two never compare against each other. */
+    public const LAST_OFFER_COUNT_PARAMETER = 'logingrupa.colorclassifier::collection_sync.full_offer_count';
 
     private const FAMILY_TABLE = 'logingrupa_colorclassifier_color_families';
 

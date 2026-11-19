@@ -19,10 +19,11 @@ class OfferLinkRefreshPlanner
     public const LINK_FIELDS = ['product_name', 'variation_name', 'detail_url', 'image_url'];
 
     /**
-     * @param array<string, array<string, mixed>> $arStoredLinkFieldsByOfferId Stored rows keyed by offer_id.
+     * @param array<string, array<string, mixed>> $arStoredLinkFieldsByOfferId Stored rows keyed by offer_id, with their is_locked flag.
      * @param array<int, array<string, mixed>>    $arCatalogOffers              Rows shaped like OfferDataProvider::getOffersWithImages().
      *
-     * @return array{changes: array<string, array<string, string>>, unchanged: int, absent: int}
+     * @return array{changes: array<string, array<string, string>>, unchanged: int, absent: int, reprocess: array<int, string>}
+     *         reprocess lists the offers whose image changed on an unlocked row: the stored color still describes the old picture.
      */
     public function plan(array $arStoredLinkFieldsByOfferId, array $arCatalogOffers): array
     {
@@ -33,6 +34,7 @@ class OfferLinkRefreshPlanner
         }
 
         $arChanges = [];
+        $arReprocess = [];
         $iUnchanged = 0;
         $iAbsent = 0;
 
@@ -52,9 +54,13 @@ class OfferLinkRefreshPlanner
             }
 
             $arChanges[(string) $sOfferId] = $arChangedFields;
+
+            if (array_key_exists('image_url', $arChangedFields) && empty($arStoredRow['is_locked'])) {
+                $arReprocess[] = (string) $sOfferId;
+            }
         }
 
-        return ['changes' => $arChanges, 'unchanged' => $iUnchanged, 'absent' => $iAbsent];
+        return ['changes' => $arChanges, 'unchanged' => $iUnchanged, 'absent' => $iAbsent, 'reprocess' => $arReprocess];
     }
 
     /**

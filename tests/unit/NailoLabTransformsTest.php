@@ -52,6 +52,20 @@ class NailoLabTransformsTest extends TestCase
     }
 
     /**
+     * buildListedOfferDetailUrl builds the URL from an offer directory entry.
+     */
+    public function test_buildListedOfferDetailUrl_uses_the_product_slug_and_variant_title(): void
+    {
+        $url = NailoLabTransforms::buildListedOfferDetailUrl([
+            'product_slug'  => 'magnetic-gel-polish',
+            'variant_title' => 'DISCO 49',
+            'product_name'  => 'Magnetic Gel Polish',
+        ]);
+
+        $this->assertSame('/products/detail/magnetic-gel-polish#v-disco-49--sheet', $url);
+    }
+
+    /**
      * buildDetailUrl with different slugs produces correct deep-link.
      */
     public function test_buildDetailUrl_varies_with_different_slugs(): void

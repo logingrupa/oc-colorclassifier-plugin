@@ -42,6 +42,18 @@ class NailoLabTransforms
     }
 
     /**
+     * Build the detail URL of an offer from its entry in the offer directory.
+     *
+     * @param array{product_slug: string, variant_title: string} $arListedOffer Offer directory entry.
+     *
+     * @return string Detail URL on the shop's product slug, at the offer's swatch.
+     */
+    public static function buildListedOfferDetailUrl(array $arListedOffer): string
+    {
+        return self::buildDetailUrl($arListedOffer['product_slug'], self::buildVariantSlug($arListedOffer['variant_title']));
+    }
+
+    /**
      * Convert a string to a URL-safe lowercase hyphenated slug.
      *
      * Steps:

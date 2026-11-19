@@ -1,5 +1,6 @@
 <?php
 
+use Logingrupa\ColorClassifier\Classes\OfferDataProvider;
 use Logingrupa\ColorClassifier\Classes\OfferRowBuilder;
 use PHPUnit\Framework\TestCase;
 
@@ -103,5 +104,42 @@ class OfferRowBuilderTest extends TestCase
         foreach ($arRows as $arRow) {
             $this->assertSame('', $arRow['detail_url']);
         }
+    }
+
+    /**
+     * @param array<int, array<string, mixed>>                  $arFullCatalog
+     * @param array<string, array<string, string>>              $arShopDirectory
+     */
+    private static function makeProvider(array $arFullCatalog, array $arShopDirectory): OfferDataProvider
+    {
+        return new class ($arFullCatalog, $arShopDirectory) extends OfferDataProvider {
+            public function __construct(private array $arFullCatalog, private array $arShopDirectory)
+            {
+            }
+
+            protected function loadFullCatalog(): array
+            {
+                return $this->arFullCatalog;
+            }
+
+            public function getOfferDirectory(): array
+            {
+                return $this->arShopDirectory;
+            }
+        };
+    }
+
+    public function test_provider_builds_rows_from_the_full_catalog_while_the_shop_directory_is_unreadable(): void
+    {
+        $arRows = self::makeProvider(self::fullCatalog(), [])->getOffersWithImages();
+
+        $this->assertSame(['m#a', 'c#a', 'c#b'], array_column($arRows, 'offer_id'));
+        $this->assertSame('NAI_S Magnetic 1C name', $arRows[0]['product_name']);
+        $this->assertSame('', $arRows[0]['detail_url']);
+    }
+
+    public function test_provider_gives_no_rows_when_the_full_catalog_is_unreadable(): void
+    {
+        $this->assertSame([], self::makeProvider([], self::shopDirectory())->getOffersWithImages());
     }
 }
