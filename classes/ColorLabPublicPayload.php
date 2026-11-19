@@ -9,8 +9,8 @@ use Logingrupa\ColorClassifier\Models\ColorFamily;
  * ColorLabPublicPayload - the payloads of the public Color Lab: the page entries
  * and the /api/color-lab/data document.
  *
- * Sole responsibility: assemble them for the offers the catalog lists, without
- * the cropped image blobs, and remember them per catalog directory version so
+ * Sole responsibility: assemble them for the offers the catalog lists (the page
+ * entries with their cropped image, the data document without), and remember them per catalog directory version so
  * the page, the component and the data route share one cached copy. While the
  * catalog cannot be read, the last payload built for a real directory is served,
  * and cacheControl() tells the browser not to keep it.
@@ -38,7 +38,7 @@ class ColorLabPublicPayload
     public function pageEntries(): array
     {
         return $this->remember(ColorLabPayloadCache::KEY_PAGE_ENTRIES, function (): array {
-            $arColorData = $this->mapListedEntries();
+            $arColorData = $this->mapListedEntries(true);
 
             return [
                 'entriesJson' => (string) json_encode($arColorData),
@@ -55,7 +55,7 @@ class ColorLabPublicPayload
         return $this->remember(ColorLabPayloadCache::KEY_DATA, function (): array {
             return [
                 'last_updated_at' => (string) ColorEntry::max('updated_at'),
-                'entries'         => $this->mapListedEntries(),
+                'entries'         => $this->mapListedEntries(false),
                 'taxonomy'        => ColorLabMapper::mapTaxonomy(ColorFamily::listFamilyNamesInOrder()),
             ];
         });
@@ -88,16 +88,18 @@ class ColorLabPublicPayload
     }
 
     /**
+     * @param bool $blIncludeCroppedImageData Read and append the cropped image (page view only).
+     *
      * @return array<int, array<string, mixed>> Public entries; only the rows of listed offers are read while the catalog is readable.
      */
-    private function mapListedEntries(): array
+    private function mapListedEntries(bool $blIncludeCroppedImageData): array
     {
-        $obEntryQuery = ColorEntry::withoutImageData();
+        $obEntryQuery = $blIncludeCroppedImageData ? ColorEntry::query() : ColorEntry::withoutImageData();
 
         if ($this->obOfferDirectory->isReadable()) {
             $obEntryQuery->whereIn('offer_id', $this->obOfferDirectory->listedOfferIds());
         }
 
-        return ColorLabMapper::mapPublicEntries($obEntryQuery->get(), $this->obOfferDirectory);
+        return ColorLabMapper::mapPublicEntries($obEntryQuery->get(), $this->obOfferDirectory, $blIncludeCroppedImageData);
     }
 }

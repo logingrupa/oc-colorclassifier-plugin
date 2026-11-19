@@ -20,18 +20,19 @@ class ColorLabMapper
      *
      * Hex, OKLCH, family and confidence are the effective values (manual
      * overrides applied); manual and autoFamily tell the consumer when and
-     * what the classifier originally said. The cropped image blob is never
-     * part of the shape, so callers select the columns without it.
+     * what the classifier originally said. Only the page view adds the
+     * cropped image blob; the JSON API omits it to keep the payload small.
      *
      * @param ColorEntry $obEntry Entry to map.
+     * @param bool $blIncludeCroppedImageData Append croppedImageData (page view only).
      *
      * @return array<string, mixed>
      */
-    public static function mapEntry(ColorEntry $obEntry): array
+    public static function mapEntry(ColorEntry $obEntry, bool $blIncludeCroppedImageData = false): array
     {
         $arEffective = EffectiveColorResolver::resolve($obEntry);
 
-        return [
+        $arEntryData = [
             'id'              => $obEntry->id,
             'productName'     => $obEntry->product_name,
             'variationName'   => $obEntry->variation_name,
@@ -50,24 +51,34 @@ class ColorLabMapper
             'imageUrl'        => $obEntry->image_url,
             'detailUrl'       => $obEntry->detail_url,
         ];
+
+        if ($blIncludeCroppedImageData) {
+            $arEntryData['croppedImageData'] = $obEntry->cropped_image_data;
+        }
+
+        return $arEntryData;
     }
 
     /**
      * Map the entries the public Color Lab shows: only offers the catalog lists,
      * under the names and link the catalog gives them now.
      *
-     * @param iterable<ColorEntry>   $obEntries        Stored entries.
-     * @param ColorLabOfferDirectory $obOfferDirectory Current catalog offers.
+     * @param iterable<ColorEntry>   $obEntries                 Stored entries.
+     * @param ColorLabOfferDirectory $obOfferDirectory          Current catalog offers.
+     * @param bool                   $blIncludeCroppedImageData Append croppedImageData (page view only).
      *
      * @return array<int, array<string, mixed>>
      */
-    public static function mapPublicEntries(iterable $obEntries, ColorLabOfferDirectory $obOfferDirectory): array
-    {
+    public static function mapPublicEntries(
+        iterable $obEntries,
+        ColorLabOfferDirectory $obOfferDirectory,
+        bool $blIncludeCroppedImageData = false
+    ): array {
         $arMappedEntries = [];
 
         foreach ($obOfferDirectory->filterListed($obEntries) as $obEntry) {
             $arMappedEntries[] = self::applyCurrentLabels(
-                self::mapEntry($obEntry),
+                self::mapEntry($obEntry, $blIncludeCroppedImageData),
                 $obOfferDirectory->resolveLabels((string) $obEntry->offer_id)
             );
         }
