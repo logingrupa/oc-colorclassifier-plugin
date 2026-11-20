@@ -37,6 +37,11 @@ class BatchProcessorNewOffersTest extends TestCase
                 return [['offer_id' => 'p#1', 'image_url' => 'https://example.test/1.png', 'category_path_ids' => ['group-a']]];
             }
 
+            public function getColorScopeExcludedProductIds(): array
+            {
+                return [];
+            }
+
             public function getColorScopeProductIds(): array
             {
                 return [];
@@ -60,6 +65,11 @@ class BatchProcessorNewOffersTest extends TestCase
             public function getOffersWithImages(): array
             {
                 return [['offer_id' => 'p#1', 'image_url' => 'https://example.test/1.png']];
+            }
+
+            public function getColorScopeExcludedProductIds(): array
+            {
+                return [];
             }
 
             public function getColorScopeProductIds(): array
@@ -88,6 +98,11 @@ class BatchProcessorNewOffersTest extends TestCase
                     ['offer_id' => 'listed#1', 'image_url' => 'https://example.test/1.png', 'category_path_ids' => []],
                     ['offer_id' => 'p#1', 'image_url' => 'https://example.test/2.png', 'category_path_ids' => []],
                 ];
+            }
+
+            public function getColorScopeExcludedProductIds(): array
+            {
+                return [];
             }
 
             public function getColorScopeProductIds(): array

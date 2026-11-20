@@ -230,7 +230,8 @@ class BatchProcessor
         $arScopedOffers = ColorScope::keepInScope(
             $arOffers,
             $this->offerDataProvider->getColorScopeGroupIds(),
-            $this->offerDataProvider->getColorScopeProductIds()
+            $this->offerDataProvider->getColorScopeProductIds(),
+            $this->offerDataProvider->getColorScopeExcludedProductIds()
         );
 
         if ($arOffers !== [] && ($arScopedOffers === [] || array_filter(array_column($arOffers, 'category_path_ids')) === [])) {

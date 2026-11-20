@@ -4,15 +4,17 @@ use Logingrupa\ColorClassifier\Classes\ColorScope;
 use PHPUnit\Framework\TestCase;
 
 /**
- * SCOPE-01..08: an offer row is in the color scope when the 1C group path of its
- * product holds a scope group id or its product id is listed; a row without a path
- * is out of scope unless its product is listed.
+ * SCOPE-01..10: an offer row is in the color scope when the 1C group path of its
+ * product holds a scope group id or its product id is listed, and its product is
+ * not excluded; a row without a path is out of scope unless its product is listed.
  */
 class ColorScopeTest extends TestCase
 {
     private const SCOPE_GROUP_ID = 'scope-group';
 
     private const SCOPE_PRODUCT_ID = 'listed-product';
+
+    private const EXCLUDED_PRODUCT_ID = 'excluded-product';
 
     /**
      * @param array<int, string>|null $arPathIds Null leaves the category_path_ids key out.
@@ -33,7 +35,7 @@ class ColorScopeTest extends TestCase
      */
     private static function keptOfferIds(array $arRows): array
     {
-        return array_column(ColorScope::keepInScope($arRows, [self::SCOPE_GROUP_ID, 'other-scope-group'], [self::SCOPE_PRODUCT_ID]), 'offer_id');
+        return array_column(ColorScope::keepInScope($arRows, [self::SCOPE_GROUP_ID, 'other-scope-group'], [self::SCOPE_PRODUCT_ID], [self::EXCLUDED_PRODUCT_ID]), 'offer_id');
     }
 
     public function test_scope01_a_row_in_a_scope_group_is_kept(): void
@@ -76,6 +78,7 @@ class ColorScopeTest extends TestCase
                 self::row('second', [self::SCOPE_GROUP_ID]),
             ],
             [self::SCOPE_GROUP_ID],
+            [],
             []
         );
 
@@ -103,5 +106,28 @@ class ColorScopeTest extends TestCase
                 self::row('other-product#' . self::SCOPE_PRODUCT_ID, ['outlet']),
             ])
         );
+    }
+
+    public function test_scope09_an_excluded_product_is_dropped_inside_a_scope_group(): void
+    {
+        $this->assertSame(
+            ['kept#1'],
+            self::keptOfferIds([
+                self::row(self::EXCLUDED_PRODUCT_ID . '#clear', [self::SCOPE_GROUP_ID, 'tops']),
+                self::row('kept#1', [self::SCOPE_GROUP_ID, 'tops']),
+            ])
+        );
+    }
+
+    public function test_scope10_exclusion_wins_over_the_product_list(): void
+    {
+        $arKept = ColorScope::keepInScope(
+            [self::row(self::SCOPE_PRODUCT_ID . '#1', ['outlet'])],
+            [self::SCOPE_GROUP_ID],
+            [self::SCOPE_PRODUCT_ID],
+            [self::SCOPE_PRODUCT_ID]
+        );
+
+        $this->assertSame([], $arKept);
     }
 }

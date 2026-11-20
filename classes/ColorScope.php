@@ -11,29 +11,38 @@ namespace Logingrupa\ColorClassifier\Classes;
  * from the top-level group down to the product's own group) holds at least one
  * scope group id, so every subgroup of a scope group is in scope too, or when
  * its product id (the part of the offer id before "#") is on the product list.
- * A row without a group path is out of scope until the next catalog warm,
- * unless its product is listed.
+ * An excluded product is out of scope whatever its group or listing. A row
+ * without a group path is out of scope until the next catalog warm, unless its
+ * product is listed.
  *
  * @package Logingrupa\ColorClassifier\Classes
  */
 final class ColorScope
 {
     /**
-     * @param array<int, array<string, mixed>> $arOfferRows        Rows from OfferRowBuilder.
-     * @param array<int, string>               $arScopeGroupIds    1C group ids that are in scope.
-     * @param array<int, string>               $arScopeProductIds  1C product ids that are in scope whatever their group.
+     * @param array<int, array<string, mixed>> $arOfferRows                Rows from OfferRowBuilder.
+     * @param array<int, string>               $arScopeGroupIds            1C group ids that are in scope.
+     * @param array<int, string>               $arScopeProductIds          1C product ids that are in scope whatever their group.
+     * @param array<int, string>               $arExcludedProductIds       1C product ids that are never in scope.
      *
      * @return array<int, array<string, mixed>> The rows in scope, in catalog order.
      */
-    public static function keepInScope(array $arOfferRows, array $arScopeGroupIds, array $arScopeProductIds): array
+    public static function keepInScope(array $arOfferRows, array $arScopeGroupIds, array $arScopeProductIds, array $arExcludedProductIds): array
     {
-        $arScopeGroupIdSet   = array_flip($arScopeGroupIds);
-        $arScopeProductIdSet = array_flip($arScopeProductIds);
+        $arScopeGroupIdSet      = array_flip($arScopeGroupIds);
+        $arScopeProductIdSet    = array_flip($arScopeProductIds);
+        $arExcludedProductIdSet = array_flip($arExcludedProductIds);
 
         return array_values(array_filter(
             $arOfferRows,
-            static function (array $arOfferRow) use ($arScopeGroupIdSet, $arScopeProductIdSet): bool {
-                if (isset($arScopeProductIdSet[strtok((string) ($arOfferRow['offer_id'] ?? ''), '#')])) {
+            static function (array $arOfferRow) use ($arScopeGroupIdSet, $arScopeProductIdSet, $arExcludedProductIdSet): bool {
+                $sProductId = strtok((string) ($arOfferRow['offer_id'] ?? ''), '#');
+
+                if (isset($arExcludedProductIdSet[$sProductId])) {
+                    return false;
+                }
+
+                if (isset($arScopeProductIdSet[$sProductId])) {
                     return true;
                 }
 

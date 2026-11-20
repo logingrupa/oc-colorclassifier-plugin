@@ -127,7 +127,7 @@ class OfferRowBuilderTest extends TestCase
 
         $this->assertSame(
             ['c#a', 'c#b'],
-            array_column(ColorScope::keepInScope($arRows, [self::SCOPE_GROUP_ID], []), 'offer_id')
+            array_column(ColorScope::keepInScope($arRows, [self::SCOPE_GROUP_ID], [], []), 'offer_id')
         );
     }
 

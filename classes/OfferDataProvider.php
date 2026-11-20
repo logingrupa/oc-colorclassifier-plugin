@@ -105,6 +105,16 @@ class OfferDataProvider
     }
 
     /**
+     * @return array<int, string> 1C product ids that never get new color entries, even inside a scope group; empty when the config lists none.
+     *
+     * @throws \RuntimeException When the list holds an invalid value.
+     */
+    public function getColorScopeExcludedProductIds(): array
+    {
+        return $this->readColorScopeIdList('color_scope_excluded_product_ids');
+    }
+
+    /**
      * @param string $sConfigKey Product config key of a list of 1C ids.
      *
      * @return array<int, string> The ids, empty when the key is missing.
