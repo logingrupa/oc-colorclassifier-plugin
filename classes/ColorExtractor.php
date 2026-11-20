@@ -36,6 +36,12 @@ class ColorExtractor
     /** @var int Fallback pixel cap in megapixels when Settings model is unavailable. */
     private const FALLBACK_MAX_IMAGE_MEGAPIXELS = 6;
 
+    /** @var int Highest pixel cap the setting may give; 12 MP decodes to about 48 MB of GD memory. */
+    private const CEILING_MAX_IMAGE_MEGAPIXELS = 12;
+
+    /** @var int Most bytes read from an image URL; a longer body fails without being decoded. */
+    private const MAX_DOWNLOAD_BYTES = 20971520;
+
     /**
      * Retrieve a setting value from the Settings model with a safe fallback.
      *
@@ -79,9 +85,9 @@ class ColorExtractor
             ],
         ]);
 
-        $imageData = @file_get_contents($imageUrl, false, $streamContext);
+        $imageData = @file_get_contents($imageUrl, false, $streamContext, 0, self::MAX_DOWNLOAD_BYTES + 1);
 
-        if ($imageData === false || strlen($imageData) === 0) {
+        if ($imageData === false || strlen($imageData) === 0 || strlen($imageData) > self::MAX_DOWNLOAD_BYTES) {
             return false;
         }
 
@@ -117,7 +123,7 @@ class ColorExtractor
     }
 
     /**
-     * @return int Most pixels an image may have, from the Max Image Size setting clamped to 1-40 megapixels.
+     * @return int Most pixels an image may have, from the Max Image Size setting clamped to 1-12 megapixels.
      */
     private static function maxImagePixels(): int
     {
@@ -127,7 +133,7 @@ class ColorExtractor
             $flMegapixels = self::FALLBACK_MAX_IMAGE_MEGAPIXELS;
         }
 
-        return (int) round(min(max($flMegapixels, 1), 40) * 1000000);
+        return (int) round(min(max($flMegapixels, 1), self::CEILING_MAX_IMAGE_MEGAPIXELS) * 1000000);
     }
 
     /**

@@ -79,10 +79,4 @@ class ColorScopeTest extends TestCase
         $this->assertSame(['first', 'second'], array_column($arKept, 'offer_id'));
     }
 
-    public function test_scope07_an_empty_scope_list_throws(): void
-    {
-        $this->expectException(\InvalidArgumentException::class);
-
-        ColorScope::keepInScope([self::row('a', [self::SCOPE_GROUP_ID])], []);
-    }
 }

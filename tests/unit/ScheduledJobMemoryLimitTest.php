@@ -20,10 +20,30 @@ class ScheduledJobMemoryLimitTest extends TestCase
         ini_set('memory_limit', $this->sPreviousMemoryLimit);
     }
 
-    public function test_apply_sets_the_memory_limit_to_128m(): void
+    public function test_apply_lowers_a_higher_limit_to_128m(): void
     {
+        ini_set('memory_limit', '256M');
+
         ScheduledJobMemoryLimit::apply();
 
         $this->assertSame('128M', ini_get('memory_limit'));
+    }
+
+    public function test_apply_lowers_an_unlimited_limit_to_128m(): void
+    {
+        ini_set('memory_limit', '-1');
+
+        ScheduledJobMemoryLimit::apply();
+
+        $this->assertSame('128M', ini_get('memory_limit'));
+    }
+
+    public function test_apply_keeps_a_lower_limit(): void
+    {
+        ini_set('memory_limit', '96M');
+
+        ScheduledJobMemoryLimit::apply();
+
+        $this->assertSame('96M', ini_get('memory_limit'));
     }
 }

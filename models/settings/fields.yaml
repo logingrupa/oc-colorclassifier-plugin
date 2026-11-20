@@ -50,9 +50,9 @@ tabs:
             label: Max Image Size (megapixels)
             type: number
             min: 1
-            max: 40
+            max: 12
             span: left
-            comment: Images larger than this fail without being opened, so one huge photo cannot use up the memory (1-40)
+            comment: Images larger than this fail without being opened, so one huge photo cannot use up the memory (1-12)
 
         # ─── Tab: Classification Thresholds ──────────────────────────────────
 

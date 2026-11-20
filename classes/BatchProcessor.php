@@ -20,8 +20,8 @@ class BatchProcessor
     /** @var array<int, string> CCache tags for offer list caching. */
     private const CACHE_TAGS = ['logingrupa', 'colorclassifier'];
 
-    /** @var string CCache key for the raw offer list. */
-    private const OFFER_LIST_CACHE_KEY = 'offer_list';
+    /** @var string CCache key for the offer list of the color scope. */
+    private const OFFER_LIST_CACHE_KEY = 'scoped_offer_list';
 
     /** @var string CCache key for the map of offer id to failed runs of processNewOffers(). */
     private const FAILED_NEW_OFFER_ATTEMPTS_CACHE_KEY = 'failed_new_offer_ids';
@@ -222,10 +222,18 @@ class BatchProcessor
      * @param array<int, array<string, mixed>> $arOffers Rows from OfferDataProvider::getOffersWithImages().
      *
      * @return array<int, array<string, mixed>> The rows in the color scope.
+     *
+     * @throws \RuntimeException When offers exist but none is in the scope, so no run writes from a catalog without group paths.
      */
     private function keepColorScope(array $arOffers): array
     {
-        return ColorScope::keepInScope($arOffers, $this->offerDataProvider->getColorScopeGroupIds());
+        $arScopedOffers = ColorScope::keepInScope($arOffers, $this->offerDataProvider->getColorScopeGroupIds());
+
+        if ($arOffers !== [] && $arScopedOffers === []) {
+            throw new \RuntimeException('No catalog offer is in the color scope. Run php artisan nailolab:warm-catalog, then try again.');
+        }
+
+        return $arScopedOffers;
     }
 
     /**

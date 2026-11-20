@@ -198,4 +198,16 @@ class ColorExtractorTest extends TestCase
         $this->assertInstanceOf(\GdImage::class, ColorExtractor::decodeImage($this->createPngBytes(100, 100), 10000));
         $this->assertFalse(ColorExtractor::decodeImage($this->createPngBytes(100, 101), 10000));
     }
+
+    /**
+     * CC-32: a small image downloads and decodes; a body over 20 MB fails without being decoded.
+     */
+    public function test_downloadImage_refuses_a_body_over_the_download_cap(): void
+    {
+        $sSmallImageUrl = 'data://image/png;base64,' . base64_encode($this->createPngBytes(10, 10));
+        $this->assertInstanceOf(\GdImage::class, ColorExtractor::downloadImage($sSmallImageUrl));
+
+        $sOversizedUrl = 'data://image/png;base64,' . base64_encode($this->createPngBytes(10, 10) . str_repeat("\0", 20971520));
+        $this->assertFalse(ColorExtractor::downloadImage($sOversizedUrl));
+    }
 }

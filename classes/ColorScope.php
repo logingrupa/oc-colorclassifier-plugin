@@ -21,15 +21,9 @@ final class ColorScope
      * @param array<int, string>               $arScopeGroupIds  1C group ids that are in scope.
      *
      * @return array<int, array<string, mixed>> The rows in scope, in catalog order.
-     *
-     * @throws \InvalidArgumentException When the scope list is empty.
      */
     public static function keepInScope(array $arOfferRows, array $arScopeGroupIds): array
     {
-        if ($arScopeGroupIds === []) {
-            throw new \InvalidArgumentException('The color scope needs at least one 1C group id.');
-        }
-
         $arScopeGroupIdSet = array_flip($arScopeGroupIds);
 
         return array_values(array_filter(
