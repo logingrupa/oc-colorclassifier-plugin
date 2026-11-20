@@ -4,12 +4,15 @@ use Logingrupa\ColorClassifier\Classes\ColorScope;
 use PHPUnit\Framework\TestCase;
 
 /**
- * SCOPE-01..07: an offer row is in the color scope when the 1C group path of its
- * product holds a scope group id; a row without a path is out of scope.
+ * SCOPE-01..08: an offer row is in the color scope when the 1C group path of its
+ * product holds a scope group id or its product id is listed; a row without a path
+ * is out of scope unless its product is listed.
  */
 class ColorScopeTest extends TestCase
 {
     private const SCOPE_GROUP_ID = 'scope-group';
+
+    private const SCOPE_PRODUCT_ID = 'listed-product';
 
     /**
      * @param array<int, string>|null $arPathIds Null leaves the category_path_ids key out.
@@ -30,7 +33,7 @@ class ColorScopeTest extends TestCase
      */
     private static function keptOfferIds(array $arRows): array
     {
-        return array_column(ColorScope::keepInScope($arRows, [self::SCOPE_GROUP_ID, 'other-scope-group']), 'offer_id');
+        return array_column(ColorScope::keepInScope($arRows, [self::SCOPE_GROUP_ID, 'other-scope-group'], [self::SCOPE_PRODUCT_ID]), 'offer_id');
     }
 
     public function test_scope01_a_row_in_a_scope_group_is_kept(): void
@@ -72,11 +75,33 @@ class ColorScopeTest extends TestCase
                 self::row('dropped', ['tools']),
                 self::row('second', [self::SCOPE_GROUP_ID]),
             ],
-            [self::SCOPE_GROUP_ID]
+            [self::SCOPE_GROUP_ID],
+            []
         );
 
         $this->assertSame([0, 1], array_keys($arKept));
         $this->assertSame(['first', 'second'], array_column($arKept, 'offer_id'));
     }
 
+    public function test_scope07_an_offer_of_a_listed_product_is_kept_in_any_group(): void
+    {
+        $this->assertSame(
+            [self::SCOPE_PRODUCT_ID . '#red', self::SCOPE_PRODUCT_ID . '#blue'],
+            self::keptOfferIds([
+                self::row(self::SCOPE_PRODUCT_ID . '#red', ['outlet']),
+                self::row(self::SCOPE_PRODUCT_ID . '#blue', null),
+            ])
+        );
+    }
+
+    public function test_scope08_a_listed_product_id_matches_only_the_part_before_the_hash(): void
+    {
+        $this->assertSame(
+            [self::SCOPE_PRODUCT_ID],
+            self::keptOfferIds([
+                self::row(self::SCOPE_PRODUCT_ID, ['outlet']),
+                self::row('other-product#' . self::SCOPE_PRODUCT_ID, ['outlet']),
+            ])
+        );
+    }
 }

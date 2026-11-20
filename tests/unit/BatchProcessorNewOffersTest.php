@@ -37,6 +37,11 @@ class BatchProcessorNewOffersTest extends TestCase
                 return [['offer_id' => 'p#1', 'image_url' => 'https://example.test/1.png', 'category_path_ids' => ['group-a']]];
             }
 
+            public function getColorScopeProductIds(): array
+            {
+                return [];
+            }
+
             public function getColorScopeGroupIds(): array
             {
                 return ['group-b'];
@@ -57,6 +62,11 @@ class BatchProcessorNewOffersTest extends TestCase
                 return [['offer_id' => 'p#1', 'image_url' => 'https://example.test/1.png']];
             }
 
+            public function getColorScopeProductIds(): array
+            {
+                return [];
+            }
+
             public function getColorScopeGroupIds(): array
             {
                 return ['group-a'];
@@ -67,5 +77,33 @@ class BatchProcessorNewOffersTest extends TestCase
         $this->expectExceptionMessage('Run php artisan nailolab:warm-catalog');
 
         (new BatchProcessor($obUnwarmedCatalogProvider))->processNewOffers(100);
+    }
+
+    public function test_a_listed_product_does_not_let_a_catalog_without_group_paths_through(): void
+    {
+        $obUnwarmedCatalogWithListedProductProvider = new class extends OfferDataProvider {
+            public function getOffersWithImages(): array
+            {
+                return [
+                    ['offer_id' => 'listed#1', 'image_url' => 'https://example.test/1.png', 'category_path_ids' => []],
+                    ['offer_id' => 'p#1', 'image_url' => 'https://example.test/2.png', 'category_path_ids' => []],
+                ];
+            }
+
+            public function getColorScopeProductIds(): array
+            {
+                return ['listed'];
+            }
+
+            public function getColorScopeGroupIds(): array
+            {
+                return ['group-a'];
+            }
+        };
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Run php artisan nailolab:warm-catalog');
+
+        (new BatchProcessor($obUnwarmedCatalogWithListedProductProvider))->processNewOffers(100);
     }
 }

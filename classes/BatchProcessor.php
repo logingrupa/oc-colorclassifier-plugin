@@ -223,13 +223,17 @@ class BatchProcessor
      *
      * @return array<int, array<string, mixed>> The rows in the color scope.
      *
-     * @throws \RuntimeException When offers exist but none is in the scope, so no run writes from a catalog without group paths.
+     * @throws \RuntimeException When offers exist but none carries a group path or none is in the scope, so no run writes from a catalog cached before group paths existed.
      */
     private function keepColorScope(array $arOffers): array
     {
-        $arScopedOffers = ColorScope::keepInScope($arOffers, $this->offerDataProvider->getColorScopeGroupIds());
+        $arScopedOffers = ColorScope::keepInScope(
+            $arOffers,
+            $this->offerDataProvider->getColorScopeGroupIds(),
+            $this->offerDataProvider->getColorScopeProductIds()
+        );
 
-        if ($arOffers !== [] && $arScopedOffers === []) {
+        if ($arOffers !== [] && ($arScopedOffers === [] || array_filter(array_column($arOffers, 'category_path_ids')) === [])) {
             throw new \RuntimeException('No catalog offer is in the color scope. Run php artisan nailolab:warm-catalog, then try again.');
         }
 

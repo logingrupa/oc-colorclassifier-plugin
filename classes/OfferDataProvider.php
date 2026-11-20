@@ -85,19 +85,47 @@ class OfferDataProvider
      */
     public function getColorScopeGroupIds(): array
     {
-        $arGroupIds = $this->loadProductConfig()['color_scope_group_ids'] ?? null;
+        $arGroupIds = $this->readColorScopeIdList('color_scope_group_ids');
 
-        if (!is_array($arGroupIds) || $arGroupIds === []) {
+        if ($arGroupIds === []) {
             throw new \RuntimeException('product-config.php has no color_scope_group_ids');
         }
 
-        foreach ($arGroupIds as $sGroupId) {
-            if (!is_string($sGroupId) || $sGroupId === '') {
-                throw new \RuntimeException('product-config.php has an invalid value in color_scope_group_ids');
+        return $arGroupIds;
+    }
+
+    /**
+     * @return array<int, string> 1C product ids whose offers get new color entries whatever their group; empty when the config lists none.
+     *
+     * @throws \RuntimeException When the list holds an invalid value.
+     */
+    public function getColorScopeProductIds(): array
+    {
+        return $this->readColorScopeIdList('color_scope_product_ids');
+    }
+
+    /**
+     * @param string $sConfigKey Product config key of a list of 1C ids.
+     *
+     * @return array<int, string> The ids, empty when the key is missing.
+     *
+     * @throws \RuntimeException When the value is not a list of non-empty strings.
+     */
+    private function readColorScopeIdList(string $sConfigKey): array
+    {
+        $arIds = $this->loadProductConfig()[$sConfigKey] ?? [];
+
+        if (!is_array($arIds)) {
+            throw new \RuntimeException("product-config.php has an invalid {$sConfigKey}");
+        }
+
+        foreach ($arIds as $sId) {
+            if (!is_string($sId) || $sId === '') {
+                throw new \RuntimeException("product-config.php has an invalid value in {$sConfigKey}");
             }
         }
 
-        return array_values($arGroupIds);
+        return array_values($arIds);
     }
 
     /**
